@@ -92,7 +92,14 @@ export default function LoginPage() {
     )
   }
 
-  const isFirebaseConfigured = process.env.NEXT_PUBLIC_FIREBASE_API_KEY && !process.env.NEXT_PUBLIC_FIREBASE_API_KEY.startsWith('YOUR_');
+  const isFirebaseConfigured = 
+    process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+    !process.env.NEXT_PUBLIC_FIREBASE_API_KEY.startsWith('YOUR_') &&
+    process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN &&
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID &&
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET &&
+    process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID &&
+    process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
 
   if (!isFirebaseConfigured) {
     return (
