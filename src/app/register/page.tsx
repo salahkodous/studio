@@ -99,14 +99,16 @@ export default function RegisterPage() {
     )
   }
 
-  if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+  const isFirebaseConfigured = process.env.NEXT_PUBLIC_FIREBASE_API_KEY && !process.env.NEXT_PUBLIC_FIREBASE_API_KEY.startsWith('YOUR_');
+
+  if (!isFirebaseConfigured) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)] p-4">
         <Card className="w-full max-w-sm">
           <CardHeader>
             <CardTitle className="text-2xl font-headline">تهيئة ناقصة</CardTitle>
             <CardDescription>
-              مفاتيح Firebase API غير موجودة. الرجاء إضافتها إلى ملف .env لتفعيل المصادقة.
+              مفاتيح Firebase API غير موجودة أو غير صالحة. الرجاء إضافتها إلى ملف .env لتفعيل المصادقة.
             </CardDescription>
           </CardHeader>
         </Card>
