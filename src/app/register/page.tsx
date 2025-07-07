@@ -63,6 +63,21 @@ export default function RegisterPage() {
     setLoading(false)
   }
 
+  if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-8rem)] p-4">
+        <Card className="w-full max-w-sm">
+          <CardHeader>
+            <CardTitle className="text-2xl font-headline">تهيئة ناقصة</CardTitle>
+            <CardDescription>
+              مفاتيح Firebase API غير موجودة. الرجاء إضافتها إلى ملف .env لتفعيل المصادقة.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-8rem)] p-4">
       <Card className="w-full max-w-sm">
