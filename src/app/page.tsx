@@ -39,6 +39,7 @@ export default function HomePage() {
                 <Skeleton className="h-5 w-2/3" />
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-4/5" />
               </CardContent>
             </Card>
@@ -78,14 +79,13 @@ export default function HomePage() {
               </Link>
             </Button>
           </div>
-          <div className="md:w-1/2">
+          <div className="md:w-1/2 flex items-center justify-center">
              <Image
-              src="https://placehold.co/600x400.png"
-              alt="Investment Dashboard"
-              width={600}
-              height={400}
-              className="rounded-lg shadow-2xl"
-              data-ai-hint="investment finance"
+              src="/tharawat-hero.png"
+              alt="Tharawat App Logo"
+              width={500}
+              height={500}
+              className="rounded-lg"
             />
           </div>
         </div>
