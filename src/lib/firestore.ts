@@ -1,6 +1,11 @@
-import { doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove, collection, addDoc, getDocs, query, orderBy, Timestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove, collection, addDoc, getDocs, query, orderBy, Timestamp, onSnapshot, type Unsubscribe } from "firebase/firestore";
 import { getFirestoreDb } from "./firebase";
 import type { InvestmentStrategyOutput } from "@/ai/schemas/investment-strategy-schema";
+
+export type SavedStrategy = InvestmentStrategyOutput & {
+  id: string
+  createdAt: Date
+}
 
 /**
  * Retrieves the user's watchlist from Firestore.
@@ -23,6 +28,36 @@ export async function getWatchlist(userId: string): Promise<string[]> {
         return [];
     }
 }
+
+
+/**
+ * Sets up a real-time listener for the user's watchlist.
+ * @param userId The ID of the user.
+ * @param callback The function to call with the updated watchlist.
+ * @returns An unsubscribe function to detach the listener.
+ */
+export function onWatchlistUpdate(userId: string, callback: (watchlist: string[]) => void): Unsubscribe | undefined {
+    const db = getFirestoreDb();
+    if (!db) {
+        callback([]);
+        return;
+    }
+
+    const userDocRef = doc(db, "users", userId);
+    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+            callback(docSnap.data().watchlist || []);
+        } else {
+            setDoc(userDocRef, { watchlist: [] });
+        }
+    }, (error) => {
+        console.error("Error listening to watchlist:", error);
+        callback([]);
+    });
+
+    return unsubscribe;
+}
+
 
 /**
  * Adds a stock ticker to the user's watchlist.
@@ -75,7 +110,7 @@ export async function saveStrategy(userId: string, strategy: InvestmentStrategyO
  * @param userId - The ID of the user.
  * @returns A promise that resolves to an array of saved strategy objects.
  */
-export async function getStrategies(userId: string): Promise<(InvestmentStrategyOutput & { id: string; createdAt: Date })[]> {
+export async function getStrategies(userId: string): Promise<SavedStrategy[]> {
     const db = getFirestoreDb();
     if (!db) return [];
     
@@ -89,6 +124,41 @@ export async function getStrategies(userId: string): Promise<(InvestmentStrategy
             id: doc.id,
             ...data,
             createdAt: (data.createdAt as Timestamp).toDate(),
-        } as InvestmentStrategyOutput & { id: string; createdAt: Date };
+        } as SavedStrategy;
     });
+}
+
+
+/**
+ * Sets up a real-time listener for the user's strategies.
+ * @param userId The ID of the user.
+ * @param callback The function to call with the updated strategies.
+ * @returns An unsubscribe function to detach the listener.
+ */
+export function onStrategiesUpdate(userId: string, callback: (strategies: SavedStrategy[]) => void): Unsubscribe | undefined {
+    const db = getFirestoreDb();
+    if (!db) {
+        callback([]);
+        return;
+    }
+
+    const strategiesCollectionRef = collection(db, "users", userId, "strategies");
+    const q = query(strategiesCollectionRef, orderBy("createdAt", "desc"));
+    
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const strategies = querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                createdAt: (data.createdAt as Timestamp).toDate(),
+            } as SavedStrategy;
+        });
+        callback(strategies);
+    }, (error) => {
+        console.error("Error listening to strategies:", error);
+        callback([]);
+    });
+
+    return unsubscribe;
 }

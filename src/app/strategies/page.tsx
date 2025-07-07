@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
-import { getStrategies } from '@/lib/firestore'
-import type { InvestmentStrategyOutput } from '@/ai/schemas/investment-strategy-schema'
+import { getStrategies, type SavedStrategy } from '@/lib/firestore'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Accordion,
@@ -18,11 +17,6 @@ import { AlertTriangle, Lightbulb, PieChart as PieChartIcon, Archive } from 'luc
 import type { ChartConfig } from '@/components/ui/chart'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Pie, PieChart, Cell } from "recharts"
-
-type SavedStrategy = InvestmentStrategyOutput & {
-  id: string
-  createdAt: Date
-}
 
 export default function StrategiesPage() {
   const { user, loading: authLoading } = useAuth()

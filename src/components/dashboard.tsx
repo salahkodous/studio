@@ -3,10 +3,9 @@
 import { useState, useEffect } from 'react'
 import type { User } from 'firebase/auth'
 import Link from 'next/link'
-import { getWatchlist, getStrategies } from '@/lib/firestore'
+import { onWatchlistUpdate, onStrategiesUpdate, type SavedStrategy } from '@/lib/firestore'
 import { stocks } from '@/lib/data'
 import type { Stock } from '@/lib/data'
-import type { InvestmentStrategyOutput } from '@/ai/schemas/investment-strategy-schema'
 import { StockCard } from '@/components/stock-card'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
@@ -17,39 +16,43 @@ interface DashboardProps {
   user: User
 }
 
-type SavedStrategy = InvestmentStrategyOutput & {
-  id: string
-  createdAt: Date
-}
-
 export function Dashboard({ user }: DashboardProps) {
   const [watchlist, setWatchlist] = useState<Stock[]>([])
   const [latestStrategy, setLatestStrategy] = useState<SavedStrategy | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        const [watchlistTickers, strategies] = await Promise.all([
-          getWatchlist(user.uid),
-          getStrategies(user.uid),
-        ])
+    if (!user.uid) return;
 
-        const watchlistStocks = stocks.filter(stock => watchlistTickers.includes(stock.ticker))
-        setWatchlist(watchlistStocks)
-        
-        if (strategies.length > 0) {
-          setLatestStrategy(strategies[0])
-        }
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error)
-      } finally {
-        setLoading(false)
+    setLoading(true);
+
+    let watchlistLoaded = false;
+    let strategiesLoaded = false;
+
+    const checkLoading = () => {
+      if(watchlistLoaded && strategiesLoaded) {
+        setLoading(false);
       }
     }
 
-    fetchData()
-  }, [user.uid])
+    const unsubscribeWatchlist = onWatchlistUpdate(user.uid, (watchlistTickers) => {
+      const watchlistStocks = stocks.filter(stock => watchlistTickers.includes(stock.ticker));
+      setWatchlist(watchlistStocks);
+      watchlistLoaded = true;
+      checkLoading();
+    });
+
+    const unsubscribeStrategies = onStrategiesUpdate(user.uid, (strategies) => {
+      setLatestStrategy(strategies.length > 0 ? strategies[0] : null);
+      strategiesLoaded = true;
+      checkLoading();
+    });
+
+    return () => {
+      unsubscribeWatchlist?.();
+      unsubscribeStrategies?.();
+    };
+  }, [user.uid]);
 
   if (loading) {
     return <DashboardSkeleton />
