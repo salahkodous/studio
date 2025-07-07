@@ -36,7 +36,7 @@ const summarizeStockNewsPrompt = ai.definePrompt({
   Stock Ticker: {{{ticker}}}
   News Articles: {{#each newsArticles}}{{{this}}}\n{{/each}}
 
-  Please provide a concise summary of the news articles related to the given stock ticker.
+  Please provide a concise summary of the news articles related to the given stock ticker in Arabic.
   `,
 });
 

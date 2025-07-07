@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowUpRight, ArrowDownRight, Minus, X } from 'lucide-react'
 import type { Stock } from '@/lib/data'
 import { Button } from './ui/button'
+import { getCurrencySymbol } from '@/lib/utils'
 
 interface StockCardProps {
   stock: Stock
@@ -22,6 +23,7 @@ export function StockCard({ stock, onRemove }: StockCardProps) {
       : stock.trend === 'down'
       ? 'text-destructive'
       : 'text-muted-foreground'
+  const currencySymbol = getCurrencySymbol(stock.currency);
 
   const handleRemove = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault()
@@ -39,7 +41,7 @@ export function StockCard({ stock, onRemove }: StockCardProps) {
           size="icon"
           className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity z-10"
           onClick={handleRemove}
-          aria-label={`Remove ${stock.name} from watchlist`}
+          aria-label={`إزالة ${stock.name} من قائمة المتابعة`}
         >
           <X className="h-4 w-4" />
         </Button>
@@ -55,7 +57,7 @@ export function StockCard({ stock, onRemove }: StockCardProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">${stock.price.toFixed(2)}</div>
+          <div className="text-2xl font-bold">{stock.price.toFixed(2)} {currencySymbol}</div>
           <div className={`flex items-center text-xs ${trendColor}`}>
             <TrendIcon className="h-4 w-4 mr-1" />
             <span>

@@ -5,8 +5,8 @@ import { Toaster } from '@/components/ui/toaster'
 import { cn } from '@/lib/utils'
 
 export const metadata: Metadata = {
-  title: 'GulfStream Analytics',
-  description: 'Simple Gulf Stock Analysis App',
+  title: 'تحليلات جلف ستريم',
+  description: 'تطبيق بسيط لتحليل الأسهم الخليجية',
 }
 
 export default function RootLayout({
@@ -15,12 +15,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="ar" dir="rtl" className="dark" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap"
           rel="stylesheet"
         ></link>
       </head>

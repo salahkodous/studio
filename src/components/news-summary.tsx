@@ -18,7 +18,7 @@ async function NewsSummaryContent({ ticker }: { ticker: string }) {
   if (!articles || articles.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        No recent news for {stock?.name || ticker}.
+        لا توجد أخبار حديثة لـ {stock?.name || ticker}.
       </p>
     )
   }
@@ -34,7 +34,7 @@ async function NewsSummaryContent({ ticker }: { ticker: string }) {
     )
   } catch (e) {
     console.error(e)
-    return <p className="text-sm text-destructive">Could not load news summary.</p>
+    return <p className="text-sm text-destructive">تعذر تحميل ملخص الأخبار.</p>
   }
 }
 
@@ -45,9 +45,9 @@ export function NewsSummary({ ticker }: { ticker: string }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 font-headline">
           <Newspaper className="w-5 h-5 text-primary" />
-          News: {stock?.name || ticker}
+          أخبار: {stock?.name || ticker}
         </CardTitle>
-        <CardDescription>AI-powered summary of recent news.</CardDescription>
+        <CardDescription>ملخص إخباري مدعوم بالذكاء الاصطناعي.</CardDescription>
       </CardHeader>
       <CardContent>
         <Suspense fallback={<Skeleton className="h-24 w-full" />}>

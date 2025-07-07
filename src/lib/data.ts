@@ -5,56 +5,63 @@ export interface Stock {
   change: string
   changePercent: string
   trend: 'up' | 'down' | 'stable'
+  currency: 'SAR' | 'QAR' | 'AED'
 }
 
 export const stocks: Stock[] = [
   {
     ticker: 'ARAMCO',
-    name: 'Saudi Aramco',
+    name: 'أرامكو السعودية',
     price: 34.8,
     change: '+0.45',
     changePercent: '+1.31%',
     trend: 'up',
+    currency: 'SAR',
   },
   {
     ticker: 'ALRAJHI',
-    name: 'Al Rajhi Bank',
+    name: 'مصرف الراجحي',
     price: 80.2,
     change: '-0.10',
     changePercent: '-0.12%',
     trend: 'down',
+    currency: 'SAR',
   },
   {
     ticker: 'SABIC',
-    name: 'Saudi Basic Industries Corp',
+    name: 'سابك',
     price: 92.5,
     change: '+1.20',
     changePercent: '+1.31%',
     trend: 'up',
+    currency: 'SAR',
   },
   {
     ticker: 'QNB',
-    name: 'Qatar National Bank',
+    name: 'بنك قطر الوطني',
     price: 17.5,
     change: '+0.05',
     changePercent: '+0.29%',
     trend: 'up',
+    currency: 'QAR',
   },
   {
     ticker: 'EMAAR',
-    name: 'Emaar Properties',
+    name: 'إعمار العقارية',
     price: 5.8,
     change: '0.00',
     changePercent: '0.00%',
     trend: 'stable',
+    currency: 'AED',
   },
   {
     ticker: 'FAB',
-    name: 'First Abu Dhabi Bank',
+    name: 'بنك أبوظبي الأول',
     price: 13.9,
     change: '-0.02',
     changePercent: '-0.14%',
     trend: 'down',
+    currency: 'AED',
   },
 ]
 
@@ -65,7 +72,7 @@ export interface User {
 }
 
 export const user: User = {
-  name: 'Ahmed Al-Farsi',
+  name: 'أحمد الفارسي',
   email: 'ahmed@gulfstream.co',
   watchlist: ['ARAMCO', 'SABIC'],
 }

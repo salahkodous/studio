@@ -30,8 +30,8 @@ export default function WatchlistPage() {
       setWatchlist([...watchlist, selectedStock])
       const stock = stocks.find((s) => s.ticker === selectedStock)
       toast({
-        title: 'Added to Watchlist',
-        description: `${stock?.name || selectedStock} has been added.`,
+        title: 'أضيف إلى قائمة المتابعة',
+        description: `${stock?.name || selectedStock} تمت إضافته.`,
       })
       setSelectedStock('')
     }
@@ -41,8 +41,8 @@ export default function WatchlistPage() {
     setWatchlist(watchlist.filter((t) => t !== ticker))
     const stock = stocks.find((s) => s.ticker === ticker)
     toast({
-      title: 'Removed from Watchlist',
-      description: `${stock?.name || ticker} has been removed.`,
+      title: 'تمت الإزالة من قائمة المتابعة',
+      description: `${stock?.name || ticker} تمت إزالته.`,
       variant: 'destructive',
     })
   }
@@ -50,11 +50,11 @@ export default function WatchlistPage() {
   return (
     <div className="container mx-auto p-4 md:p-8">
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
-        <h1 className="text-3xl font-bold font-headline">My Watchlist</h1>
+        <h1 className="text-3xl font-bold font-headline">قائمة المتابعة</h1>
         <div className="flex gap-2">
           <Select value={selectedStock} onValueChange={setSelectedStock}>
             <SelectTrigger className="w-full md:w-[240px]">
-              <SelectValue placeholder="Add a stock to watch" />
+              <SelectValue placeholder="أضف سهماً للمتابعة" />
             </SelectTrigger>
             <SelectContent>
               {availableStocks.map((stock) => (
@@ -65,7 +65,7 @@ export default function WatchlistPage() {
             </SelectContent>
           </Select>
           <Button onClick={handleAddToWatchlist} disabled={!selectedStock}>
-            <PlusCircle className="mr-2 h-4 w-4" /> Add
+            <PlusCircle className="mr-2 h-4 w-4" /> إضافة
           </Button>
         </div>
       </div>
@@ -83,10 +83,10 @@ export default function WatchlistPage() {
       ) : (
         <div className="text-center py-24 border-2 border-dashed rounded-lg">
           <h3 className="text-xl font-semibold text-muted-foreground">
-            Your watchlist is empty
+            قائمة المتابعة فارغة
           </h3>
           <p className="text-sm text-muted-foreground mt-2">
-            Add stocks using the dropdown above to track them here.
+            أضف أسهماً باستخدام القائمة المنسدلة أعلاه لتتبعها هنا.
           </p>
         </div>
       )}

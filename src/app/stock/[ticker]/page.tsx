@@ -12,6 +12,7 @@ import { ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react'
 import { NewsSummary } from '@/components/news-summary'
 import { Button } from '@/components/ui/button'
 import { PlusCircle } from 'lucide-react'
+import { getCurrencySymbol } from '@/lib/utils'
 
 export default function StockDetailPage({
   params,
@@ -39,6 +40,7 @@ export default function StockDetailPage({
       : stock.trend === 'down'
       ? 'text-destructive'
       : 'text-muted-foreground'
+  const currencySymbol = getCurrencySymbol(stock.currency);
 
   return (
     <div className="container mx-auto p-4 md:p-8">
@@ -48,7 +50,7 @@ export default function StockDetailPage({
             {stock.name} ({stock.ticker})
           </h1>
           <div className="flex items-baseline gap-4 mt-2">
-            <p className="text-3xl font-bold">${stock.price.toFixed(2)}</p>
+            <p className="text-3xl font-bold">{stock.price.toFixed(2)} {currencySymbol}</p>
             <div className={`flex items-center text-lg ${trendColor}`}>
               <TrendIcon className="h-5 w-5 mr-1" />
               <span>
@@ -59,20 +61,20 @@ export default function StockDetailPage({
         </div>
         <div className="flex gap-2">
           <Button>
-            <PlusCircle className="mr-2 h-4 w-4" /> Add to Watchlist
+            <PlusCircle className="mr-2 h-4 w-4" /> إضافة إلى قائمة المتابعة
           </Button>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="font-headline">Price Chart (90 days)</CardTitle>
+          <CardTitle className="font-headline">الرسم البياني للسعر (90 يومًا)</CardTitle>
           <CardDescription>
-            Interactive chart showing stock performance.
+            رسم بياني تفاعلي يوضح أداء السهم.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0 sm:p-2 md:p-4">
-          <StockChart data={priceHistory} />
+          <StockChart data={priceHistory} currency={stock.currency} />
         </CardContent>
       </Card>
 

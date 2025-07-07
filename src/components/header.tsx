@@ -11,7 +11,7 @@ export function Header() {
           <Link href="/" className="mr-6 flex items-center space-x-2">
             <Mountain className="h-6 w-6" />
             <span className="hidden font-bold sm:inline-block font-headline">
-              GulfStream Analytics
+              تحليلات جلف ستريم
             </span>
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
@@ -19,19 +19,19 @@ export function Header() {
               href="/"
               className="transition-colors hover:text-foreground/80 text-foreground/60"
             >
-              Dashboard
+              لوحة التحكم
             </Link>
             <Link
               href="/watchlist"
               className="transition-colors hover:text-foreground/80 text-foreground/60"
             >
-              Watchlist
+              قائمة المتابعة
             </Link>
             <Link
               href="/news"
               className="transition-colors hover:text-foreground/80 text-foreground/60"
             >
-              News
+              الأخبار
             </Link>
           </nav>
         </div>
@@ -47,23 +47,23 @@ export function Header() {
             <Link href="/" className="mr-6 flex items-center space-x-2">
               <Mountain className="h-6 w-6" />
               <span className="font-bold font-headline">
-                GulfStream Analytics
+                تحليلات جلف ستريم
               </span>
             </Link>
             <div className="mt-6 flex flex-col space-y-4 text-lg">
-              <Link href="/">Dashboard</Link>
-              <Link href="/watchlist">Watchlist</Link>
-              <Link href="/news">News</Link>
+              <Link href="/">لوحة التحكم</Link>
+              <Link href="/watchlist">قائمة المتابعة</Link>
+              <Link href="/news">الأخبار</Link>
             </div>
           </SheetContent>
         </Sheet>
 
         <div className="flex flex-1 items-center justify-end space-x-2">
           <Button asChild variant="ghost">
-            <Link href="/login">Login</Link>
+            <Link href="/login">تسجيل الدخول</Link>
           </Button>
           <Button asChild>
-            <Link href="/register">Register</Link>
+            <Link href="/register">إنشاء حساب</Link>
           </Button>
         </div>
       </div>

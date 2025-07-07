@@ -16,14 +16,14 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-[calc(100vh-8rem)] p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-2xl font-headline">Login</CardTitle>
+          <CardTitle className="text-2xl font-headline">تسجيل الدخول</CardTitle>
           <CardDescription>
-            Enter your email below to login to your account.
+            أدخل بريدك الإلكتروني أدناه لتسجيل الدخول إلى حسابك.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">البريد الإلكتروني</Label>
             <Input
               id="email"
               type="email"
@@ -32,16 +32,16 @@ export default function LoginPage() {
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">كلمة المرور</Label>
             <Input id="password" type="password" required />
           </div>
         </CardContent>
         <CardFooter className="flex flex-col">
-          <Button className="w-full">Sign in</Button>
+          <Button className="w-full">تسجيل الدخول</Button>
           <div className="mt-4 text-center text-sm">
-            Don&apos;t have an account?{' '}
+            ليس لديك حساب؟{' '}
             <Link href="/register" className="underline">
-              Sign up
+              إنشاء حساب
             </Link>
           </div>
         </CardFooter>

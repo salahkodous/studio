@@ -12,12 +12,15 @@ import {
   ChartTooltipContent,
   ChartContainer,
 } from '@/components/ui/chart'
+import { getCurrencySymbol } from '@/lib/utils'
 
 interface StockChartProps {
   data: { date: string; price: number }[]
+  currency: 'SAR' | 'QAR' | 'AED'
 }
 
-export function StockChart({ data }: StockChartProps) {
+export function StockChart({ data, currency }: StockChartProps) {
+  const currencySymbol = getCurrencySymbol(currency);
   return (
     <div className="h-[250px] w-full md:h-[400px]">
       <ChartContainer config={{}} className="h-full w-full">
@@ -47,7 +50,7 @@ export function StockChart({ data }: StockChartProps) {
             <XAxis
               dataKey="date"
               tickFormatter={(value) =>
-                new Date(value).toLocaleDateString('en-US', {
+                new Date(value).toLocaleDateString('ar-SA', {
                   month: 'short',
                   day: 'numeric',
                 })
@@ -58,7 +61,7 @@ export function StockChart({ data }: StockChartProps) {
             />
             <YAxis
               domain={['dataMin - 5', 'dataMax + 5']}
-              tickFormatter={(value) => `$${value}`}
+              tickFormatter={(value) => `${value} ${currencySymbol}`}
               axisLine={false}
               tickLine={false}
               tickMargin={8}
@@ -72,12 +75,12 @@ export function StockChart({ data }: StockChartProps) {
               }}
               content={
                 <ChartTooltipContent
-                  formatter={(value) => `$${Number(value).toFixed(2)}`}
+                  formatter={(value) => `${Number(value).toFixed(2)} ${currencySymbol}`}
                   labelFormatter={(label, payload) => {
                     if (payload && payload.length > 0) {
                       return new Date(
                         payload[0].payload.date
-                      ).toLocaleDateString('en-US', { dateStyle: 'medium' })
+                      ).toLocaleDateString('ar-SA', { dateStyle: 'medium' })
                     }
                     return label
                   }}

@@ -16,18 +16,18 @@ export default function RegisterPage() {
     <div className="flex items-center justify-center min-h-[calc(100vh-8rem)] p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-2xl font-headline">Register</CardTitle>
+          <CardTitle className="text-2xl font-headline">إنشاء حساب</CardTitle>
           <CardDescription>
-            Create an account to get started.
+            أنشئ حسابًا للبدء.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
-            <Label htmlFor="name">Name</Label>
-            <Input id="name" placeholder="Ahmed Al-Farsi" required />
+            <Label htmlFor="name">الاسم</Label>
+            <Input id="name" placeholder="أحمد الفارسي" required />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">البريد الإلكتروني</Label>
             <Input
               id="email"
               type="email"
@@ -36,16 +36,16 @@ export default function RegisterPage() {
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">كلمة المرور</Label>
             <Input id="password" type="password" required />
           </div>
         </CardContent>
         <CardFooter className="flex flex-col">
-          <Button className="w-full">Create Account</Button>
+          <Button className="w-full">إنشاء حساب</Button>
           <div className="mt-4 text-center text-sm">
-            Already have an account?{' '}
+            لديك حساب بالفعل؟{' '}
             <Link href="/login" className="underline">
-              Sign in
+              تسجيل الدخول
             </Link>
           </div>
         </CardFooter>
