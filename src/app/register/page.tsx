@@ -58,11 +58,15 @@ export default function RegisterPage() {
       router.push('/watchlist')
     } catch (error: any) {
       console.error(error)
+      const description = error.message.includes('Firebase: Error (auth/email-already-in-use)')
+        ? 'هذا البريد الإلكتروني مستخدم بالفعل.'
+        : error.message.includes('Firebase is not configured')
+        ? 'تهيئة Firebase غير صحيحة. الرجاء التحقق من مفاتيح API.'
+        : 'حدث خطأ غير متوقع. الرجاء المحاولة مرة أخرى.'
+
       toast({
         title: 'خطأ في إنشاء الحساب',
-        description: error.message === 'Firebase: Error (auth/email-already-in-use).' 
-          ? 'هذا البريد الإلكتروني مستخدم بالفعل.'
-          : 'حدث خطأ غير متوقع. الرجاء المحاولة مرة أخرى.',
+        description,
         variant: 'destructive',
       })
     }
@@ -94,30 +98,6 @@ export default function RegisterPage() {
           <CardFooter>
             <Skeleton className="h-10 w-full" />
           </CardFooter>
-        </Card>
-      </div>
-    )
-  }
-
-  const isFirebaseConfigured = 
-    process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
-    !process.env.NEXT_PUBLIC_FIREBASE_API_KEY.startsWith('YOUR_') &&
-    process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN &&
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID &&
-    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET &&
-    process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID &&
-    process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
-
-  if (!isFirebaseConfigured) {
-    return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-8rem)] p-4">
-        <Card className="w-full max-w-sm">
-          <CardHeader>
-            <CardTitle className="text-2xl font-headline">تهيئة ناقصة</CardTitle>
-            <CardDescription>
-              مفاتيح Firebase API غير موجودة أو غير صالحة. الرجاء إضافتها إلى ملف .env لتفعيل المصادقة.
-            </CardDescription>
-          </CardHeader>
         </Card>
       </div>
     )
