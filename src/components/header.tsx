@@ -19,19 +19,13 @@ export function Header() {
               href="/"
               className="transition-colors hover:text-foreground/80 text-foreground/60"
             >
-              لوحة التحكم
+              الرئيسية
             </Link>
             <Link
-              href="/watchlist"
-              className="transition-colors hover:text-foreground/80 text-foreground/60"
+              href="/guide"
+              className="transition-colors hover:text-foreground/80 text-foreground"
             >
-              قائمة المتابعة
-            </Link>
-            <Link
-              href="/news"
-              className="transition-colors hover:text-foreground/80 text-foreground/60"
-            >
-              الأخبار
+              دليل الاستثمار
             </Link>
           </nav>
         </div>
@@ -51,9 +45,8 @@ export function Header() {
               </span>
             </Link>
             <div className="mt-6 flex flex-col space-y-4 text-lg">
-              <Link href="/">لوحة التحكم</Link>
-              <Link href="/watchlist">قائمة المتابعة</Link>
-              <Link href="/news">الأخبار</Link>
+              <Link href="/">الرئيسية</Link>
+              <Link href="/guide">دليل الاستثمار</Link>
             </div>
           </SheetContent>
         </Sheet>

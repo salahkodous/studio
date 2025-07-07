@@ -13,9 +13,6 @@ export default function NewsPage() {
         {stocksWithNews.map((stock) => (
           <NewsSummary key={stock.ticker} ticker={stock.ticker} />
         ))}
-         {stocksWithNews.map((stock) => (
-          <NewsSummary key={`${stock.ticker}-2`} ticker={stock.ticker} />
-        ))}
       </div>
     </div>
   )

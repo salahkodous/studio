@@ -1,58 +1,49 @@
-import { summarizeStockNews } from '@/ai/flows/summarize-stock-news'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card'
+'use client'
+
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { newsArticles, stocks } from '@/lib/data'
-import { Skeleton } from './ui/skeleton'
-import { Suspense } from 'react'
-import { Newspaper } from 'lucide-react'
+import { BookOpen } from 'lucide-react'
+import Link from 'next/link'
 
-async function NewsSummaryContent({ ticker }: { ticker: string }) {
-  const articles = newsArticles[ticker]
-  const stock = stocks.find((s) => s.ticker === ticker)
-
-  if (!articles || articles.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        لا توجد أخبار حديثة لـ {stock?.name || ticker}.
-      </p>
-    )
-  }
-
-  try {
-    const { summary } = await summarizeStockNews({
-      ticker,
-      newsArticles: articles,
-    })
-
-    return (
-      <p className="text-sm text-foreground/80 leading-relaxed">{summary}</p>
-    )
-  } catch (e) {
-    console.error(e)
-    return <p className="text-sm text-destructive">تعذر تحميل ملخص الأخبار.</p>
-  }
+interface NewsSummaryProps {
+  ticker: string
 }
 
-export function NewsSummary({ ticker }: { ticker: string }) {
+export function NewsSummary({ ticker }: NewsSummaryProps) {
   const stock = stocks.find((s) => s.ticker === ticker)
+  const articles = newsArticles[ticker] || []
+
+  if (!stock) return null
+
   return (
-    <Card className="h-full">
+    <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 font-headline">
-          <Newspaper className="w-5 h-5 text-primary" />
-          أخبار: {stock?.name || ticker}
+        <CardTitle className="text-lg font-headline flex items-center justify-between">
+          <span>أخبار عن {stock.name}</span>
+          <BookOpen className="w-5 h-5 text-muted-foreground" />
         </CardTitle>
-        <CardDescription>ملخص إخباري مدعوم بالذكاء الاصطناعي.</CardDescription>
       </CardHeader>
       <CardContent>
-        <Suspense fallback={<Skeleton className="h-24 w-full" />}>
-          <NewsSummaryContent ticker={ticker} />
-        </Suspense>
+        {articles.length > 0 ? (
+          <ul className="space-y-3">
+            {articles.map((url, index) => (
+              <li key={index} className="text-sm">
+                <Link
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:underline text-primary"
+                >
+                  {`خبر ${index + 1} عن ${stock.ticker}`}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            لا توجد أخبار حديثة لهذا السهم.
+          </p>
+        )}
       </CardContent>
     </Card>
   )
