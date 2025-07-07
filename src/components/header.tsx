@@ -1,9 +1,22 @@
+'use client'
+
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Menu, Mountain } from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import { cn } from '@/lib/utils'
+
+const navItems = [
+  { href: '/', label: 'الرئيسية' },
+  { href: '/guide', label: 'دليل الاستثمار' },
+  { href: '/watchlist', label: 'قائمة المتابعة' },
+  { href: '/news', label: 'أخبار السوق' },
+];
 
 export function Header() {
+  const pathname = usePathname()
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center">
@@ -15,18 +28,18 @@ export function Header() {
             </span>
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
-            <Link
-              href="/"
-              className="transition-colors hover:text-foreground/80 text-foreground/60"
-            >
-              الرئيسية
-            </Link>
-            <Link
-              href="/guide"
-              className="transition-colors hover:text-foreground/80 text-foreground"
-            >
-              دليل الاستثمار
-            </Link>
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'transition-colors hover:text-foreground/80',
+                  pathname === item.href ? 'text-foreground' : 'text-foreground/60'
+                )}
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
         </div>
 
@@ -45,8 +58,18 @@ export function Header() {
               </span>
             </Link>
             <div className="mt-6 flex flex-col space-y-4 text-lg">
-              <Link href="/">الرئيسية</Link>
-              <Link href="/guide">دليل الاستثمار</Link>
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'transition-colors hover:text-foreground/80',
+                    pathname === item.href ? 'text-foreground font-semibold' : 'text-foreground/80'
+                  )}
+                >
+                  {item.label}
+                </Link>
+              ))}
             </div>
           </SheetContent>
         </Sheet>

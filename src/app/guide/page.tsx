@@ -13,8 +13,11 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useToast } from '@/hooks/use-toast'
-import { Loader2, Wand2, Lightbulb, TrendingUp, AlertTriangle } from 'lucide-react'
+import { Loader2, Wand2, Lightbulb, PieChart as PieChartIcon, AlertTriangle } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
+import type { ChartConfig } from '@/components/ui/chart'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { Pie, PieChart, Cell } from "recharts"
 
 const formSchema = z.object({
   capital: z.coerce.number().min(1000, 'الحد الأدنى لرأس المال هو 1000 دولار'),
@@ -76,6 +79,17 @@ export default function GuidePage() {
     }
     setLoading(false)
   }
+
+  const chartData = result?.assetAllocation ?? [];
+  const chartConfig = (chartData.reduce((acc, curr, index) => {
+    const key = curr.category.replace(/[^a-zA-Z0-9]/g, "");
+    acc[key] = {
+      label: curr.category,
+      color: `hsl(var(--chart-${(index % 5) + 1}))`,
+    };
+    return acc;
+  }, {} as ChartConfig));
+
 
   return (
     <div className="container mx-auto max-w-4xl p-4 md:p-8">
@@ -191,20 +205,60 @@ export default function GuidePage() {
           <CardContent className="space-y-6">
             <Separator />
             <div>
-              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5" />
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <PieChartIcon className="w-5 h-5" />
                 توزيع الأصول المقترح
               </h3>
-              <div className="space-y-4">
-                {result.assetAllocation.map((asset, index) => (
-                  <div key={index}>
-                    <div className="flex justify-between mb-1">
-                      <span className="font-medium">{asset.category}</span>
-                      <span className="font-mono">{asset.percentage}%</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{asset.rationale}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div className="order-2 md:order-1">
+                  <div className="grid gap-3 text-sm">
+                    {result.assetAllocation.map((asset, index) => (
+                      <div key={index} className="flex items-start gap-3">
+                        <div
+                          className="w-3 h-3 rounded-full shrink-0 mt-1"
+                          style={{
+                            backgroundColor: `hsl(var(--chart-${(index % 5) + 1}))`,
+                          }}
+                        />
+                        <div className="flex-1">
+                          <div className="flex justify-between font-medium">
+                            <span>{asset.category}</span>
+                            <span>{asset.percentage}%</span>
+                          </div>
+                          <p className="text-muted-foreground">{asset.rationale}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
+                <div className="order-1 md:order-2">
+                   <ChartContainer
+                      config={chartConfig}
+                      className="mx-auto aspect-square h-[250px]"
+                    >
+                      <PieChart>
+                        <ChartTooltip
+                          cursor={false}
+                          content={<ChartTooltipContent hideLabel />}
+                        />
+                        <Pie
+                          data={chartData}
+                          dataKey="percentage"
+                          nameKey="category"
+                          innerRadius={60}
+                          strokeWidth={2}
+                        >
+                          {chartData.map((entry) => (
+                            <Cell
+                              key={entry.category}
+                              fill={`var(--color-${entry.category.replace(/[^a-zA-Z0-9]/g, "")})`}
+                              className="focus:outline-none"
+                            />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ChartContainer>
+                </div>
               </div>
             </div>
             <Separator />
