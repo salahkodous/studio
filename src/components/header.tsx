@@ -1,11 +1,23 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet'
 import { Menu, Mountain } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/use-auth'
+import { logOut } from '@/lib/auth'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 const navItems = [
   { href: '/', label: 'الرئيسية' },
@@ -16,6 +28,18 @@ const navItems = [
 
 export function Header() {
   const pathname = usePathname()
+  const { user, loading } = useAuth()
+  const router = useRouter()
+
+  const handleSignOut = async () => {
+    await logOut();
+    router.push('/');
+  }
+
+  const getInitials = (name?: string | null) => {
+    if (!name) return 'U'
+    return name.split(' ').map(n => n[0]).join('').toUpperCase()
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -63,16 +87,17 @@ export function Header() {
               </Link>
               <div className="mt-6 flex flex-col space-y-4 text-lg">
                 {navItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      'transition-colors hover:text-foreground/80',
-                      pathname === item.href ? 'text-foreground font-semibold' : 'text-foreground/80'
-                    )}
-                  >
-                    {item.label}
-                  </Link>
+                  <SheetClose asChild key={item.href}>
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        'transition-colors hover:text-foreground/80',
+                        pathname === item.href ? 'text-foreground font-semibold' : 'text-foreground/80'
+                      )}
+                    >
+                      {item.label}
+                    </Link>
+                  </SheetClose>
                 ))}
               </div>
             </SheetContent>
@@ -89,12 +114,43 @@ export function Header() {
 
         {/* Right Side: Auth Buttons */}
         <div className="flex items-center justify-end space-x-2">
-          <Button asChild variant="ghost">
-            <Link href="/login">تسجيل الدخول</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/register">إنشاء حساب</Link>
-          </Button>
+          {loading ? (
+             <div className="h-8 w-20 animate-pulse rounded-md bg-muted"></div>
+          ) : user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
+                    <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{user.displayName}</p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user.email}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut}>
+                  تسجيل الخروج
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <>
+              <Button asChild variant="ghost">
+                <Link href="/login">تسجيل الدخول</Link>
+              </Button>
+              <Button asChild>
+                <Link href="/register">إنشاء حساب</Link>
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </header>

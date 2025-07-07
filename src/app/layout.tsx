@@ -3,6 +3,7 @@ import './globals.css'
 import { Header } from '@/components/header'
 import { Toaster } from '@/components/ui/toaster'
 import { cn } from '@/lib/utils'
+import { AuthProvider } from '@/hooks/use-auth'
 
 export const metadata: Metadata = {
   title: 'تحليلات جلف ستريم',
@@ -25,11 +26,13 @@ export default function RootLayout({
         ></link>
       </head>
       <body className={cn('min-h-screen bg-background font-body antialiased')}>
-        <div className="relative flex min-h-screen flex-col">
-          <Header />
-          <div className="flex-1">{children}</div>
-        </div>
-        <Toaster />
+        <AuthProvider>
+          <div className="relative flex min-h-screen flex-col">
+            <Header />
+            <div className="flex-1">{children}</div>
+          </div>
+          <Toaster />
+        </AuthProvider>
       </body>
     </html>
   )
