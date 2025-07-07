@@ -14,9 +14,6 @@ export async function signUp(email: string, password: string, displayName: strin
     await updateProfile(userCredential.user, { displayName });
     return userCredential.user;
   } catch (error: any) {
-    if (error.code === 'auth/configuration-not-found') {
-        throw new Error('Firebase configuration is incorrect. Please ensure you have enabled Email/Password sign-in in the Firebase console.');
-    }
     console.error("Error signing up: ", error);
     throw error;
   }
@@ -29,9 +26,6 @@ export async function signIn(email: string, password: string) {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return userCredential.user;
   } catch (error: any) {
-     if (error.code === 'auth/configuration-not-found') {
-        throw new Error('Firebase configuration is incorrect. Please ensure you have enabled Email/Password sign-in in the Firebase console.');
-    }
     console.error("Error signing in: ", error);
     throw error;
   }

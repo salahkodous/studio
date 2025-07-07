@@ -63,11 +63,22 @@ export default function RegisterPage() {
       router.push('/watchlist')
     } catch (error: any) {
       console.error(error)
-      const description = error.message.includes('Firebase: Error (auth/email-already-in-use)')
-        ? 'هذا البريد الإلكتروني مستخدم بالفعل.'
-        : error.message.includes('Firebase configuration is incorrect')
-        ? 'تهيئة Firebase غير صحيحة. يرجى التأكد من تمكين تسجيل الدخول بالبريد الإلكتروني/كلمة المرور في لوحة تحكم Firebase.'
-        : 'حدث خطأ غير متوقع. الرجاء المحاولة مرة أخرى.'
+      let description = 'حدث خطأ غير متوقع. الرجاء المحاولة مرة أخرى.';
+      if (error.code) {
+        switch (error.code) {
+            case 'auth/email-already-in-use':
+                description = 'هذا البريد الإلكتروني مستخدم بالفعل.';
+                break;
+            case 'auth/configuration-not-found':
+                description = 'تهيئة Firebase غير صحيحة. يرجى التأكد من تمكين تسجيل الدخول بالبريد الإلكتروني/كلمة المرور في لوحة تحكم Firebase.';
+                break;
+            case 'auth/invalid-credential':
+                description = 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
+                break;
+        }
+      } else if (error.message.includes('Firebase is not configured')) {
+        description = 'مفاتيح Firebase API غير موجودة أو غير صالحة. يرجى التحقق من ملف .env الخاص بك.'
+      }
 
       toast({
         title: 'خطأ في إنشاء الحساب',
