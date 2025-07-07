@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove, collection, addDoc, getDocs, query, orderBy, Timestamp } from "firebase/firestore";
-import { db, isFirebaseConfigured } from "./firebase";
+import { getFirestoreDb } from "./firebase";
 import type { InvestmentStrategyOutput } from "@/ai/schemas/investment-strategy-schema";
 
 /**
@@ -9,7 +9,8 @@ import type { InvestmentStrategyOutput } from "@/ai/schemas/investment-strategy-
  * @returns A promise that resolves to an array of stock tickers.
  */
 export async function getWatchlist(userId: string): Promise<string[]> {
-    if (!isFirebaseConfigured || !db) return [];
+    const db = getFirestoreDb();
+    if (!db) return [];
 
     const userDocRef = doc(db, "users", userId);
     const docSnap = await getDoc(userDocRef);
@@ -29,7 +30,8 @@ export async function getWatchlist(userId: string): Promise<string[]> {
  * @param ticker - The stock ticker to add.
  */
 export async function addToWatchlist(userId: string, ticker: string) {
-    if (!isFirebaseConfigured || !db) return;
+    const db = getFirestoreDb();
+    if (!db) return;
 
     const userDocRef = doc(db, "users", userId);
     await updateDoc(userDocRef, {
@@ -43,7 +45,8 @@ export async function addToWatchlist(userId: string, ticker: string) {
  * @param ticker - The stock ticker to remove.
  */
 export async function removeFromWatchlist(userId: string, ticker: string) {
-    if (!isFirebaseConfigured || !db) return;
+    const db = getFirestoreDb();
+    if (!db) return;
 
     const userDocRef = doc(db, "users", userId);
     await updateDoc(userDocRef, {
@@ -57,7 +60,8 @@ export async function removeFromWatchlist(userId: string, ticker: string) {
  * @param strategy - The investment strategy object to save.
  */
 export async function saveStrategy(userId: string, strategy: InvestmentStrategyOutput) {
-    if (!isFirebaseConfigured || !db) return;
+    const db = getFirestoreDb();
+    if (!db) return;
 
     const strategiesCollectionRef = collection(db, "users", userId, "strategies");
     await addDoc(strategiesCollectionRef, {
@@ -72,7 +76,8 @@ export async function saveStrategy(userId: string, strategy: InvestmentStrategyO
  * @returns A promise that resolves to an array of saved strategy objects.
  */
 export async function getStrategies(userId: string): Promise<(InvestmentStrategyOutput & { id: string; createdAt: Date })[]> {
-    if (!isFirebaseConfigured || !db) return [];
+    const db = getFirestoreDb();
+    if (!db) return [];
     
     const strategiesCollectionRef = collection(db, "users", userId, "strategies");
     const q = query(strategiesCollectionRef, orderBy("createdAt", "desc"));
