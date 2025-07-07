@@ -13,11 +13,13 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useToast } from '@/hooks/use-toast'
-import { Loader2, Wand2, Lightbulb, PieChart as PieChartIcon, AlertTriangle } from 'lucide-react'
+import { Loader2, Wand2, Lightbulb, PieChart as PieChartIcon, AlertTriangle, Save } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import type { ChartConfig } from '@/components/ui/chart'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Pie, PieChart, Cell } from "recharts"
+import { useAuth } from '@/hooks/use-auth'
+import { saveStrategy } from '@/lib/firestore'
 
 const formSchema = z.object({
   capital: z.coerce.number().min(1000, 'الحد الأدنى لرأس المال هو 1000 دولار'),
@@ -44,6 +46,7 @@ export default function GuidePage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<InvestmentStrategyOutput | null>(null)
   const { toast } = useToast()
+  const { user } = useAuth()
 
   const {
     register,
@@ -69,11 +72,25 @@ export default function GuidePage() {
     try {
       const response = await generateInvestmentStrategy(data)
       setResult(response)
+
+      if (user) {
+        await saveStrategy(user.uid, response)
+        toast({
+          title: 'تم حفظ الخطة',
+          description: 'يمكنك عرض خططك المحفوظة في صفحة "خططي الاستثمارية".',
+          action: (
+            <div className="flex items-center">
+                <Save className="h-4 w-4 mr-2" />
+                <span>حُفظت بنجاح</span>
+            </div>
+          )
+        })
+      }
     } catch (error) {
-      console.error('Error generating strategy:', error)
+      console.error('Error generating or saving strategy:', error)
       toast({
         title: 'حدث خطأ',
-        description: 'لم نتمكن من إنشاء خطة الاستثمار. الرجاء المحاولة مرة أخرى.',
+        description: 'لم نتمكن من إنشاء أو حفظ خطة الاستثمار. الرجاء المحاولة مرة أخرى.',
         variant: 'destructive',
       })
     }
@@ -103,7 +120,7 @@ export default function GuidePage() {
       <Card>
         <CardHeader>
           <CardTitle>إنشاء خطة استثمار</CardTitle>
-          <CardDescription>املأ النموذج أدناه للحصول على استراتيجيتك.</CardDescription>
+          <CardDescription>املأ النموذج أدناه للحصول على استراتيجيتك. إذا كنت مسجلاً دخولك، سيتم حفظ الخطة تلقائياً.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">

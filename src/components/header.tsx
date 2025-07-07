@@ -22,7 +22,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 const navItems = [
   { href: '/', label: 'الرئيسية' },
   { href: '/guide', label: 'دليل الاستثمار' },
-  { href: '/watchlist', label: 'قائمة المتابعة' },
+  { href: '/watchlist', label: 'قائمة المتابعة', auth: true },
+  { href: '/strategies', label: 'خططي الاستثمارية', auth: true },
   { href: '/news', label: 'أخبار السوق' },
 ];
 
@@ -40,6 +41,8 @@ export function Header() {
     if (!name) return 'U'
     return name.split(' ').map(n => n[0]).join('').toUpperCase()
   }
+  
+  const visibleNavItems = navItems.filter(item => !item.auth || (item.auth && user));
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -55,7 +58,7 @@ export function Header() {
               </span>
             </Link>
             <nav className="flex items-center space-x-6 text-sm font-medium">
-              {navItems.map((item) => (
+              {visibleNavItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
@@ -86,7 +89,7 @@ export function Header() {
                 </span>
               </Link>
               <div className="mt-6 flex flex-col space-y-4 text-lg">
-                {navItems.map((item) => (
+                {visibleNavItems.map((item) => (
                   <SheetClose asChild key={item.href}>
                     <Link
                       href={item.href}

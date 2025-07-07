@@ -1,5 +1,6 @@
-import { doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove, collection, addDoc, getDocs, query, orderBy, Timestamp } from "firebase/firestore";
 import { db } from "./firebase";
+import type { InvestmentStrategyOutput } from "@/ai/schemas/investment-strategy-schema";
 
 /**
  * Retrieves the user's watchlist from Firestore.
@@ -29,8 +30,6 @@ export async function getWatchlist(userId: string): Promise<string[]> {
  */
 export async function addToWatchlist(userId: string, ticker: string) {
     const userDocRef = doc(db, "users", userId);
-    // Use updateDoc with arrayUnion to add a new ticker to the watchlist array.
-    // arrayUnion prevents duplicate entries.
     await updateDoc(userDocRef, {
         watchlist: arrayUnion(ticker)
     });
@@ -43,8 +42,40 @@ export async function addToWatchlist(userId: string, ticker: string) {
  */
 export async function removeFromWatchlist(userId: string, ticker: string) {
     const userDocRef = doc(db, "users", userId);
-    // Use updateDoc with arrayRemove to remove a ticker from the watchlist array.
     await updateDoc(userDocRef, {
         watchlist: arrayRemove(ticker)
+    });
+}
+
+/**
+ * Saves a generated investment strategy to the user's account.
+ * @param userId - The ID of the user.
+ * @param strategy - The investment strategy object to save.
+ */
+export async function saveStrategy(userId: string, strategy: InvestmentStrategyOutput) {
+    const strategiesCollectionRef = collection(db, "users", userId, "strategies");
+    await addDoc(strategiesCollectionRef, {
+        ...strategy,
+        createdAt: new Date(),
+    });
+}
+
+/**
+ * Retrieves all saved investment strategies for a user.
+ * @param userId - The ID of the user.
+ * @returns A promise that resolves to an array of saved strategy objects.
+ */
+export async function getStrategies(userId: string): Promise<(InvestmentStrategyOutput & { id: string; createdAt: Date })[]> {
+    const strategiesCollectionRef = collection(db, "users", userId, "strategies");
+    const q = query(strategiesCollectionRef, orderBy("createdAt", "desc"));
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+            id: doc.id,
+            ...data,
+            createdAt: (data.createdAt as Timestamp).toDate(),
+        } as InvestmentStrategyOutput & { id: string; createdAt: Date };
     });
 }
