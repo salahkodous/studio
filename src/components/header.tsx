@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet'
-import { Menu, Mountain } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Logo } from './logo'
 
 const navItems = [
   { href: '/', label: 'الرئيسية' },
@@ -52,9 +53,9 @@ export function Header() {
           {/* Desktop Nav */}
           <div className="mr-4 hidden md:flex">
             <Link href="/" className="mr-6 flex items-center space-x-2">
-              <Mountain className="h-6 w-6" />
+              <Logo className="h-6 w-6 text-primary" />
               <span className="hidden font-bold sm:inline-block font-headline">
-                تحليلات جلف ستريم
+                ثروات
               </span>
             </Link>
             <nav className="flex items-center space-x-6 text-sm font-medium">
@@ -83,9 +84,9 @@ export function Header() {
             </SheetTrigger>
             <SheetContent side="left">
               <Link href="/" className="mr-6 flex items-center space-x-2">
-                <Mountain className="h-6 w-6" />
+                <Logo className="h-6 w-6 text-primary" />
                 <span className="font-bold font-headline">
-                  تحليلات جلف ستريم
+                  ثروات
                 </span>
               </Link>
               <div className="mt-6 flex flex-col space-y-4 text-lg">
@@ -110,7 +111,7 @@ export function Header() {
         {/* Mobile Logo (in the middle) */}
         <div className="md:hidden">
           <Link href="/" className="flex items-center">
-            <Mountain className="h-6 w-6" />
+            <Logo className="h-6 w-6 text-primary" />
             <span className="sr-only">Home</span>
           </Link>
         </div>
