@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm, type SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { signUp } from '@/lib/auth'
 import { Loader2 } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const formSchema = z.object({
   name: z.string().min(2, 'يجب أن يكون الاسم من حرفين على الأقل.'),
@@ -31,6 +32,7 @@ type FormValues = z.infer<typeof formSchema>
 
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
+  const [isClient, setIsClient] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
   const {
@@ -40,6 +42,10 @@ export default function RegisterPage() {
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
   })
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setLoading(true)
@@ -61,6 +67,36 @@ export default function RegisterPage() {
       })
     }
     setLoading(false)
+  }
+
+  if (!isClient) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-8rem)] p-4">
+        <Card className="w-full max-w-sm">
+          <CardHeader>
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-4 w-48 mt-2" />
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="grid gap-2">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <div className="grid gap-2">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <div className="grid gap-2">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Skeleton className="h-10 w-full" />
+          </CardFooter>
+        </Card>
+      </div>
+    )
   }
 
   if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
