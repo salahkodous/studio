@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove, collection, addDoc, getDocs, query, orderBy, Timestamp } from "firebase/firestore";
-import { getFirebase } from "./firebase";
+import { db, isFirebaseConfigured } from "./firebase";
 import type { InvestmentStrategyOutput } from "@/ai/schemas/investment-strategy-schema";
 
 /**
@@ -9,10 +9,9 @@ import type { InvestmentStrategyOutput } from "@/ai/schemas/investment-strategy-
  * @returns A promise that resolves to an array of stock tickers.
  */
 export async function getWatchlist(userId: string): Promise<string[]> {
-    const firebase = getFirebase();
-    if (!firebase) return [];
+    if (!isFirebaseConfigured || !db) return [];
 
-    const userDocRef = doc(firebase.db, "users", userId);
+    const userDocRef = doc(db, "users", userId);
     const docSnap = await getDoc(userDocRef);
 
     if (docSnap.exists()) {
@@ -30,10 +29,9 @@ export async function getWatchlist(userId: string): Promise<string[]> {
  * @param ticker - The stock ticker to add.
  */
 export async function addToWatchlist(userId: string, ticker: string) {
-    const firebase = getFirebase();
-    if (!firebase) return;
+    if (!isFirebaseConfigured || !db) return;
 
-    const userDocRef = doc(firebase.db, "users", userId);
+    const userDocRef = doc(db, "users", userId);
     await updateDoc(userDocRef, {
         watchlist: arrayUnion(ticker)
     });
@@ -45,10 +43,9 @@ export async function addToWatchlist(userId: string, ticker: string) {
  * @param ticker - The stock ticker to remove.
  */
 export async function removeFromWatchlist(userId: string, ticker: string) {
-    const firebase = getFirebase();
-    if (!firebase) return;
+    if (!isFirebaseConfigured || !db) return;
 
-    const userDocRef = doc(firebase.db, "users", userId);
+    const userDocRef = doc(db, "users", userId);
     await updateDoc(userDocRef, {
         watchlist: arrayRemove(ticker)
     });
@@ -60,10 +57,9 @@ export async function removeFromWatchlist(userId: string, ticker: string) {
  * @param strategy - The investment strategy object to save.
  */
 export async function saveStrategy(userId: string, strategy: InvestmentStrategyOutput) {
-    const firebase = getFirebase();
-    if (!firebase) return;
+    if (!isFirebaseConfigured || !db) return;
 
-    const strategiesCollectionRef = collection(firebase.db, "users", userId, "strategies");
+    const strategiesCollectionRef = collection(db, "users", userId, "strategies");
     await addDoc(strategiesCollectionRef, {
         ...strategy,
         createdAt: new Date(),
@@ -76,10 +72,9 @@ export async function saveStrategy(userId: string, strategy: InvestmentStrategyO
  * @returns A promise that resolves to an array of saved strategy objects.
  */
 export async function getStrategies(userId: string): Promise<(InvestmentStrategyOutput & { id: string; createdAt: Date })[]> {
-    const firebase = getFirebase();
-    if (!firebase) return [];
+    if (!isFirebaseConfigured || !db) return [];
     
-    const strategiesCollectionRef = collection(firebase.db, "users", userId, "strategies");
+    const strategiesCollectionRef = collection(db, "users", userId, "strategies");
     const q = query(strategiesCollectionRef, orderBy("createdAt", "desc"));
     const querySnapshot = await getDocs(q);
     

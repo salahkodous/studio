@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast'
 import { signUp } from '@/lib/auth'
 import { Loader2 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
+import { isFirebaseConfigured } from '@/lib/firebase'
 
 const formSchema = z.object({
   name: z.string().min(2, 'يجب أن يكون الاسم من حرفين على الأقل.'),
@@ -33,6 +34,7 @@ type FormValues = z.infer<typeof formSchema>
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [isClient, setIsClient] = useState(false)
+  const [showConfigWarning, setShowConfigWarning] = useState(false);
   const router = useRouter()
   const { toast } = useToast()
   const {
@@ -45,6 +47,9 @@ export default function RegisterPage() {
 
   useEffect(() => {
     setIsClient(true)
+    if (!isFirebaseConfigured) {
+        setShowConfigWarning(true);
+    }
   }, [])
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
@@ -60,8 +65,8 @@ export default function RegisterPage() {
       console.error(error)
       const description = error.message.includes('Firebase: Error (auth/email-already-in-use)')
         ? 'هذا البريد الإلكتروني مستخدم بالفعل.'
-        : error.message.includes('Firebase is not configured')
-        ? 'تهيئة Firebase غير صحيحة. الرجاء التحقق من مفاتيح API.'
+        : error.message.includes('Firebase configuration is incorrect')
+        ? 'تهيئة Firebase غير صحيحة. يرجى التأكد من تمكين تسجيل الدخول بالبريد الإلكتروني/كلمة المرور في لوحة تحكم Firebase.'
         : 'حدث خطأ غير متوقع. الرجاء المحاولة مرة أخرى.'
 
       toast({
@@ -100,6 +105,26 @@ export default function RegisterPage() {
           </CardFooter>
         </Card>
       </div>
+    )
+  }
+
+  if (showConfigWarning) {
+    return (
+        <div className="flex items-center justify-center min-h-[calc(100vh-8rem)] p-4">
+            <Card className="w-full max-w-md text-center">
+                <CardHeader>
+                    <CardTitle className="text-2xl text-destructive">تهيئة ناقصة</CardTitle>
+                    <CardDescription>
+                       مفاتيح Firebase API غير موجودة أو غير صالحة. يرجى التحقق من ملف .env الخاص بك.
+                    </CardDescription>
+                </CardHeader>
+                 <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                        تأكد من أنك قمت بنسخ جميع المتغيرات من إعدادات مشروع Firebase ولصقها في ملف .env الخاص بك.
+                    </p>
+                </CardContent>
+            </Card>
+        </div>
     )
   }
 
