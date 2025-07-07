@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { StockCard } from '@/components/stock-card'
-import { stocks, user as initialUser } from '@/lib/data'
+import { stocks } from '@/lib/data'
 import { Button } from '@/components/ui/button'
 import { PlusCircle } from 'lucide-react'
 import {
@@ -15,19 +15,43 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
 import { Skeleton } from '@/components/ui/skeleton'
+import { getWatchlist, addToWatchlist, removeFromWatchlist } from '@/lib/firestore'
 
 export default function WatchlistPage() {
-  const { user, loading } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
-  const [watchlist, setWatchlist] = useState(initialUser.watchlist)
+  const [watchlist, setWatchlist] = useState<string[]>([])
+  const [watchlistLoading, setWatchlistLoading] = useState(true)
   const [selectedStock, setSelectedStock] = useState('')
   const { toast } = useToast()
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       router.push('/login')
     }
-  }, [user, loading, router])
+  }, [user, authLoading, router])
+
+  useEffect(() => {
+    if (user) {
+      const fetchWatchlist = async () => {
+        setWatchlistLoading(true)
+        try {
+          const userWatchlist = await getWatchlist(user.uid)
+          setWatchlist(userWatchlist)
+        } catch (error) {
+          console.error('Failed to fetch watchlist:', error)
+          toast({
+            title: 'خطأ',
+            description: 'لم نتمكن من تحميل قائمة المتابعة.',
+            variant: 'destructive',
+          })
+        } finally {
+          setWatchlistLoading(false)
+        }
+      }
+      fetchWatchlist()
+    }
+  }, [user, toast])
 
   const watchlistStocks = stocks.filter((stock) =>
     watchlist.includes(stock.ticker)
@@ -36,29 +60,55 @@ export default function WatchlistPage() {
     (stock) => !watchlist.includes(stock.ticker)
   )
 
-  const handleAddToWatchlist = () => {
-    if (selectedStock && !watchlist.includes(selectedStock)) {
-      setWatchlist([...watchlist, selectedStock])
-      const stock = stocks.find((s) => s.ticker === selectedStock)
-      toast({
-        title: 'أضيف إلى قائمة المتابعة',
-        description: `${stock?.name || selectedStock} تمت إضافته.`,
-      })
+  const handleAddToWatchlist = async () => {
+    if (user && selectedStock && !watchlist.includes(selectedStock)) {
+      const stockToAdd = selectedStock
+      setWatchlist([...watchlist, stockToAdd]) // Optimistic update
       setSelectedStock('')
+      try {
+        await addToWatchlist(user.uid, stockToAdd)
+        const stock = stocks.find((s) => s.ticker === stockToAdd)
+        toast({
+          title: 'أضيف إلى قائمة المتابعة',
+          description: `${stock?.name || stockToAdd} تمت إضافته.`,
+        })
+      } catch (error) {
+        console.error('Failed to add to watchlist:', error)
+        setWatchlist(watchlist.filter((t) => t !== stockToAdd)) // Revert on error
+        toast({
+          title: 'خطأ',
+          description: 'لم نتمكن من إضافة السهم. الرجاء المحاولة مرة أخرى.',
+          variant: 'destructive',
+        })
+      }
     }
   }
 
-  const handleRemoveFromWatchlist = (ticker: string) => {
-    setWatchlist(watchlist.filter((t) => t !== ticker))
-    const stock = stocks.find((s) => s.ticker === ticker)
-    toast({
-      title: 'تمت الإزالة من قائمة المتابعة',
-      description: `${stock?.name || ticker} تمت إزالته.`,
-      variant: 'destructive',
-    })
+  const handleRemoveFromWatchlist = async (ticker: string) => {
+    if (user) {
+      const originalWatchlist = [...watchlist]
+      setWatchlist(watchlist.filter((t) => t !== ticker)) // Optimistic update
+      try {
+        await removeFromWatchlist(user.uid, ticker)
+        const stock = stocks.find((s) => s.ticker === ticker)
+        toast({
+          title: 'تمت الإزالة من قائمة المتابعة',
+          description: `${stock?.name || ticker} تمت إزالته.`,
+          variant: 'destructive',
+        })
+      } catch (error) {
+        setWatchlist(originalWatchlist) // Revert on error
+        console.error('Failed to remove from watchlist:', error)
+        toast({
+          title: 'خطأ',
+          description: 'لم نتمكن من إزالة السهم. الرجاء المحاولة مرة أخرى.',
+          variant: 'destructive',
+        })
+      }
+    }
   }
 
-  if (loading || !user) {
+  if (authLoading || !user || watchlistLoading) {
     return (
       <div className="container mx-auto p-4 md:p-8">
         <div className="flex justify-between items-center mb-6">

@@ -65,18 +65,6 @@ export const stocks: Stock[] = [
   },
 ]
 
-export interface User {
-  name: string
-  email: string
-  watchlist: string[]
-}
-
-export const user: User = {
-  name: 'أحمد الفارسي',
-  email: 'ahmed@gulfstream.co',
-  watchlist: ['ARAMCO', 'SABIC'],
-}
-
 export const newsArticles: Record<string, string[]> = {
   ARAMCO: [
     'https://www.reuters.com/business/energy/saudi-aramco-hikes-july-crude-prices-asia-2023-06-05/',
