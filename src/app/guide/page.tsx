@@ -14,11 +14,12 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useToast } from '@/hooks/use-toast'
-import { Loader2, Wand2, Lightbulb, PieChart as PieChartIcon, AlertTriangle, Save } from 'lucide-react'
+import { Loader2, Wand2, Lightbulb, PieChart as PieChartIcon, AlertTriangle, Save, PlusCircle, CheckCircle } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import type { ChartConfig } from '@/components/ui/chart'
 import { useAuth } from '@/hooks/use-auth'
-import { saveStrategy } from '@/lib/firestore'
+import { saveStrategy, onPortfolioUpdate, addToPortfolio } from '@/lib/firestore'
+import { assets } from '@/lib/data'
 import { Skeleton } from '@/components/ui/skeleton'
 
 const StrategyPieChart = dynamic(
@@ -55,12 +56,20 @@ export default function GuidePage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<InvestmentStrategyOutput | null>(null)
   const [isClient, setIsClient] = useState(false)
+  const [portfolio, setPortfolio] = useState<string[]>([])
   const { toast } = useToast()
   const { user } = useAuth()
 
   useEffect(() => {
     setIsClient(true)
   }, [])
+  
+  useEffect(() => {
+    if (user) {
+      const unsubscribe = onPortfolioUpdate(user.uid, setPortfolio);
+      return () => unsubscribe?.();
+    }
+  }, [user]);
 
   const {
     register,
@@ -86,7 +95,7 @@ export default function GuidePage() {
     try {
       const response = await generateInvestmentStrategy(data)
       setResult(response)
-      setLoading(false) // Stop loading indicator as soon as result is available
+      setLoading(false)
 
       if (user) {
         try {
@@ -120,6 +129,19 @@ export default function GuidePage() {
       setLoading(false)
     }
   }
+
+  const handleAddToPortfolio = async (ticker: string) => {
+    if (!user) {
+        toast({ title: 'الرجاء تسجيل الدخول', description: 'يجب عليك تسجيل الدخول لإضافة أصول إلى محفظتك.', variant: 'destructive' });
+        return;
+    }
+    if (assets.find(a => a.ticker === ticker)) {
+        await addToPortfolio(user.uid, ticker);
+        toast({ title: 'تمت الإضافة إلى المحفظة', description: `تمت إضافة ${ticker} إلى محفظتك.` });
+    } else {
+        toast({ title: 'أصل غير معروف', description: `لا يمكن إضافة ${ticker} لأنه غير متوفر حاليًا للمتابعة.`, variant: 'destructive' });
+    }
+  };
 
   const chartData = useMemo(() => result?.assetAllocation ?? [], [result]);
   const chartConfig = useMemo(() => (chartData.reduce((acc, curr, index) => {
@@ -306,9 +328,25 @@ export default function GuidePage() {
             <Separator />
             <div>
               <h3 className="text-lg font-semibold mb-3">توصيات الخبراء</h3>
-              <ul className="space-y-2 list-disc pr-5">
-                {result.recommendations.map((rec, index) => <li key={index} className="text-sm">{rec}</li>)}
-              </ul>
+               <div className="space-y-4">
+                {result.recommendations.map((rec, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
+                    <div className="flex-1 space-y-1">
+                      <p className="font-bold">{rec.name} <span className="text-xs text-muted-foreground">{rec.ticker}</span></p>
+                      <p className="text-sm text-muted-foreground">{rec.justification}</p>
+                    </div>
+                    {portfolio.includes(rec.ticker) ? (
+                      <Button variant="ghost" disabled className="text-success">
+                        <CheckCircle className="mr-2 h-4 w-4"/> تمت الإضافة
+                      </Button>
+                    ) : (
+                      <Button variant="outline" onClick={() => handleAddToPortfolio(rec.ticker)}>
+                        <PlusCircle className="mr-2 h-4 w-4"/> أضف إلى المحفظة
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
             <Separator />
              <div>

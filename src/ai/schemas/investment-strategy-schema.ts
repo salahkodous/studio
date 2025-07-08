@@ -23,11 +23,17 @@ const AssetAllocationSchema = z.object({
     rationale: z.string().describe('A brief rationale for this allocation percentage.'),
 });
 
+const RecommendationSchema = z.object({
+    ticker: z.string().describe('The ticker symbol for the recommended asset (e.g., ARAMCO, GLD).'),
+    name: z.string().describe('The name of the recommended asset (e.g., Saudi Aramco, SPDR Gold Shares).'),
+    justification: z.string().describe('A brief justification for why this specific asset is recommended.'),
+});
+
 export const InvestmentStrategyOutputSchema = z.object({
   strategyTitle: z.string().describe("A catchy title for the proposed investment strategy in Arabic."),
   strategySummary: z.string().describe('A summary of the investment strategy in Arabic.'),
   assetAllocation: z.array(AssetAllocationSchema).describe('An array of asset allocations with percentages and rationales.'),
-  recommendations: z.array(z.string()).describe('A list of specific, actionable recommendations in Arabic (e.g., "Consider investing in Saudi Aramco stocks" or "Look into REITs in Dubai").'),
+  recommendations: z.array(RecommendationSchema).describe('A list of specific, actionable asset recommendations with their tickers, names, and justifications, in Arabic.'),
   riskAnalysis: z.string().describe("An analysis of the risks associated with this strategy in Arabic."),
 });
 export type InvestmentStrategyOutput = z.infer<typeof InvestmentStrategyOutputSchema>;

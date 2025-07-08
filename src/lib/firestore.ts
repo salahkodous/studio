@@ -7,28 +7,7 @@ export type SavedStrategy = InvestmentStrategyOutput & {
   createdAt: Date
 }
 
-/**
- * Retrieves the user's watchlist from Firestore.
- * If the user document does not exist, it creates one with an empty watchlist.
- * @param userId - The ID of the user.
- * @returns A promise that resolves to an array of stock tickers.
- */
-export async function getWatchlist(userId: string): Promise<string[]> {
-    const db = getFirestoreDb();
-    if (!db) return [];
-
-    const userDocRef = doc(db, "users", userId);
-    const docSnap = await getDoc(userDocRef);
-
-    if (docSnap.exists()) {
-        const data = docSnap.data();
-        return data.watchlist || [];
-    } else {
-        await setDoc(userDocRef, { watchlist: [] });
-        return [];
-    }
-}
-
+// --- WATCHLIST FUNCTIONS ---
 
 /**
  * Sets up a real-time listener for the user's watchlist.
@@ -48,8 +27,6 @@ export function onWatchlistUpdate(userId: string, callback: (watchlist: string[]
         if (docSnap.exists()) {
             callback(docSnap.data().watchlist || []);
         } else {
-            // If the document doesn't exist, the watchlist is empty.
-            // The first `addToWatchlist` call will create the document.
             callback([]);
         }
     }, (error) => {
@@ -71,7 +48,6 @@ export async function addToWatchlist(userId: string, ticker: string) {
     if (!db) return;
 
     const userDocRef = doc(db, "users", userId);
-    // Use setDoc with merge to create the doc if it doesn't exist, or update if it does.
     await setDoc(userDocRef, {
         watchlist: arrayUnion(ticker)
     }, { merge: true });
@@ -87,11 +63,74 @@ export async function removeFromWatchlist(userId: string, ticker: string) {
     if (!db) return;
 
     const userDocRef = doc(db, "users", userId);
-     // Use setDoc with merge to ensure the doc exists before updating.
     await setDoc(userDocRef, {
         watchlist: arrayRemove(ticker)
     }, { merge: true });
 }
+
+// --- PORTFOLIO FUNCTIONS ---
+
+/**
+ * Sets up a real-time listener for the user's portfolio.
+ * @param userId The ID of the user.
+ * @param callback The function to call with the updated portfolio.
+ * @returns An unsubscribe function to detach the listener.
+ */
+export function onPortfolioUpdate(userId: string, callback: (portfolio: string[]) => void): Unsubscribe | undefined {
+    const db = getFirestoreDb();
+    if (!db) {
+        callback([]);
+        return;
+    }
+
+    const userDocRef = doc(db, "users", userId);
+    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+            callback(docSnap.data().portfolio || []);
+        } else {
+            callback([]);
+        }
+    }, (error) => {
+        console.error("Error listening to portfolio:", error);
+        callback([]);
+    });
+
+    return unsubscribe;
+}
+
+
+/**
+ * Adds an asset ticker to the user's portfolio.
+ * @param userId - The ID of the user.
+ * @param ticker - The asset ticker to add.
+ */
+export async function addToPortfolio(userId: string, ticker: string) {
+    const db = getFirestoreDb();
+    if (!db) return;
+
+    const userDocRef = doc(db, "users", userId);
+    await setDoc(userDocRef, {
+        portfolio: arrayUnion(ticker)
+    }, { merge: true });
+}
+
+/**
+ * Removes an asset ticker from the user's portfolio.
+ * @param userId - The ID of the user.
+ * @param ticker - The asset ticker to remove.
+ */
+export async function removeFromPortfolio(userId: string, ticker: string) {
+    const db = getFirestoreDb();
+    if (!db) return;
+
+    const userDocRef = doc(db, "users", userId);
+    await setDoc(userDocRef, {
+        portfolio: arrayRemove(ticker)
+    }, { merge: true });
+}
+
+
+// --- STRATEGY FUNCTIONS ---
 
 /**
  * Saves a generated investment strategy to the user's account.

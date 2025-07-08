@@ -3,13 +3,13 @@
 import { useState, useEffect } from 'react'
 import type { User } from 'firebase/auth'
 import Link from 'next/link'
-import { onWatchlistUpdate, onStrategiesUpdate, type SavedStrategy } from '@/lib/firestore'
+import { onWatchlistUpdate, onStrategiesUpdate, onPortfolioUpdate, type SavedStrategy } from '@/lib/firestore'
 import { assets } from '@/lib/data'
 import type { Asset } from '@/lib/data'
 import { AssetCard } from '@/components/stock-card'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
-import { ArrowLeft, LayoutDashboard, Lightbulb, Newspaper } from 'lucide-react'
+import { ArrowLeft, LayoutDashboard, Lightbulb, Newspaper, Briefcase, PlusCircle } from 'lucide-react'
 import { Skeleton } from './ui/skeleton'
 
 interface DashboardProps {
@@ -18,20 +18,29 @@ interface DashboardProps {
 
 export function Dashboard({ user }: DashboardProps) {
   const [watchlist, setWatchlist] = useState<Asset[]>([])
+  const [portfolio, setPortfolio] = useState<Asset[]>([])
   const [latestStrategy, setLatestStrategy] = useState<SavedStrategy | null>(null)
   const [watchlistLoading, setWatchlistLoading] = useState(true)
+  const [portfolioLoading, setPortfolioLoading] = useState(true)
   const [strategyLoading, setStrategyLoading] = useState(true)
 
   useEffect(() => {
     if (!user.uid) return;
 
     setWatchlistLoading(true);
+    setPortfolioLoading(true);
     setStrategyLoading(true);
 
-    const unsubscribeWatchlist = onWatchlistUpdate(user.uid, (watchlistTickers) => {
-      const watchlistAssets = assets.filter(asset => watchlistTickers.includes(asset.ticker));
-      setWatchlist(watchlistAssets);
+    const unsubscribeWatchlist = onWatchlistUpdate(user.uid, (tickers) => {
+      const assetsInList = assets.filter(asset => tickers.includes(asset.ticker));
+      setWatchlist(assetsInList);
       setWatchlistLoading(false);
+    });
+
+    const unsubscribePortfolio = onPortfolioUpdate(user.uid, (tickers) => {
+      const assetsInList = assets.filter(asset => tickers.includes(asset.ticker));
+      setPortfolio(assetsInList);
+      setPortfolioLoading(false);
     });
 
     const unsubscribeStrategies = onStrategiesUpdate(user.uid, (strategies) => {
@@ -41,18 +50,55 @@ export function Dashboard({ user }: DashboardProps) {
 
     return () => {
       unsubscribeWatchlist?.();
+      unsubscribePortfolio?.();
       unsubscribeStrategies?.();
     };
   }, [user.uid]);
 
   return (
-    <div className="container mx-auto max-w-5xl p-4 md:p-8 space-y-8">
+    <div className="container mx-auto max-w-6xl p-4 md:p-8 space-y-8">
       <h1 className="text-3xl font-bold font-headline">
         أهلاً بعودتك، {user.displayName || 'مستثمرنا العزيز'}!
       </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
+            <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>نظرة على المحفظة</CardTitle>
+                <CardDescription>أحدث أداء لأصولك المستثمر بها.</CardDescription>
+              </div>
+              <Button asChild variant="ghost">
+                <Link href="/portfolio">
+                  إدارة المحفظة <ArrowLeft className="mr-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {portfolioLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-24 w-full" />
+                </div>
+              ) : portfolio.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {portfolio.slice(0, 2).map(asset => (
+                    <AssetCard key={asset.ticker} asset={asset} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-10 text-muted-foreground flex flex-col items-center gap-4">
+                  <Briefcase className="w-10 h-10"/>
+                  <p>محفظتك فارغة. ابدأ ببناء استراتيجيتك.</p>
+                  <Button asChild>
+                    <Link href="/guide"><PlusCircle className="ml-2"/> أنشئ خطة جديدة</Link>
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -73,7 +119,7 @@ export function Dashboard({ user }: DashboardProps) {
                 </div>
               ) : watchlist.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {watchlist.slice(0, 4).map(asset => (
+                  {watchlist.slice(0, 2).map(asset => (
                     <AssetCard key={asset.ticker} asset={asset} />
                   ))}
                 </div>
@@ -87,18 +133,13 @@ export function Dashboard({ user }: DashboardProps) {
               )}
             </CardContent>
           </Card>
+        </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-               <div>
+        <div className="space-y-8">
+           <Card>
+            <CardHeader>
                 <CardTitle>آخر خطة استثمارية</CardTitle>
                 <CardDescription>ملخص سريع لأحدث استراتيجية قمت بإنشائها.</CardDescription>
-              </div>
-              <Button asChild variant="ghost">
-                <Link href="/strategies">
-                  عرض كل الخطط <ArrowLeft className="mr-2 h-4 w-4" />
-                </Link>
-              </Button>
             </CardHeader>
             <CardContent>
               {strategyLoading ? (
@@ -113,6 +154,11 @@ export function Dashboard({ user }: DashboardProps) {
                   <p className="text-sm text-muted-foreground line-clamp-3">
                     {latestStrategy.strategySummary}
                   </p>
+                   <Button asChild variant="secondary" className="w-full">
+                    <Link href="/strategies">
+                      عرض كل الخطط <ArrowLeft className="mr-2 h-4 w-4" />
+                    </Link>
+                  </Button>
                 </div>
               ) : (
                  <div className="text-center py-10 text-muted-foreground">
@@ -124,9 +170,7 @@ export function Dashboard({ user }: DashboardProps) {
               )}
             </CardContent>
           </Card>
-        </div>
 
-        <div className="space-y-8">
           <Card>
             <CardHeader>
               <CardTitle>روابط سريعة</CardTitle>
@@ -138,58 +182,12 @@ export function Dashboard({ user }: DashboardProps) {
               <Button asChild size="lg" variant="secondary">
                 <Link href="/watchlist"><LayoutDashboard className="ml-2 h-4 w-4" /> إدارة قائمة المتابعة</Link>
               </Button>
+               <Button asChild size="lg" variant="secondary">
+                <Link href="/portfolio"><Briefcase className="ml-2 h-4 w-4" /> عرض المحفظة</Link>
+              </Button>
               <Button asChild size="lg" variant="secondary">
                 <Link href="/news"><Newspaper className="ml-2 h-4 w-4" /> تصفح أخبار السوق</Link>
               </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-
-function DashboardSkeleton() {
-  return (
-     <div className="container mx-auto max-w-5xl p-4 md:p-8 space-y-8">
-      <Skeleton className="h-9 w-1/3" />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-1/2" />
-              <Skeleton className="h-4 w-3/4 mt-2" />
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-24 w-full" />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-1/2" />
-              <Skeleton className="h-4 w-3/4 mt-2" />
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Skeleton className="h-5 w-2/3" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-4/5" />
-            </CardContent>
-          </Card>
-        </div>
-        <div className="space-y-8">
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-1/2" />
-            </CardHeader>
-            <CardContent className="flex flex-col space-y-4">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
             </CardContent>
           </Card>
         </div>

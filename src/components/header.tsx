@@ -24,6 +24,7 @@ const navItems = [
   { href: '/', label: 'الرئيسية' },
   { href: '/guide', label: 'دليل الاستثمار' },
   { href: '/watchlist', label: 'قائمة المتابعة', auth: true },
+  { href: '/portfolio', label: 'المحفظة', auth: true },
   { href: '/strategies', label: 'خططي الاستثمارية', auth: true },
   { href: '/news', label: 'أخبار السوق' },
 ];
