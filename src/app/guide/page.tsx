@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm, type SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -20,6 +20,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { Pie, PieChart, Cell } from "recharts"
 import { useAuth } from '@/hooks/use-auth'
 import { saveStrategy } from '@/lib/firestore'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const formSchema = z.object({
   capital: z.coerce.number().min(1000, 'الحد الأدنى لرأس المال هو 1000 دولار'),
@@ -45,8 +46,13 @@ const investmentCategories = [
 export default function GuidePage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<InvestmentStrategyOutput | null>(null)
+  const [isClient, setIsClient] = useState(false)
   const { toast } = useToast()
   const { user } = useAuth()
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   const {
     register,
@@ -116,6 +122,32 @@ export default function GuidePage() {
     };
     return acc;
   }, {} as ChartConfig));
+
+  if (!isClient) {
+    return (
+      <div className="container mx-auto max-w-4xl p-4 md:p-8">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold font-headline">دليل الاستثمار الذكي</h1>
+          <p className="text-lg text-muted-foreground mt-2">
+            أدخل تفاصيل استثمارك واحصل على استراتيجية مخصصة مدعومة بالذكاء الاصطناعي.
+          </p>
+        </div>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-full mt-2" />
+          </CardHeader>
+          <CardContent className="space-y-8 pt-6">
+            <div className="space-y-2"><Skeleton className="h-5 w-32" /><Skeleton className="h-10 w-full" /></div>
+            <div className="space-y-3"><Skeleton className="h-5 w-48" /><div className="grid grid-cols-2 md:grid-cols-3 gap-4"><Skeleton className="h-6 w-full" /><Skeleton className="h-6 w-full" /><Skeleton className="h-6 w-full" /><Skeleton className="h-6 w-full" /><Skeleton className="h-6 w-full" /></div></div>
+            <div className="space-y-3"><Skeleton className="h-5 w-40" /><div className="flex flex-col md:flex-row gap-4"><Skeleton className="h-6 w-20" /><Skeleton className="h-6 w-20" /><Skeleton className="h-6 w-20" /></div></div>
+            <div className="space-y-2"><Skeleton className="h-5 w-32" /><Skeleton className="h-10 w-full" /></div>
+            <Skeleton className="h-10 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
 
   return (
