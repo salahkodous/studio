@@ -72,29 +72,39 @@ export default function GuidePage() {
     try {
       const response = await generateInvestmentStrategy(data)
       setResult(response)
+      setLoading(false) // Stop loading indicator as soon as result is available
 
       if (user) {
-        await saveStrategy(user.uid, response)
-        toast({
-          title: 'تم حفظ الخطة',
-          description: 'يمكنك عرض خططك المحفوظة في صفحة "خططي الاستثمارية".',
-          action: (
-            <div className="flex items-center">
-                <Save className="h-4 w-4 mr-2" />
-                <span>حُفظت بنجاح</span>
-            </div>
-          )
-        })
+        try {
+            await saveStrategy(user.uid, response)
+            toast({
+            title: 'تم حفظ الخطة',
+            description: 'يمكنك عرض خططك المحفوظة في صفحة "خططي الاستثمارية".',
+            action: (
+                <div className="flex items-center">
+                    <Save className="h-4 w-4 mr-2" />
+                    <span>حُفظت بنجاح</span>
+                </div>
+            )
+            })
+        } catch (saveError) {
+            console.error('Error saving strategy:', saveError)
+            toast({
+                title: 'خطأ في الحفظ',
+                description: 'تم إنشاء الخطة ولكن لم نتمكن من حفظها تلقائيًا.',
+                variant: 'destructive',
+            })
+        }
       }
     } catch (error) {
-      console.error('Error generating or saving strategy:', error)
+      console.error('Error generating strategy:', error)
       toast({
         title: 'حدث خطأ',
-        description: 'لم نتمكن من إنشاء أو حفظ خطة الاستثمار. الرجاء المحاولة مرة أخرى.',
+        description: 'لم نتمكن من إنشاء خطة الاستثمار. الرجاء المحاولة مرة أخرى.',
         variant: 'destructive',
       })
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const chartData = result?.assetAllocation ?? [];
