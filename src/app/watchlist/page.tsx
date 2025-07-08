@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { AssetCard } from '@/components/stock-card'
 import { assets, type Asset } from '@/lib/data'
 import { Button } from '@/components/ui/button'
@@ -38,12 +38,14 @@ const countries: { id: Country; name: string }[] = [
 export default function WatchlistPage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [watchlist, setWatchlist] = useState<string[]>([])
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [selectedAsset, setSelectedAsset] = useState('')
-  const [activeCategory, setActiveCategory] = useState<Category>('Stocks')
-  const [activeCountry, setActiveCountry] = useState<Country>('All')
   const { toast } = useToast()
+
+  const activeCategory = (searchParams.get('category') as Category) || 'Stocks'
+  const activeCountry = (searchParams.get('country') as Country) || 'All'
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -131,6 +133,27 @@ export default function WatchlistPage() {
     }
   }, [user, toast]);
 
+  const handleFilterChange = useCallback((key: 'category' | 'country', value: string) => {
+    const current = new URLSearchParams(Array.from(searchParams.entries()));
+    
+    if (key === 'category') {
+      current.set('category', value);
+      if (value !== 'Stocks') {
+        current.delete('country');
+      } else if (!current.has('country')) {
+        current.set('country', 'All');
+      }
+    } else {
+      current.set(key, value);
+    }
+    
+    const search = current.toString();
+    const query = search ? `?${search}` : "";
+    
+    router.push(`/watchlist${query}`, { scroll: false });
+  }, [searchParams, router]);
+
+
   if (authLoading || isInitialLoad) {
     return <LoadingSkeleton />
   }
@@ -168,7 +191,7 @@ export default function WatchlistPage() {
             <Button 
                 key={cat.id} 
                 variant={activeCategory === cat.id ? 'default' : 'outline'}
-                onClick={() => setActiveCategory(cat.id)}
+                onClick={() => handleFilterChange('category', cat.id)}
             >
                 {cat.name}
             </Button>
@@ -183,7 +206,7 @@ export default function WatchlistPage() {
                     key={country.id}
                     variant={activeCountry === country.id ? 'secondary' : 'ghost'}
                     size="sm"
-                    onClick={() => setActiveCountry(country.id)}
+                    onClick={() => handleFilterChange('country', country.id)}
                 >
                     {country.name}
                 </Button>
