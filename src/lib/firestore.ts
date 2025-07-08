@@ -48,9 +48,8 @@ export function onWatchlistUpdate(userId: string, callback: (watchlist: string[]
         if (docSnap.exists()) {
             callback(docSnap.data().watchlist || []);
         } else {
-            // Doc doesn't exist, create it and immediately inform the caller
-            // that the watchlist is empty.
-            setDoc(userDocRef, { watchlist: [] });
+            // If the document doesn't exist, the watchlist is empty.
+            // The first `addToWatchlist` call will create the document.
             callback([]);
         }
     }, (error) => {
