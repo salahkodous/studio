@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useForm, type SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import dynamic from 'next/dynamic'
 import { generateInvestmentStrategy } from '@/ai/flows/generate-investment-strategy'
 import type { InvestmentStrategyOutput } from '@/ai/schemas/investment-strategy-schema'
 import { Button } from '@/components/ui/button'
@@ -16,11 +17,18 @@ import { useToast } from '@/hooks/use-toast'
 import { Loader2, Wand2, Lightbulb, PieChart as PieChartIcon, AlertTriangle, Save } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import type { ChartConfig } from '@/components/ui/chart'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { Pie, PieChart, Cell } from "recharts"
 import { useAuth } from '@/hooks/use-auth'
 import { saveStrategy } from '@/lib/firestore'
 import { Skeleton } from '@/components/ui/skeleton'
+
+const StrategyPieChart = dynamic(
+  () => import('@/components/strategy-pie-chart').then((mod) => mod.StrategyPieChart),
+  {
+    loading: () => <Skeleton className="mx-auto aspect-square h-[250px] rounded-full" />,
+    ssr: false
+  }
+);
+
 
 const formSchema = z.object({
   capital: z.coerce.number().min(1000, 'الحد الأدنى لرأس المال هو 1000 دولار'),
@@ -113,15 +121,15 @@ export default function GuidePage() {
     }
   }
 
-  const chartData = result?.assetAllocation ?? [];
-  const chartConfig = (chartData.reduce((acc, curr, index) => {
+  const chartData = useMemo(() => result?.assetAllocation ?? [], [result]);
+  const chartConfig = useMemo(() => (chartData.reduce((acc, curr, index) => {
     const key = curr.category.replace(/[^a-zA-Z0-9]/g, "");
     acc[key] = {
       label: curr.category,
       color: `hsl(var(--chart-${(index % 5) + 1}))`,
     };
     return acc;
-  }, {} as ChartConfig));
+  }, {} as ChartConfig)), [chartData]);
 
   if (!isClient) {
     return (
@@ -290,33 +298,8 @@ export default function GuidePage() {
                     ))}
                   </div>
                 </div>
-                <div className="order-1 md:order-2">
-                   <ChartContainer
-                      config={chartConfig}
-                      className="mx-auto aspect-square h-[250px]"
-                    >
-                      <PieChart>
-                        <ChartTooltip
-                          cursor={false}
-                          content={<ChartTooltipContent hideLabel />}
-                        />
-                        <Pie
-                          data={chartData}
-                          dataKey="percentage"
-                          nameKey="category"
-                          innerRadius={60}
-                          strokeWidth={2}
-                        >
-                          {chartData.map((entry) => (
-                            <Cell
-                              key={entry.category}
-                              fill={`var(--color-${entry.category.replace(/[^a-zA-Z0-9]/g, "")})`}
-                              className="focus:outline-none"
-                            />
-                          ))}
-                        </Pie>
-                      </PieChart>
-                    </ChartContainer>
+                <div className="order-1 md:order-2 h-[250px] flex items-center justify-center">
+                   <StrategyPieChart chartData={chartData} chartConfig={chartConfig} />
                 </div>
               </div>
             </div>

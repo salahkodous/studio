@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import React, { memo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowUpRight, ArrowDownRight, Minus, X } from 'lucide-react'
 import type { Asset } from '@/lib/data'
@@ -10,7 +11,7 @@ interface AssetCardProps {
   onRemove?: (ticker: string) => void
 }
 
-export function AssetCard({ asset, onRemove }: AssetCardProps) {
+export const AssetCard = memo(function AssetCard({ asset, onRemove }: AssetCardProps) {
   const TrendIcon =
     asset.trend === 'up'
       ? ArrowUpRight
@@ -68,4 +69,4 @@ export function AssetCard({ asset, onRemove }: AssetCardProps) {
       </Link>
     </Card>
   )
-}
+})

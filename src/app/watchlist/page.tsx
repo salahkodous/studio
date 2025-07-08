@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { AssetCard } from '@/components/stock-card'
 import { assets, type Asset } from '@/lib/data'
@@ -88,7 +88,7 @@ export default function WatchlistPage() {
     })
   }, [watchlistAssets, activeCategory, activeCountry]);
 
-  const handleAddToWatchlist = async () => {
+  const handleAddToWatchlist = useCallback(async () => {
     if (user && selectedAsset && !watchlist.includes(selectedAsset)) {
       const assetToAdd = selectedAsset
       setSelectedAsset('')
@@ -108,9 +108,9 @@ export default function WatchlistPage() {
         })
       }
     }
-  }
+  }, [user, selectedAsset, watchlist, toast]);
 
-  const handleRemoveFromWatchlist = async (ticker: string) => {
+  const handleRemoveFromWatchlist = useCallback(async (ticker: string) => {
     if (user) {
       try {
         await removeFromWatchlist(user.uid, ticker)
@@ -129,7 +129,7 @@ export default function WatchlistPage() {
         })
       }
     }
-  }
+  }, [user, toast]);
 
   if (authLoading || isInitialLoad) {
     return <LoadingSkeleton />

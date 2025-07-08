@@ -19,33 +19,24 @@ interface DashboardProps {
 export function Dashboard({ user }: DashboardProps) {
   const [watchlist, setWatchlist] = useState<Asset[]>([])
   const [latestStrategy, setLatestStrategy] = useState<SavedStrategy | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [watchlistLoading, setWatchlistLoading] = useState(true)
+  const [strategyLoading, setStrategyLoading] = useState(true)
 
   useEffect(() => {
     if (!user.uid) return;
 
-    setLoading(true);
-
-    let watchlistLoaded = false;
-    let strategiesLoaded = false;
-
-    const checkLoading = () => {
-      if(watchlistLoaded && strategiesLoaded) {
-        setLoading(false);
-      }
-    }
+    setWatchlistLoading(true);
+    setStrategyLoading(true);
 
     const unsubscribeWatchlist = onWatchlistUpdate(user.uid, (watchlistTickers) => {
       const watchlistAssets = assets.filter(asset => watchlistTickers.includes(asset.ticker));
       setWatchlist(watchlistAssets);
-      watchlistLoaded = true;
-      checkLoading();
+      setWatchlistLoading(false);
     });
 
     const unsubscribeStrategies = onStrategiesUpdate(user.uid, (strategies) => {
       setLatestStrategy(strategies.length > 0 ? strategies[0] : null);
-      strategiesLoaded = true;
-      checkLoading();
+      setStrategyLoading(false);
     });
 
     return () => {
@@ -53,10 +44,6 @@ export function Dashboard({ user }: DashboardProps) {
       unsubscribeStrategies?.();
     };
   }, [user.uid]);
-
-  if (loading) {
-    return <DashboardSkeleton />
-  }
 
   return (
     <div className="container mx-auto max-w-5xl p-4 md:p-8 space-y-8">
@@ -79,7 +66,12 @@ export function Dashboard({ user }: DashboardProps) {
               </Button>
             </CardHeader>
             <CardContent>
-              {watchlist.length > 0 ? (
+              {watchlistLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-24 w-full" />
+                </div>
+              ) : watchlist.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {watchlist.slice(0, 4).map(asset => (
                     <AssetCard key={asset.ticker} asset={asset} />
@@ -109,7 +101,13 @@ export function Dashboard({ user }: DashboardProps) {
               </Button>
             </CardHeader>
             <CardContent>
-              {latestStrategy ? (
+              {strategyLoading ? (
+                 <div className="space-y-3">
+                  <Skeleton className="h-5 w-2/3" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-4/5" />
+                </div>
+              ) : latestStrategy ? (
                 <div className="space-y-3">
                   <h3 className="font-semibold text-lg">{latestStrategy.strategyTitle}</h3>
                   <p className="text-sm text-muted-foreground line-clamp-3">
@@ -150,6 +148,7 @@ export function Dashboard({ user }: DashboardProps) {
     </div>
   )
 }
+
 
 function DashboardSkeleton() {
   return (

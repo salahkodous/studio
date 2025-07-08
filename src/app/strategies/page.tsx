@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { useAuth } from '@/hooks/use-auth'
 import { getStrategies, type SavedStrategy } from '@/lib/firestore'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -13,10 +14,17 @@ import {
 } from '@/components/ui/accordion'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { AlertTriangle, Lightbulb, PieChart as PieChartIcon, Archive } from 'lucide-react'
+import { AlertTriangle, PieChart as PieChartIcon, Archive } from 'lucide-react'
 import type { ChartConfig } from '@/components/ui/chart'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { Pie, PieChart, Cell } from "recharts"
+
+const StrategyPieChart = dynamic(
+  () => import('@/components/strategy-pie-chart').then((mod) => mod.StrategyPieChart),
+  {
+    loading: () => <Skeleton className="mx-auto aspect-square h-[250px] rounded-full" />,
+    ssr: false
+  }
+);
+
 
 export default function StrategiesPage() {
   const { user, loading: authLoading } = useAuth()
@@ -89,15 +97,15 @@ export default function StrategiesPage() {
 }
 
 function StrategyDetails({ strategy }: { strategy: SavedStrategy }) {
-    const chartData = strategy?.assetAllocation ?? [];
-    const chartConfig = (chartData.reduce((acc, curr, index) => {
+    const chartData = useMemo(() => strategy?.assetAllocation ?? [], [strategy]);
+    const chartConfig = useMemo(() => (chartData.reduce((acc, curr, index) => {
         const key = curr.category.replace(/[^a-zA-Z0-9]/g, "");
         acc[key] = {
         label: curr.category,
         color: `hsl(var(--chart-${(index % 5) + 1}))`,
         };
         return acc;
-    }, {} as ChartConfig));
+    }, {} as ChartConfig)), [chartData]);
 
     return (
         <div className="space-y-6">
@@ -130,33 +138,8 @@ function StrategyDetails({ strategy }: { strategy: SavedStrategy }) {
                     ))}
                   </div>
                 </div>
-                <div className="order-1 md:order-2">
-                   <ChartContainer
-                      config={chartConfig}
-                      className="mx-auto aspect-square h-[250px]"
-                    >
-                      <PieChart>
-                        <ChartTooltip
-                          cursor={false}
-                          content={<ChartTooltipContent hideLabel />}
-                        />
-                        <Pie
-                          data={chartData}
-                          dataKey="percentage"
-                          nameKey="category"
-                          innerRadius={60}
-                          strokeWidth={2}
-                        >
-                          {chartData.map((entry) => (
-                            <Cell
-                              key={entry.category}
-                              fill={`var(--color-${entry.category.replace(/[^a-zA-Z0-9]/g, "")})`}
-                              className="focus:outline-none"
-                            />
-                          ))}
-                        </Pie>
-                      </PieChart>
-                    </ChartContainer>
+                <div className="order-1 md:order-2 h-[250px] flex items-center justify-center">
+                   <StrategyPieChart chartData={chartData} chartConfig={chartConfig} />
                 </div>
               </div>
             </div>
