@@ -57,11 +57,13 @@ export default function WatchlistPage() {
     if (user) {
       const unsubscribe = onWatchlistUpdate(user.uid, (userWatchlist) => {
         setWatchlist(userWatchlist)
-        setIsInitialLoad(false)
+        if (isInitialLoad) setIsInitialLoad(false)
       })
       return () => unsubscribe?.()
+    } else if (!authLoading) {
+      setIsInitialLoad(false)
     }
-  }, [user])
+  }, [user, authLoading, isInitialLoad])
 
   const watchlistAssets = useMemo(() => {
     return assets.filter((asset) => watchlist.includes(asset.ticker))
@@ -154,8 +156,8 @@ export default function WatchlistPage() {
   }, [searchParams, router]);
 
 
-  if (authLoading || isInitialLoad) {
-    return <LoadingSkeleton />
+  if (authLoading) {
+    return <PageSkeleton />
   }
 
   return (
@@ -214,8 +216,13 @@ export default function WatchlistPage() {
         </div>
       )}
 
-
-      {filteredAssets.length > 0 ? (
+      {isInitialLoad ? (
+         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {[...Array(8)].map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
+        </div>
+      ) : filteredAssets.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredAssets.map((asset) => (
             <AssetCard
@@ -239,7 +246,7 @@ export default function WatchlistPage() {
   )
 }
 
-function LoadingSkeleton() {
+function PageSkeleton() {
     return (
       <div className="container mx-auto p-4 md:p-8">
         <div className="flex justify-between items-center mb-6">
@@ -256,7 +263,7 @@ function LoadingSkeleton() {
             <Skeleton className="h-10 w-20" />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {[...Array(4)].map((_, i) => (
+          {[...Array(8)].map((_, i) => (
             <CardSkeleton key={i} />
           ))}
         </div>
@@ -266,7 +273,7 @@ function LoadingSkeleton() {
 
 function CardSkeleton() {
     return (
-        <div className="p-4 border rounded-lg space-y-3">
+        <div className="p-4 border rounded-lg space-y-3 bg-card">
             <div className="flex justify-between">
                 <Skeleton className="h-5 w-2/4" />
                 <Skeleton className="h-5 w-1/4" />

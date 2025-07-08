@@ -47,10 +47,12 @@ export default function StrategiesPage() {
         setStrategiesLoading(false)
       }
       fetchStrategies()
+    } else if (!authLoading) {
+        setStrategiesLoading(false)
     }
-  }, [user])
+  }, [user, authLoading])
 
-  if (authLoading || !user || strategiesLoading) {
+  if (authLoading) {
     return <LoadingSkeleton />
   }
 
@@ -63,7 +65,13 @@ export default function StrategiesPage() {
         </p>
       </div>
 
-      {strategies.length > 0 ? (
+      {strategiesLoading ? (
+        <div className="space-y-4">
+            <Skeleton className="h-20 w-full rounded-lg" />
+            <Skeleton className="h-20 w-full rounded-lg" />
+            <Skeleton className="h-20 w-full rounded-lg" />
+        </div>
+      ) : strategies.length > 0 ? (
         <Accordion type="single" collapsible className="w-full space-y-4">
           {strategies.map((strategy) => (
             <AccordionItem value={strategy.id} key={strategy.id} className="border rounded-lg bg-card">
@@ -171,9 +179,9 @@ function LoadingSkeleton() {
         <Skeleton className="h-6 w-1/2 mx-auto mt-4" />
       </div>
       <div className="space-y-4">
-        <Skeleton className="h-20 w-full" />
-        <Skeleton className="h-20 w-full" />
-        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-20 w-full rounded-lg" />
+        <Skeleton className="h-20 w-full rounded-lg" />
+        <Skeleton className="h-20 w-full rounded-lg" />
       </div>
     </div>
   )
