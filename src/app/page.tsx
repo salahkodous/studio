@@ -81,11 +81,12 @@ export default function HomePage() {
           </div>
           <div className="md:w-1/2 flex items-center justify-center">
              <Image
-              src="/tharawat-hero.png"
-              alt="Tharawat App Logo"
+              src="https://placehold.co/500x500.png"
+              alt="Modern Arabian Cityscape"
               width={500}
               height={500}
-              className="rounded-lg"
+              className="rounded-lg shadow-2xl"
+              data-ai-hint="dubai skyline"
             />
           </div>
         </div>
