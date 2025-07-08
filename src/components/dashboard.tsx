@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react'
 import type { User } from 'firebase/auth'
 import Link from 'next/link'
 import { onWatchlistUpdate, onStrategiesUpdate, type SavedStrategy } from '@/lib/firestore'
-import { stocks } from '@/lib/data'
-import type { Stock } from '@/lib/data'
-import { StockCard } from '@/components/stock-card'
+import { assets } from '@/lib/data'
+import type { Asset } from '@/lib/data'
+import { AssetCard } from '@/components/stock-card'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { ArrowLeft, LayoutDashboard, Lightbulb, Newspaper } from 'lucide-react'
@@ -17,7 +17,7 @@ interface DashboardProps {
 }
 
 export function Dashboard({ user }: DashboardProps) {
-  const [watchlist, setWatchlist] = useState<Stock[]>([])
+  const [watchlist, setWatchlist] = useState<Asset[]>([])
   const [latestStrategy, setLatestStrategy] = useState<SavedStrategy | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -36,8 +36,8 @@ export function Dashboard({ user }: DashboardProps) {
     }
 
     const unsubscribeWatchlist = onWatchlistUpdate(user.uid, (watchlistTickers) => {
-      const watchlistStocks = stocks.filter(stock => watchlistTickers.includes(stock.ticker));
-      setWatchlist(watchlistStocks);
+      const watchlistAssets = assets.filter(asset => watchlistTickers.includes(asset.ticker));
+      setWatchlist(watchlistAssets);
       watchlistLoaded = true;
       checkLoading();
     });
@@ -70,7 +70,7 @@ export function Dashboard({ user }: DashboardProps) {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>نظرة على قائمة المتابعة</CardTitle>
-                <CardDescription>أحدث أداء لأسهمك المختارة.</CardDescription>
+                <CardDescription>أحدث أداء لأصولك المختارة.</CardDescription>
               </div>
               <Button asChild variant="ghost">
                 <Link href="/watchlist">
@@ -81,15 +81,15 @@ export function Dashboard({ user }: DashboardProps) {
             <CardContent>
               {watchlist.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {watchlist.slice(0, 4).map(stock => (
-                    <StockCard key={stock.ticker} stock={stock} />
+                  {watchlist.slice(0, 4).map(asset => (
+                    <AssetCard key={asset.ticker} asset={asset} />
                   ))}
                 </div>
               ) : (
                 <div className="text-center py-10 text-muted-foreground">
                   <p>قائمة المتابعة فارغة.</p>
                   <Button asChild variant="link">
-                    <Link href="/watchlist">أضف بعض الأسهم الآن</Link>
+                    <Link href="/watchlist">أضف بعض الأصول الآن</Link>
                   </Button>
                 </div>
               )}

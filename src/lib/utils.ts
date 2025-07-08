@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export const getCurrencySymbol = (currency: 'SAR' | 'QAR' | 'AED') => {
+export const getCurrencySymbol = (currency: 'SAR' | 'QAR' | 'AED' | 'USD') => {
   switch (currency) {
     case 'SAR':
       return 'ر.س'
@@ -13,5 +13,7 @@ export const getCurrencySymbol = (currency: 'SAR' | 'QAR' | 'AED') => {
       return 'ر.ق'
     case 'AED':
       return 'د.إ'
+    case 'USD':
+        return '$'
   }
 }

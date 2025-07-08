@@ -1,8 +1,8 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { StockCard } from '@/components/stock-card'
-import { stocks } from '@/lib/data'
+import { AssetCard } from '@/components/stock-card'
+import { assets, type Asset } from '@/lib/data'
 import { Button } from '@/components/ui/button'
 import { PlusCircle } from 'lucide-react'
 import {
@@ -11,18 +11,38 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectLabel,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getWatchlist, addToWatchlist, removeFromWatchlist } from '@/lib/firestore'
 
+type Category = 'Stocks' | 'Gold' | 'Oil' | 'Bonds'
+const categories: { id: Category; name: string }[] = [
+  { id: 'Stocks', name: 'الأسهم' },
+  { id: 'Gold', name: 'الذهب' },
+  { id: 'Oil', name: 'النفط' },
+  { id: 'Bonds', name: 'السندات' },
+]
+
+type Country = 'All' | 'SA' | 'QA' | 'AE'
+const countries: { id: Country; name: string }[] = [
+  { id: 'All', name: 'الكل' },
+  { id: 'SA', name: 'السعودية' },
+  { id: 'QA', name: 'قطر' },
+  { id: 'AE', name: 'الإمارات' },
+]
+
 export default function WatchlistPage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [watchlist, setWatchlist] = useState<string[]>([])
   const [watchlistLoading, setWatchlistLoading] = useState(true)
-  const [selectedStock, setSelectedStock] = useState('')
+  const [selectedAsset, setSelectedAsset] = useState('')
+  const [activeCategory, setActiveCategory] = useState<Category>('Stocks')
+  const [activeCountry, setActiveCountry] = useState<Country>('All')
   const { toast } = useToast()
 
   useEffect(() => {
@@ -53,31 +73,51 @@ export default function WatchlistPage() {
     }
   }, [user, toast])
 
-  const watchlistStocks = stocks.filter((stock) =>
-    watchlist.includes(stock.ticker)
-  )
-  const availableStocks = stocks.filter(
-    (stock) => !watchlist.includes(stock.ticker)
-  )
+  const watchlistAssets = useMemo(() => {
+    return assets.filter((asset) => watchlist.includes(asset.ticker))
+  }, [watchlist])
+
+  const availableAssets = useMemo(() => {
+    return assets.filter((asset) => !watchlist.includes(asset.ticker))
+  }, [watchlist])
+  
+  const availableAssetsGrouped = useMemo(() => {
+    return availableAssets.reduce((acc, asset) => {
+        const category = categories.find(c => c.id === asset.category)?.name || 'غير مصنف';
+        if (!acc[category]) {
+            acc[category] = [];
+        }
+        acc[category].push(asset);
+        return acc;
+    }, {} as Record<string, Asset[]>);
+  }, [availableAssets]);
+
+  const filteredAssets = useMemo(() => {
+    return watchlistAssets.filter(asset => {
+        const categoryMatch = asset.category === activeCategory
+        const countryMatch = activeCategory !== 'Stocks' || activeCountry === 'All' || asset.country === activeCountry
+        return categoryMatch && countryMatch
+    })
+  }, [watchlistAssets, activeCategory, activeCountry]);
 
   const handleAddToWatchlist = async () => {
-    if (user && selectedStock && !watchlist.includes(selectedStock)) {
-      const stockToAdd = selectedStock
-      setWatchlist([...watchlist, stockToAdd]) // Optimistic update
-      setSelectedStock('')
+    if (user && selectedAsset && !watchlist.includes(selectedAsset)) {
+      const assetToAdd = selectedAsset
+      setWatchlist([...watchlist, assetToAdd]) // Optimistic update
+      setSelectedAsset('')
       try {
-        await addToWatchlist(user.uid, stockToAdd)
-        const stock = stocks.find((s) => s.ticker === stockToAdd)
+        await addToWatchlist(user.uid, assetToAdd)
+        const asset = assets.find((s) => s.ticker === assetToAdd)
         toast({
           title: 'أضيف إلى قائمة المتابعة',
-          description: `${stock?.name || stockToAdd} تمت إضافته.`,
+          description: `${asset?.name || assetToAdd} تمت إضافته.`,
         })
       } catch (error) {
         console.error('Failed to add to watchlist:', error)
-        setWatchlist(watchlist.filter((t) => t !== stockToAdd)) // Revert on error
+        setWatchlist(watchlist.filter((t) => t !== assetToAdd)) // Revert on error
         toast({
           title: 'خطأ',
-          description: 'لم نتمكن من إضافة السهم. الرجاء المحاولة مرة أخرى.',
+          description: 'لم نتمكن من إضافة الأصل. الرجاء المحاولة مرة أخرى.',
           variant: 'destructive',
         })
       }
@@ -90,10 +130,10 @@ export default function WatchlistPage() {
       setWatchlist(watchlist.filter((t) => t !== ticker)) // Optimistic update
       try {
         await removeFromWatchlist(user.uid, ticker)
-        const stock = stocks.find((s) => s.ticker === ticker)
+        const asset = assets.find((s) => s.ticker === ticker)
         toast({
           title: 'تمت الإزالة من قائمة المتابعة',
-          description: `${stock?.name || ticker} تمت إزالته.`,
+          description: `${asset?.name || ticker} تمت إزالته.`,
           variant: 'destructive',
         })
       } catch (error) {
@@ -101,7 +141,7 @@ export default function WatchlistPage() {
         console.error('Failed to remove from watchlist:', error)
         toast({
           title: 'خطأ',
-          description: 'لم نتمكن من إزالة السهم. الرجاء المحاولة مرة أخرى.',
+          description: 'لم نتمكن من إزالة الأصل. الرجاء المحاولة مرة أخرى.',
           variant: 'destructive',
         })
       }
@@ -109,6 +149,91 @@ export default function WatchlistPage() {
   }
 
   if (authLoading || !user || watchlistLoading) {
+    return <LoadingSkeleton />
+  }
+
+  return (
+    <div className="container mx-auto p-4 md:p-8">
+      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
+        <h1 className="text-3xl font-bold font-headline">قائمة المتابعة</h1>
+        <div className="flex gap-2">
+          <Select value={selectedAsset} onValueChange={setSelectedAsset}>
+            <SelectTrigger className="w-full md:w-[240px]">
+              <SelectValue placeholder="أضف أصلاً للمتابعة" />
+            </SelectTrigger>
+            <SelectContent>
+                {Object.entries(availableAssetsGrouped).map(([group, assets]) => (
+                    <SelectGroup key={group}>
+                        <SelectLabel>{group}</SelectLabel>
+                        {assets.map((asset) => (
+                           <SelectItem key={asset.ticker} value={asset.ticker}>
+                             {asset.name} ({asset.ticker})
+                           </SelectItem>
+                        ))}
+                    </SelectGroup>
+                ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={handleAddToWatchlist} disabled={!selectedAsset}>
+            <PlusCircle className="mr-2 h-4 w-4" /> إضافة
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-6 border-b pb-4">
+        {categories.map(cat => (
+            <Button 
+                key={cat.id} 
+                variant={activeCategory === cat.id ? 'default' : 'outline'}
+                onClick={() => setActiveCategory(cat.id)}
+            >
+                {cat.name}
+            </Button>
+        ))}
+      </div>
+
+      {activeCategory === 'Stocks' && (
+        <div className="flex flex-wrap gap-2 mb-8">
+            <span className="self-center text-sm font-medium text-muted-foreground">الدولة:</span>
+            {countries.map(country => (
+                <Button
+                    key={country.id}
+                    variant={activeCountry === country.id ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => setActiveCountry(country.id)}
+                >
+                    {country.name}
+                </Button>
+            ))}
+        </div>
+      )}
+
+
+      {filteredAssets.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredAssets.map((asset) => (
+            <AssetCard
+              key={asset.ticker}
+              asset={asset}
+              onRemove={handleRemoveFromWatchlist}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-24 border-2 border-dashed rounded-lg">
+          <h3 className="text-xl font-semibold text-muted-foreground">
+            لا توجد أصول في هذه الفئة
+          </h3>
+          <p className="text-sm text-muted-foreground mt-2">
+            أضف أصولاً من هذه الفئة لمتابعتها هنا.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LoadingSkeleton() {
     return (
       <div className="container mx-auto p-4 md:p-8">
         <div className="flex justify-between items-center mb-6">
@@ -118,6 +243,12 @@ export default function WatchlistPage() {
             <Skeleton className="h-10 w-24" />
           </div>
         </div>
+         <div className="flex gap-2 mb-6">
+            <Skeleton className="h-10 w-20" />
+            <Skeleton className="h-10 w-20" />
+            <Skeleton className="h-10 w-20" />
+            <Skeleton className="h-10 w-20" />
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
             <CardSkeleton key={i} />
@@ -125,53 +256,6 @@ export default function WatchlistPage() {
         </div>
       </div>
     )
-  }
-
-  return (
-    <div className="container mx-auto p-4 md:p-8">
-      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
-        <h1 className="text-3xl font-bold font-headline">قائمة المتابعة</h1>
-        <div className="flex gap-2">
-          <Select value={selectedStock} onValueChange={setSelectedStock}>
-            <SelectTrigger className="w-full md:w-[240px]">
-              <SelectValue placeholder="أضف سهماً للمتابعة" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableStocks.map((stock) => (
-                <SelectItem key={stock.ticker} value={stock.ticker}>
-                  {stock.name} ({stock.ticker})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button onClick={handleAddToWatchlist} disabled={!selectedStock}>
-            <PlusCircle className="mr-2 h-4 w-4" /> إضافة
-          </Button>
-        </div>
-      </div>
-
-      {watchlistStocks.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {watchlistStocks.map((stock) => (
-            <StockCard
-              key={stock.ticker}
-              stock={stock}
-              onRemove={handleRemoveFromWatchlist}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-24 border-2 border-dashed rounded-lg">
-          <h3 className="text-xl font-semibold text-muted-foreground">
-            قائمة المتابعة فارغة
-          </h3>
-          <p className="text-sm text-muted-foreground mt-2">
-            أضف أسهماً باستخدام القائمة المنسدلة أعلاه لتتبعها هنا.
-          </p>
-        </div>
-      )}
-    </div>
-  )
 }
 
 function CardSkeleton() {

@@ -1,7 +1,7 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { newsArticles, stocks } from '@/lib/data'
+import { newsArticles, assets } from '@/lib/data'
 import { BookOpen, Sparkles, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
@@ -14,7 +14,7 @@ interface NewsSummaryProps {
 }
 
 export function NewsSummary({ ticker }: NewsSummaryProps) {
-  const stock = stocks.find((s) => s.ticker === ticker)
+  const asset = assets.find((s) => s.ticker === ticker)
   const articles = newsArticles[ticker] || []
 
   const [summary, setSummary] = useState<string | null>(null)
@@ -22,11 +22,11 @@ export function NewsSummary({ ticker }: NewsSummaryProps) {
   const { toast } = useToast()
 
   const handleSummarize = async () => {
-    if (!stock || articles.length === 0) return
+    if (!asset || articles.length === 0) return
     setLoading(true)
     setSummary(null)
     try {
-      const result = await summarizeNews({ ticker: stock.ticker })
+      const result = await summarizeNews({ ticker: asset.ticker })
       setSummary(result.summary)
     } catch (error) {
       console.error('Error summarizing news:', error)
@@ -39,13 +39,13 @@ export function NewsSummary({ ticker }: NewsSummaryProps) {
     setLoading(false)
   }
 
-  if (!stock) return null
+  if (!asset) return null
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-lg font-headline flex items-center justify-between">
-          <span>أخبار عن {stock.name}</span>
+          <span>أخبار عن {asset.name}</span>
           <BookOpen className="w-5 h-5 text-muted-foreground" />
         </CardTitle>
       </CardHeader>
@@ -86,7 +86,7 @@ export function NewsSummary({ ticker }: NewsSummaryProps) {
                     rel="noopener noreferrer"
                     className="hover:underline text-primary"
                   >
-                    {`خبر ${index + 1} عن ${stock.ticker}`}
+                    {`خبر ${index + 1} عن ${asset.ticker}`}
                   </Link>
                 </li>
               ))}
