@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove, collection, addDoc, getDocs, query, orderBy, Timestamp, onSnapshot, type Unsubscribe } from "firebase/firestore";
+import { doc, getDoc, setDoc, arrayUnion, arrayRemove, collection, addDoc, getDocs, query, orderBy, Timestamp, onSnapshot, type Unsubscribe } from "firebase/firestore";
 import { getFirestoreDb } from "./firebase";
 import type { InvestmentStrategyOutput } from "@/ai/schemas/investment-strategy-schema";
 
@@ -48,7 +48,10 @@ export function onWatchlistUpdate(userId: string, callback: (watchlist: string[]
         if (docSnap.exists()) {
             callback(docSnap.data().watchlist || []);
         } else {
+            // Doc doesn't exist, create it and immediately inform the caller
+            // that the watchlist is empty.
             setDoc(userDocRef, { watchlist: [] });
+            callback([]);
         }
     }, (error) => {
         console.error("Error listening to watchlist:", error);
@@ -69,9 +72,10 @@ export async function addToWatchlist(userId: string, ticker: string) {
     if (!db) return;
 
     const userDocRef = doc(db, "users", userId);
-    await updateDoc(userDocRef, {
+    // Use setDoc with merge to create the doc if it doesn't exist, or update if it does.
+    await setDoc(userDocRef, {
         watchlist: arrayUnion(ticker)
-    });
+    }, { merge: true });
 }
 
 /**
@@ -84,9 +88,10 @@ export async function removeFromWatchlist(userId: string, ticker: string) {
     if (!db) return;
 
     const userDocRef = doc(db, "users", userId);
-    await updateDoc(userDocRef, {
+     // Use setDoc with merge to ensure the doc exists before updating.
+    await setDoc(userDocRef, {
         watchlist: arrayRemove(ticker)
-    });
+    }, { merge: true });
 }
 
 /**

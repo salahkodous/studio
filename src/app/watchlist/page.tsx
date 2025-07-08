@@ -17,7 +17,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
 import { Skeleton } from '@/components/ui/skeleton'
-import { getWatchlist, addToWatchlist, removeFromWatchlist } from '@/lib/firestore'
+import { onWatchlistUpdate, addToWatchlist, removeFromWatchlist } from '@/lib/firestore'
 
 type Category = 'Stocks' | 'Gold' | 'Oil' | 'Bonds'
 const categories: { id: Category; name: string }[] = [
@@ -39,7 +39,7 @@ export default function WatchlistPage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [watchlist, setWatchlist] = useState<string[]>([])
-  const [watchlistLoading, setWatchlistLoading] = useState(true)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [selectedAsset, setSelectedAsset] = useState('')
   const [activeCategory, setActiveCategory] = useState<Category>('Stocks')
   const [activeCountry, setActiveCountry] = useState<Country>('All')
@@ -53,25 +53,13 @@ export default function WatchlistPage() {
 
   useEffect(() => {
     if (user) {
-      const fetchWatchlist = async () => {
-        setWatchlistLoading(true)
-        try {
-          const userWatchlist = await getWatchlist(user.uid)
-          setWatchlist(userWatchlist)
-        } catch (error) {
-          console.error('Failed to fetch watchlist:', error)
-          toast({
-            title: 'خطأ',
-            description: 'لم نتمكن من تحميل قائمة المتابعة.',
-            variant: 'destructive',
-          })
-        } finally {
-          setWatchlistLoading(false)
-        }
-      }
-      fetchWatchlist()
+      const unsubscribe = onWatchlistUpdate(user.uid, (userWatchlist) => {
+        setWatchlist(userWatchlist)
+        setIsInitialLoad(false)
+      })
+      return () => unsubscribe?.()
     }
-  }, [user, toast])
+  }, [user])
 
   const watchlistAssets = useMemo(() => {
     return assets.filter((asset) => watchlist.includes(asset.ticker))
@@ -103,7 +91,6 @@ export default function WatchlistPage() {
   const handleAddToWatchlist = async () => {
     if (user && selectedAsset && !watchlist.includes(selectedAsset)) {
       const assetToAdd = selectedAsset
-      setWatchlist([...watchlist, assetToAdd]) // Optimistic update
       setSelectedAsset('')
       try {
         await addToWatchlist(user.uid, assetToAdd)
@@ -114,7 +101,6 @@ export default function WatchlistPage() {
         })
       } catch (error) {
         console.error('Failed to add to watchlist:', error)
-        setWatchlist(watchlist.filter((t) => t !== assetToAdd)) // Revert on error
         toast({
           title: 'خطأ',
           description: 'لم نتمكن من إضافة الأصل. الرجاء المحاولة مرة أخرى.',
@@ -126,8 +112,6 @@ export default function WatchlistPage() {
 
   const handleRemoveFromWatchlist = async (ticker: string) => {
     if (user) {
-      const originalWatchlist = [...watchlist]
-      setWatchlist(watchlist.filter((t) => t !== ticker)) // Optimistic update
       try {
         await removeFromWatchlist(user.uid, ticker)
         const asset = assets.find((s) => s.ticker === ticker)
@@ -137,7 +121,6 @@ export default function WatchlistPage() {
           variant: 'destructive',
         })
       } catch (error) {
-        setWatchlist(originalWatchlist) // Revert on error
         console.error('Failed to remove from watchlist:', error)
         toast({
           title: 'خطأ',
@@ -148,7 +131,7 @@ export default function WatchlistPage() {
     }
   }
 
-  if (authLoading || !user || watchlistLoading) {
+  if (authLoading || isInitialLoad) {
     return <LoadingSkeleton />
   }
 
