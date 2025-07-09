@@ -25,11 +25,12 @@ export function StrategyPieChart({ chartData, chartConfig }: StrategyPieChartPro
                     nameKey="category"
                     innerRadius={60}
                     strokeWidth={2}
+                    fill="hsl(var(--chart-1))"
                 >
-                    {chartData.map((entry) => (
+                    {chartData.map((entry, index) => (
                         <Cell
-                            key={entry.category}
-                            fill={`var(--color-${entry.category.replace(/[^a-zA-Z0-9]/g, "")})`}
+                            key={`cell-${index}`}
+                            fill={`hsl(var(--chart-${(index % 5) + 1}))`}
                             className="focus:outline-none"
                         />
                     ))}
