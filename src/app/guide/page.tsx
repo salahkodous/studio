@@ -101,11 +101,11 @@ export default function GuidePage() {
     setIsSaving(false);
     
     try {
-      const stream = await streamInvestmentStrategy(data);
+      const {stream, response} = await streamInvestmentStrategy(data);
       for await (const chunk of stream) {
         setResult(chunk);
       }
-      const finalResult = await stream.output();
+      const finalResult = await response;
       finalResultRef.current = finalResult;
 
       if (user && finalResult) {

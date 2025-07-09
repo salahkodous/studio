@@ -10,9 +10,13 @@ import {
   type InvestmentStrategyInput,
   InvestmentStrategyInputSchema,
   InvestmentStrategyOutputSchema,
+  type InvestmentStrategyOutput,
 } from '@/ai/schemas/investment-strategy-schema';
+import {defineFlow, type Stream, type Response} from 'genkit';
 
-export async function streamInvestmentStrategy(input: InvestmentStrategyInput) {
+export async function streamInvestmentStrategy(
+  input: InvestmentStrategyInput
+): Promise<{stream: Stream<InvestmentStrategyOutput>; response: Response<InvestmentStrategyOutput>}> {
   return investmentStrategyStreamFlow(input);
 }
 
@@ -48,10 +52,13 @@ const investmentStrategyStreamFlow = ai.defineFlow(
   {
     name: 'investmentStrategyStreamFlow',
     inputSchema: InvestmentStrategyInputSchema,
-    outputSchema: InvestmentStrategyOutputSchema.stream(),
+    outputSchema: z.any(),
   },
   async input => {
-    const {stream} = await investmentStrategyPrompt(input, {stream: true});
-    return stream;
+    return ai.generate({
+      prompt: investmentStrategyPrompt,
+      input,
+      stream: true,
+    });
   }
 );
