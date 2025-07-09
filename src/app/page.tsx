@@ -64,31 +64,19 @@ export default function HomePage() {
   if (!user) {
     return (
       <div className="container mx-auto flex flex-col items-center justify-center text-center min-h-[calc(100vh-8rem)] p-4">
-        <div className="flex flex-col md:flex-row items-center gap-8">
-          <div className="md:w-1/2 md:text-right">
-            <h1 className="text-4xl md:text-6xl font-bold font-headline mb-4">
-              دليلك الشامل للاستثمار في الخليج
-            </h1>
-            <p className="text-lg md:text-xl text-muted-foreground mb-8">
-              احصل على استراتيجيات استثمار مخصصة لأهدافك وميزانيتك، مدعومة بالذكاء الاصطناعي لتحليل أسواق الأسهم، العقارات، الذهب، وغيرها في منطقة الخليج.
-            </p>
-            <Button asChild size="lg">
-              <Link href="/guide">
-                ابدأ الآن
-                <ArrowLeft className="mr-2 h-5 w-5" />
-              </Link>
-            </Button>
-          </div>
-          <div className="md:w-1/2 flex items-center justify-center">
-             <Image
-              src="https://placehold.co/500x500.png"
-              alt="Modern Arabian Cityscape"
-              width={500}
-              height={500}
-              className="rounded-lg shadow-2xl"
-              data-ai-hint="dubai skyline"
-            />
-          </div>
+        <div className="max-w-3xl">
+          <h1 className="text-4xl md:text-6xl font-bold font-headline mb-6 bg-gradient-to-r from-primary via-amber-400 to-yellow-500 text-transparent bg-clip-text">
+            استثمر في المستقبل. استثمر في الخليج.
+          </h1>
+          <p className="text-lg md:text-xl text-muted-foreground mb-10">
+            "ثروات" هو شريكك الذكي لاستكشاف الفرص الواعدة في أسواق الخليج. احصل على استراتيجيات مخصصة، وقم ببناء وتتبع محافظك الاستثمارية بسهولة ودقة.
+          </p>
+          <Button asChild size="lg">
+            <Link href="/guide">
+              اكتشف مستقبلك المالي
+              <ArrowLeft className="mr-2 h-5 w-5" />
+            </Link>
+          </Button>
         </div>
       </div>
     )
