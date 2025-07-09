@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, useMemo, useTransition } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useForm, type SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import dynamic from 'next/dynamic'
-import { generateInvestmentStrategy } from '@/ai/flows/generate-investment-strategy'
+import { streamInvestmentStrategy } from '@/ai/flows/stream-investment-strategy'
 import type { InvestmentStrategyOutput } from '@/ai/schemas/investment-strategy-schema'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useToast } from '@/hooks/use-toast'
-import { Loader2, Wand2, Lightbulb, PieChart as PieChartIcon, AlertTriangle, Save } from 'lucide-react'
+import { Loader2, Wand2, Lightbulb, PieChart as PieChartIcon, AlertTriangle, Save, CheckCircle } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import type { ChartConfig } from '@/components/ui/chart'
 import { useAuth } from '@/hooks/use-auth'
@@ -63,7 +63,9 @@ const investmentCategories = [
 
 export default function GuidePage() {
   const [isGenerating, setIsGenerating] = useState(false);
-  const [result, setResult] = useState<InvestmentStrategyOutput | null>(null)
+  const [isSaving, setIsSaving] = useState(false);
+  const [result, setResult] = useState<Partial<InvestmentStrategyOutput>>({});
+  const finalResultRef = useRef<InvestmentStrategyOutput | null>(null);
   const [isClient, setIsClient] = useState(false)
   const { toast } = useToast()
   const { user } = useAuth()
@@ -93,24 +95,32 @@ export default function GuidePage() {
   const showOtherField = watchedCategories.includes('Other');
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
-    setResult(null)
-    setIsGenerating(true)
+    setResult({});
+    finalResultRef.current = null;
+    setIsGenerating(true);
+    setIsSaving(false);
+    
     try {
-      const response = await generateInvestmentStrategy(data)
-      setResult(response)
-      
-      if (user && response) {
+      const stream = await streamInvestmentStrategy(data);
+      for await (const chunk of stream) {
+        setResult(chunk);
+      }
+      const finalResult = await stream.output();
+      finalResultRef.current = finalResult;
+
+      if (user && finalResult) {
+        setIsSaving(true);
         try {
-            await saveStrategy(user.uid, response)
+            await saveStrategy(user.uid, finalResult);
             toast({
-            title: 'تم حفظ الخطة',
-            description: 'يمكنك عرض خططك المحفوظة في صفحة "خططي الاستثمارية".',
-            action: (
-                <div className="flex items-center">
-                    <Save className="h-4 w-4 mr-2" />
-                    <span>حُفظت بنجاح</span>
-                </div>
-            )
+              title: 'تم حفظ الخطة بنجاح',
+              description: 'يمكنك عرض خططك المحفوظة في صفحة "خططي الاستثمارية".',
+              action: (
+                  <div className="flex items-center">
+                      <CheckCircle className="h-4 w-4 mr-2 text-success" />
+                      <span>حُفظت</span>
+                  </div>
+              )
             })
         } catch (saveError) {
             console.error('Error saving strategy:', saveError)
@@ -119,6 +129,8 @@ export default function GuidePage() {
                 description: 'تم إنشاء الخطة ولكن لم نتمكن من حفظها تلقائيًا.',
                 variant: 'destructive',
             })
+        } finally {
+            setIsSaving(false);
         }
       }
     } catch (error) {
@@ -142,6 +154,8 @@ export default function GuidePage() {
     };
     return acc;
   }, {} as ChartConfig)), [chartData]);
+  
+  const hasResult = Object.keys(result).length > 0;
 
   if (!isClient) {
     return (
@@ -255,11 +269,16 @@ export default function GuidePage() {
               {errors.investmentGoals && <p className="text-sm text-destructive">{errors.investmentGoals.message}</p>}
             </div>
 
-            <Button type="submit" disabled={isGenerating} className="w-full">
+            <Button type="submit" disabled={isGenerating || isSaving} className="w-full">
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   جاري إنشاء الخطة...
+                </>
+              ) : isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  جاري حفظ الخطة...
                 </>
               ) : (
                 <>
@@ -272,21 +291,21 @@ export default function GuidePage() {
         </CardContent>
       </Card>
       
-      {isGenerating && (
+      {isGenerating && !hasResult && (
         <div className="text-center p-8 space-y-4">
             <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
             <p className="text-muted-foreground">يقوم خبراؤنا الافتراضيون بتحليل طلبك...</p>
         </div>
       )}
 
-      {result && !isGenerating && (
+      {hasResult && (
         <Card className="mt-12">
           <CardHeader>
             <CardTitle className="text-2xl font-headline flex items-center gap-3">
               <Lightbulb className="w-6 h-6 text-primary" />
-              {result.strategyTitle}
+              {result.strategyTitle || <Skeleton className="h-8 w-3/4" />}
             </CardTitle>
-            <CardDescription>{result.strategySummary}</CardDescription>
+             <CardDescription>{result.strategySummary || <Skeleton className="h-4 w-full mt-2" />}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <Separator />
@@ -298,7 +317,7 @@ export default function GuidePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
                 <div className="order-2 md:order-1">
                   <div className="grid gap-3 text-sm">
-                    {result.assetAllocation.map((asset, index) => (
+                    {result.assetAllocation ? result.assetAllocation.map((asset, index) => (
                       <div key={index} className="flex items-start gap-3">
                         <div
                           className="w-3 h-3 rounded-full shrink-0 mt-1"
@@ -314,7 +333,13 @@ export default function GuidePage() {
                           <p className="text-muted-foreground">{asset.rationale}</p>
                         </div>
                       </div>
-                    ))}
+                    )) : (
+                       <div className="space-y-3">
+                          <Skeleton className="h-10 w-full" />
+                          <Skeleton className="h-10 w-full" />
+                          <Skeleton className="h-10 w-full" />
+                       </div>
+                    )}
                   </div>
                 </div>
                 <div className="order-1 md:order-2 h-[250px] flex items-center justify-center">
@@ -326,14 +351,20 @@ export default function GuidePage() {
             <div>
               <h3 className="text-lg font-semibold mb-3">توصيات الخبراء</h3>
                <div className="space-y-4">
-                {result.recommendations.map((rec, index) => (
+                {result.recommendations ? result.recommendations.map((rec, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
                     <div className="flex-1 space-y-1">
                       <p className="font-bold">{rec.name} <span className="text-xs text-muted-foreground">{rec.ticker}</span></p>
                       <p className="text-sm text-muted-foreground">{rec.justification}</p>
                     </div>
                   </div>
-                ))}
+                )) : (
+                    <div className="space-y-4">
+                        <Skeleton className="h-16 w-full" />
+                        <Skeleton className="h-16 w-full" />
+                        <Skeleton className="h-16 w-full" />
+                    </div>
+                )}
               </div>
             </div>
             <Separator />
@@ -342,7 +373,7 @@ export default function GuidePage() {
                 <AlertTriangle className="w-5 h-5 text-destructive" />
                 تحليل المخاطر
               </h3>
-              <p className="text-sm text-muted-foreground">{result.riskAnalysis}</p>
+              <p className="text-sm text-muted-foreground">{result.riskAnalysis || <Skeleton className="h-16 w-full" />}</p>
             </div>
           </CardContent>
         </Card>
@@ -351,5 +382,3 @@ export default function GuidePage() {
     </div>
   )
 }
-
-    
