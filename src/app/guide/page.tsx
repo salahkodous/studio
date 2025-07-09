@@ -14,12 +14,11 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useToast } from '@/hooks/use-toast'
-import { Loader2, Wand2, Lightbulb, PieChart as PieChartIcon, AlertTriangle, Save, PlusCircle, CheckCircle } from 'lucide-react'
+import { Loader2, Wand2, Lightbulb, PieChart as PieChartIcon, AlertTriangle, Save } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import type { ChartConfig } from '@/components/ui/chart'
 import { useAuth } from '@/hooks/use-auth'
-import { saveStrategy, onPortfolioUpdate, addToPortfolio } from '@/lib/firestore'
-import { assets } from '@/lib/data'
+import { saveStrategy } from '@/lib/firestore'
 import { Skeleton } from '@/components/ui/skeleton'
 
 const StrategyPieChart = dynamic(
@@ -56,20 +55,12 @@ export default function GuidePage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<InvestmentStrategyOutput | null>(null)
   const [isClient, setIsClient] = useState(false)
-  const [portfolio, setPortfolio] = useState<string[]>([])
   const { toast } = useToast()
   const { user } = useAuth()
 
   useEffect(() => {
     setIsClient(true)
   }, [])
-  
-  useEffect(() => {
-    if (user) {
-      const unsubscribe = onPortfolioUpdate(user.uid, setPortfolio);
-      return () => unsubscribe?.();
-    }
-  }, [user]);
 
   const {
     register,
@@ -95,8 +86,7 @@ export default function GuidePage() {
     try {
       const response = await generateInvestmentStrategy(data)
       setResult(response)
-      setLoading(false)
-
+      
       if (user) {
         try {
             await saveStrategy(user.uid, response)
@@ -126,22 +116,10 @@ export default function GuidePage() {
         description: 'لم نتمكن من إنشاء خطة الاستثمار. الرجاء المحاولة مرة أخرى.',
         variant: 'destructive',
       })
+    } finally {
       setLoading(false)
     }
   }
-
-  const handleAddToPortfolio = async (ticker: string) => {
-    if (!user) {
-        toast({ title: 'الرجاء تسجيل الدخول', description: 'يجب عليك تسجيل الدخول لإضافة أصول إلى محفظتك.', variant: 'destructive' });
-        return;
-    }
-    if (assets.find(a => a.ticker === ticker)) {
-        await addToPortfolio(user.uid, ticker);
-        toast({ title: 'تمت الإضافة إلى المحفظة', description: `تمت إضافة ${ticker} إلى محفظتك.` });
-    } else {
-        toast({ title: 'أصل غير معروف', description: `لا يمكن إضافة ${ticker} لأنه غير متوفر حاليًا للمتابعة.`, variant: 'destructive' });
-    }
-  };
 
   const chartData = useMemo(() => result?.assetAllocation ?? [], [result]);
   const chartConfig = useMemo(() => (chartData.reduce((acc, curr, index) => {
@@ -335,15 +313,6 @@ export default function GuidePage() {
                       <p className="font-bold">{rec.name} <span className="text-xs text-muted-foreground">{rec.ticker}</span></p>
                       <p className="text-sm text-muted-foreground">{rec.justification}</p>
                     </div>
-                    {portfolio.includes(rec.ticker) ? (
-                      <Button variant="ghost" disabled className="text-success">
-                        <CheckCircle className="mr-2 h-4 w-4"/> تمت الإضافة
-                      </Button>
-                    ) : (
-                      <Button variant="outline" onClick={() => handleAddToPortfolio(rec.ticker)}>
-                        <PlusCircle className="mr-2 h-4 w-4"/> أضف إلى المحفظة
-                      </Button>
-                    )}
                   </div>
                 ))}
               </div>
