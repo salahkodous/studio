@@ -12,7 +12,8 @@ import {
   InvestmentStrategyOutputSchema,
   type InvestmentStrategyOutput,
 } from '@/ai/schemas/investment-strategy-schema';
-import {defineFlow, type Stream, type Response} from 'genkit';
+import {type Stream, type Response} from 'genkit';
+import { z } from 'genkit';
 
 export async function streamInvestmentStrategy(
   input: InvestmentStrategyInput
