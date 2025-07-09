@@ -52,7 +52,7 @@ export default function StrategiesPage() {
     }
   }, [user, authLoading])
 
-  if (authLoading) {
+  if (authLoading || strategiesLoading) {
     return <LoadingSkeleton />
   }
 
@@ -65,13 +65,7 @@ export default function StrategiesPage() {
         </p>
       </div>
 
-      {strategiesLoading ? (
-        <div className="space-y-4">
-            <Skeleton className="h-20 w-full rounded-lg" />
-            <Skeleton className="h-20 w-full rounded-lg" />
-            <Skeleton className="h-20 w-full rounded-lg" />
-        </div>
-      ) : strategies.length > 0 ? (
+      {strategies.length > 0 ? (
         <Accordion type="single" collapsible className="w-full space-y-4">
           {strategies.map((strategy) => (
             <AccordionItem value={strategy.id} key={strategy.id} className="border rounded-lg bg-card">
@@ -154,9 +148,16 @@ function StrategyDetails({ strategy }: { strategy: SavedStrategy }) {
             <Separator />
             <div>
               <h3 className="text-lg font-semibold mb-3">توصيات الخبراء</h3>
-              <ul className="space-y-2 list-disc pr-5">
-                {strategy.recommendations.map((rec, index) => <li key={index} className="text-sm">{rec}</li>)}
-              </ul>
+               <div className="space-y-4">
+                {strategy.recommendations.map((rec, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
+                    <div className="flex-1 space-y-1">
+                      <p className="font-bold">{rec.name} <span className="text-xs text-muted-foreground">{rec.ticker}</span></p>
+                      <p className="text-sm text-muted-foreground">{rec.justification}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
             <Separator />
              <div>
