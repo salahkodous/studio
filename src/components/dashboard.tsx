@@ -3,13 +3,13 @@
 import { useState, useEffect } from 'react'
 import type { User } from 'firebase/auth'
 import Link from 'next/link'
-import { onWatchlistUpdate, onStrategiesUpdate, onPortfolioUpdate, type SavedStrategy } from '@/lib/firestore'
+import { onWatchlistUpdate, onStrategiesUpdate, onPortfoliosUpdate, type SavedStrategy, type PortfolioDetails } from '@/lib/firestore'
 import { assets } from '@/lib/data'
 import type { Asset } from '@/lib/data'
 import { AssetCard } from '@/components/stock-card'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
-import { ArrowLeft, LayoutDashboard, Lightbulb, Newspaper, Briefcase, PlusCircle } from 'lucide-react'
+import { ArrowLeft, LayoutDashboard, Lightbulb, Newspaper, Briefcase, PlusCircle, FolderKanban } from 'lucide-react'
 import { Skeleton } from './ui/skeleton'
 
 interface DashboardProps {
@@ -18,7 +18,7 @@ interface DashboardProps {
 
 export function Dashboard({ user }: DashboardProps) {
   const [watchlist, setWatchlist] = useState<Asset[]>([])
-  const [portfolio, setPortfolio] = useState<Asset[]>([])
+  const [latestPortfolio, setLatestPortfolio] = useState<PortfolioDetails | null>(null)
   const [latestStrategy, setLatestStrategy] = useState<SavedStrategy | null>(null)
   const [watchlistLoading, setWatchlistLoading] = useState(true)
   const [portfolioLoading, setPortfolioLoading] = useState(true)
@@ -37,10 +37,9 @@ export function Dashboard({ user }: DashboardProps) {
       setWatchlistLoading(false);
     });
 
-    const unsubscribePortfolio = onPortfolioUpdate(user.uid, (tickers) => {
-      const assetsInList = assets.filter(asset => tickers.includes(asset.ticker));
-      setPortfolio(assetsInList);
-      setPortfolioLoading(false);
+    const unsubscribePortfolios = onPortfoliosUpdate(user.uid, (portfolios) => {
+        setLatestPortfolio(portfolios.length > 0 ? portfolios[0] : null);
+        setPortfolioLoading(false);
     });
 
     const unsubscribeStrategies = onStrategiesUpdate(user.uid, (strategies) => {
@@ -50,7 +49,7 @@ export function Dashboard({ user }: DashboardProps) {
 
     return () => {
       unsubscribeWatchlist?.();
-      unsubscribePortfolio?.();
+      unsubscribePortfolios?.();
       unsubscribeStrategies?.();
     };
   }, [user.uid]);
@@ -67,32 +66,39 @@ export function Dashboard({ user }: DashboardProps) {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>نظرة على المحفظة</CardTitle>
-                <CardDescription>أحدث أداء لأصولك المستثمر بها.</CardDescription>
+                <CardDescription>ملخص سريع لآخر محفظة استثمارية لك.</CardDescription>
               </div>
               <Button asChild variant="ghost">
-                <Link href="/portfolio">
-                  إدارة المحفظة <ArrowLeft className="mr-2 h-4 w-4" />
+                <Link href="/portfolios">
+                  عرض كل المحافظ <ArrowLeft className="mr-2 h-4 w-4" />
                 </Link>
               </Button>
             </CardHeader>
             <CardContent>
               {portfolioLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Skeleton className="h-24 w-full" />
-                  <Skeleton className="h-24 w-full" />
+                <div className="space-y-3">
+                    <Skeleton className="h-6 w-1/2" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-4/5" />
                 </div>
-              ) : portfolio.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {portfolio.slice(0, 2).map(asset => (
-                    <AssetCard key={asset.ticker} asset={asset} />
-                  ))}
+              ) : latestPortfolio ? (
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-lg">{latestPortfolio.name}</h3>
+                  <p className="text-sm text-muted-foreground line-clamp-3">
+                    آخر تحديث في: {new Date(latestPortfolio.updatedAt).toLocaleString('ar-EG')}
+                  </p>
+                   <Button asChild variant="secondary" className="w-full md:w-auto">
+                    <Link href={`/portfolio/${latestPortfolio.id}`}>
+                      عرض تفاصيل المحفظة <ArrowLeft className="mr-2 h-4 w-4" />
+                    </Link>
+                  </Button>
                 </div>
               ) : (
                 <div className="text-center py-10 text-muted-foreground flex flex-col items-center gap-4">
                   <Briefcase className="w-10 h-10"/>
-                  <p>محفظتك فارغة. ابدأ ببناء استراتيجيتك.</p>
+                  <p>ليس لديك أي محافظ بعد. ابدأ بإنشاء واحدة.</p>
                   <Button asChild>
-                    <Link href="/guide"><PlusCircle className="ml-2"/> أنشئ خطة جديدة</Link>
+                    <Link href="/portfolios"><PlusCircle className="ml-2"/> إنشاء محفظة</Link>
                   </Button>
                 </div>
               )}
@@ -139,7 +145,7 @@ export function Dashboard({ user }: DashboardProps) {
            <Card>
             <CardHeader>
                 <CardTitle>آخر خطة استثمارية</CardTitle>
-                <CardDescription>ملخص سريع لأحدث استراتيجية قمت بإنشائها.</CardDescription>
+                <CardDescription>ملخص سريع لآخر استراتيجية قمت بإنشائها.</CardDescription>
             </CardHeader>
             <CardContent>
               {strategyLoading ? (
@@ -177,13 +183,13 @@ export function Dashboard({ user }: DashboardProps) {
             </CardHeader>
             <CardContent className="flex flex-col space-y-4">
               <Button asChild size="lg">
-                <Link href="/guide"><Lightbulb className="ml-2 h-4 w-4" /> أنشئ خطة جديدة</Link>
+                <Link href="/guide"><Lightbulb className="ml-2 h-4 w-4" /> أنشئ خطة استثمار</Link>
+              </Button>
+               <Button asChild size="lg" variant="secondary">
+                <Link href="/portfolios"><FolderKanban className="ml-2 h-4 w-4" /> إدارة المحافظ</Link>
               </Button>
               <Button asChild size="lg" variant="secondary">
                 <Link href="/watchlist"><LayoutDashboard className="ml-2 h-4 w-4" /> إدارة قائمة المتابعة</Link>
-              </Button>
-               <Button asChild size="lg" variant="secondary">
-                <Link href="/portfolio"><Briefcase className="ml-2 h-4 w-4" /> عرض المحفظة</Link>
               </Button>
               <Button asChild size="lg" variant="secondary">
                 <Link href="/news"><Newspaper className="ml-2 h-4 w-4" /> تصفح أخبار السوق</Link>

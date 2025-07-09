@@ -24,7 +24,7 @@ const navItems = [
   { href: '/', label: 'الرئيسية' },
   { href: '/guide', label: 'دليل الاستثمار' },
   { href: '/watchlist', label: 'قائمة المتابعة', auth: true },
-  { href: '/portfolio', label: 'المحفظة', auth: true },
+  { href: '/portfolios', label: 'المحافظ', auth: true },
   { href: '/strategies', label: 'خططي الاستثمارية', auth: true },
   { href: '/news', label: 'أخبار السوق' },
 ];
@@ -66,7 +66,7 @@ export function Header() {
                   href={item.href}
                   className={cn(
                     'transition-colors hover:text-foreground/80',
-                    pathname === item.href ? 'text-foreground' : 'text-foreground/60'
+                    pathname === item.href || (item.href === '/portfolios' && pathname.startsWith('/portfolio/')) ? 'text-foreground' : 'text-foreground/60'
                   )}
                 >
                   {item.label}
@@ -97,7 +97,7 @@ export function Header() {
                       href={item.href}
                       className={cn(
                         'transition-colors hover:text-foreground/80',
-                        pathname === item.href ? 'text-foreground font-semibold' : 'text-foreground/80'
+                        pathname === item.href || (item.href === '/portfolios' && pathname.startsWith('/portfolio/')) ? 'text-foreground font-semibold' : 'text-foreground/80'
                       )}
                     >
                       {item.label}
