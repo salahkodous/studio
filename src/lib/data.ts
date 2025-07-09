@@ -229,3 +229,5 @@ export const getStockPriceHistory = (
   }
   return data
 }
+
+    

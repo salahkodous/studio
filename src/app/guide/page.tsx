@@ -57,11 +57,12 @@ const investmentCategories = [
   { id: 'Stocks', label: 'الأسهم' },
   { id: 'Gold', label: 'الذهب' },
   { id: 'Real Estate', label: 'العقارات' },
+  { id: 'Bonds', label: 'السندات' },
   { id: 'Other', label: 'أخرى' },
 ]
 
 export default function GuidePage() {
-  const [isPending, startTransition] = useTransition();
+  const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<InvestmentStrategyOutput | null>(null)
   const [isClient, setIsClient] = useState(false)
   const { toast } = useToast()
@@ -92,43 +93,44 @@ export default function GuidePage() {
   const showOtherField = watchedCategories.includes('Other');
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
-    startTransition(async () => {
-      setResult(null)
-      try {
-        const response = await generateInvestmentStrategy(data)
-        setResult(response)
-        
-        if (user && response) {
-          try {
-              await saveStrategy(user.uid, response)
-              toast({
-              title: 'تم حفظ الخطة',
-              description: 'يمكنك عرض خططك المحفوظة في صفحة "خططي الاستثمارية".',
-              action: (
-                  <div className="flex items-center">
-                      <Save className="h-4 w-4 mr-2" />
-                      <span>حُفظت بنجاح</span>
-                  </div>
-              )
-              })
-          } catch (saveError) {
-              console.error('Error saving strategy:', saveError)
-              toast({
-                  title: 'خطأ في الحفظ',
-                  description: 'تم إنشاء الخطة ولكن لم نتمكن من حفظها تلقائيًا.',
-                  variant: 'destructive',
-              })
-          }
+    setResult(null)
+    setIsGenerating(true)
+    try {
+      const response = await generateInvestmentStrategy(data)
+      setResult(response)
+      
+      if (user && response) {
+        try {
+            await saveStrategy(user.uid, response)
+            toast({
+            title: 'تم حفظ الخطة',
+            description: 'يمكنك عرض خططك المحفوظة في صفحة "خططي الاستثمارية".',
+            action: (
+                <div className="flex items-center">
+                    <Save className="h-4 w-4 mr-2" />
+                    <span>حُفظت بنجاح</span>
+                </div>
+            )
+            })
+        } catch (saveError) {
+            console.error('Error saving strategy:', saveError)
+            toast({
+                title: 'خطأ في الحفظ',
+                description: 'تم إنشاء الخطة ولكن لم نتمكن من حفظها تلقائيًا.',
+                variant: 'destructive',
+            })
         }
-      } catch (error) {
-        console.error('Error generating strategy:', error)
-        toast({
-          title: 'حدث خطأ',
-          description: 'لم نتمكن من إنشاء خطة الاستثمار. الرجاء المحاولة مرة أخرى.',
-          variant: 'destructive',
-        })
       }
-    });
+    } catch (error) {
+      console.error('Error generating strategy:', error)
+      toast({
+        title: 'حدث خطأ',
+        description: 'لم نتمكن من إنشاء خطة الاستثمار. الرجاء المحاولة مرة أخرى.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsGenerating(false);
+    }
   }
 
   const chartData = useMemo(() => result?.assetAllocation ?? [], [result]);
@@ -253,8 +255,8 @@ export default function GuidePage() {
               {errors.investmentGoals && <p className="text-sm text-destructive">{errors.investmentGoals.message}</p>}
             </div>
 
-            <Button type="submit" disabled={isPending} className="w-full">
-              {isPending ? (
+            <Button type="submit" disabled={isGenerating} className="w-full">
+              {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   جاري إنشاء الخطة...
@@ -270,14 +272,14 @@ export default function GuidePage() {
         </CardContent>
       </Card>
       
-      {isPending && (
+      {isGenerating && (
         <div className="text-center p-8 space-y-4">
             <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
             <p className="text-muted-foreground">يقوم خبراؤنا الافتراضيون بتحليل طلبك...</p>
         </div>
       )}
 
-      {result && (
+      {result && !isGenerating && (
         <Card className="mt-12">
           <CardHeader>
             <CardTitle className="text-2xl font-headline flex items-center gap-3">
@@ -349,3 +351,5 @@ export default function GuidePage() {
     </div>
   )
 }
+
+    
