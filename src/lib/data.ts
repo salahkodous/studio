@@ -6,7 +6,7 @@ export interface Asset {
   changePercent: string
   trend: 'up' | 'down' | 'stable'
   currency: 'SAR' | 'QAR' | 'AED' | 'USD'
-  category: 'Stocks' | 'Gold' | 'Oil' | 'Bonds'
+  category: 'Stocks' | 'Gold' | 'Oil' | 'Bonds' | 'Other'
   country: 'SA' | 'QA' | 'AE' | 'Global'
 }
 

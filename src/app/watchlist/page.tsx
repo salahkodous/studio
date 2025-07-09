@@ -74,8 +74,16 @@ export default function WatchlistPage() {
   }, [watchlist])
   
   const availableAssetsGrouped = useMemo(() => {
+    const categoryNames: { [key: string]: string } = {
+        'Stocks': 'الأسهم',
+        'Gold': 'الذهب',
+        'Oil': 'النفط',
+        'Bonds': 'السندات',
+        'Other': 'أخرى'
+    };
+
     return availableAssets.reduce((acc, asset) => {
-        const category = categories.find(c => c.id === asset.category)?.name || 'غير مصنف';
+        const category = categoryNames[asset.category] || 'غير مصنف';
         if (!acc[category]) {
             acc[category] = [];
         }

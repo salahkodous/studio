@@ -35,11 +35,21 @@ const formSchema = z.object({
   categories: z.array(z.string()).refine((value) => value.some((item) => item), {
     message: 'يجب أن تختار فئة استثمار واحدة على الأقل.',
   }),
+  otherCategory: z.string().optional(),
   riskLevel: z.enum(['low', 'medium', 'high'], {
     required_error: 'الرجاء اختيار مستوى المخاطرة.',
   }),
   investmentGoals: z.string().min(10, 'الرجاء وصف أهدافك الاستثمارية بمزيد من التفصيل.'),
-})
+}).refine(data => {
+    if (data.categories.includes('Other') && (!data.otherCategory || data.otherCategory.trim().length === 0)) {
+        return false;
+    }
+    return true;
+}, {
+    message: 'الرجاء تحديد نوع الاستثمار الآخر.',
+    path: ['otherCategory'],
+});
+
 
 type FormValues = z.infer<typeof formSchema>
 
@@ -47,8 +57,8 @@ const investmentCategories = [
   { id: 'Stocks', label: 'الأسهم' },
   { id: 'Gold', label: 'الذهب' },
   { id: 'Real Estate', label: 'العقارات' },
-  { id: 'Commodities', label: 'السلع' },
   { id: 'Financial Instruments', label: 'الصكوك والأدوات المالية' },
+  { id: 'Other', label: 'أخرى' },
 ]
 
 export default function GuidePage() {
@@ -75,10 +85,12 @@ export default function GuidePage() {
       categories: ['Stocks'],
       riskLevel: 'medium',
       investmentGoals: 'تحقيق نمو في رأس المال على المدى الطويل مع تنويع الاستثمارات.',
+      otherCategory: '',
     },
   })
   
   const watchedCategories = watch('categories', []);
+  const showOtherField = watchedCategories.includes('Other');
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setLoading(true)
@@ -203,6 +215,13 @@ export default function GuidePage() {
                 ))}
               </div>
               {errors.categories && <p className="text-sm text-destructive">{errors.categories.message}</p>}
+              {showOtherField && (
+                  <div className="space-y-2 pt-2">
+                      <Label htmlFor="otherCategory">الرجاء تحديد نوع الاستثمار الآخر</Label>
+                      <Input id="otherCategory" {...register('otherCategory')} placeholder="مثال: فن، مقتنيات، أسهم خاصة..." />
+                      {errors.otherCategory && <p className="text-sm text-destructive">{errors.otherCategory.message}</p>}
+                  </div>
+              )}
             </div>
 
             {/* Risk Level */}

@@ -12,6 +12,7 @@ import {z} from 'genkit';
 export const InvestmentStrategyInputSchema = z.object({
   capital: z.number().min(1000).describe('The amount of capital to invest, in USD.'),
   categories: z.array(z.string()).min(1).describe('The asset categories the user is interested in (e.g., Stocks, Gold, Real Estate).'),
+  otherCategory: z.string().optional().describe('A user-defined category if "Other" is selected.'),
   riskLevel: z.enum(['low', 'medium', 'high']).describe("The user's risk tolerance."),
   investmentGoals: z.string().describe("The user's financial goals or expected payoff."),
 });
