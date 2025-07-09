@@ -25,7 +25,7 @@ export function Dashboard({ user }: DashboardProps) {
   const [strategyLoading, setStrategyLoading] = useState(true)
 
   useEffect(() => {
-    if (!user.uid) return;
+    if (!user?.uid) return;
 
     setWatchlistLoading(true);
     setPortfolioLoading(true);
@@ -52,7 +52,7 @@ export function Dashboard({ user }: DashboardProps) {
       unsubscribePortfolios?.();
       unsubscribeStrategies?.();
     };
-  }, [user.uid]);
+  }, [user?.uid]);
 
   return (
     <div className="container mx-auto max-w-6xl p-4 md:p-8 space-y-8">
