@@ -53,7 +53,7 @@ const investmentStrategyStreamFlow = ai.defineFlow(
   {
     name: 'investmentStrategyStreamFlow',
     inputSchema: InvestmentStrategyInputSchema,
-    outputSchema: z.any(),
+    outputSchema: InvestmentStrategyOutputSchema,
   },
   async input => {
     return ai.generate({
