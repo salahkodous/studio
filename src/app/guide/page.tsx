@@ -104,7 +104,7 @@ export default function GuidePage() {
     try {
       const finalCategories = data.categories
         .filter(c => c !== 'Other')
-        .concat(data.categories.includes('Other') && data.otherCategory ? [data.otherCategory] : [])
+        .concat(data.otherCategory ? [data.otherCategory.trim()] : [])
         .filter(Boolean) as string[];
 
       const submissionData: InvestmentStrategyInput = {
@@ -399,3 +399,5 @@ export default function GuidePage() {
     </div>
   )
 }
+
+    
