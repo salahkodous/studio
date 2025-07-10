@@ -132,14 +132,14 @@ export default function RegisterPage() {
         <div className="flex items-center justify-center min-h-[calc(100vh-8rem)] p-4">
             <Card className="w-full max-w-md text-center">
                 <CardHeader>
-                    <CardTitle className="text-2xl text-destructive">تهيئة ناقصة</CardTitle>
+                    <CardTitle className="text-2xl text-destructive">تهيئة Firebase ناقصة</CardTitle>
                     <CardDescription>
-                       مفاتيح Firebase API غير موجودة أو غير صالحة. يرجى التحقق من ملف .env الخاص بك.
+                        يبدو أن متغيرات البيئة الخاصة بـ Firebase غير مهيأة بشكل صحيح في ملف `.env` الخاص بك.
                     </CardDescription>
                 </CardHeader>
                  <CardContent>
                     <p className="text-sm text-muted-foreground">
-                        تأكد من أنك قمت بنسخ جميع المتغيرات من إعدادات مشروع Firebase ولصقها في ملف .env الخاص بك.
+                        لاستخدام ميزات المصادقة، تحتاج إلى نسخ إعدادات Firebase الخاصة بك ولصقها في ملف `.env` في جذر مشروعك. تأكد من أن جميع المتغيرات التي تبدأ بـ `NEXT_PUBLIC_FIREBASE_` لها قيم من لوحة تحكم Firebase.
                     </p>
                 </CardContent>
             </Card>
