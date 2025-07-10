@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -21,7 +22,7 @@ import { useToast } from '@/hooks/use-toast'
 import { signIn } from '@/lib/auth'
 import { Loader2, Terminal } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
-import { isFirebaseConfigured } from '@/lib/firebase'
+import { isFirebaseConfigured, getMissingFirebaseKeys } from '@/lib/firebase'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 const formSchema = z.object({
@@ -35,6 +36,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [isClient, setIsClient] = useState(false)
   const [showConfigWarning, setShowConfigWarning] = useState(false);
+  const [missingKeys, setMissingKeys] = useState<string[]>([]);
   const [authError, setAuthError] = useState<string | null>(null);
   const router = useRouter()
   const { toast } = useToast()
@@ -50,6 +52,7 @@ export default function LoginPage() {
     setIsClient(true)
     if (!isFirebaseConfigured) {
         setShowConfigWarning(true);
+        setMissingKeys(getMissingFirebaseKeys());
     }
   }, [])
 
@@ -122,17 +125,22 @@ export default function LoginPage() {
   if (showConfigWarning) {
     return (
         <div className="flex items-center justify-center min-h-[calc(100vh-8rem)] p-4">
-            <Card className="w-full max-w-md text-center">
+            <Card className="w-full max-w-lg text-center">
                 <CardHeader>
                     <CardTitle className="text-2xl text-destructive">تهيئة Firebase ناقصة</CardTitle>
                     <CardDescription>
-                       يبدو أن متغيرات البيئة الخاصة بـ Firebase غير مهيأة بشكل صحيح في ملف `.env` الخاص بك.
+                       لتمكين المصادقة، يجب توفير متغيرات البيئة التالية في ملف `.env` الخاص بك.
                     </CardDescription>
                 </CardHeader>
                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                        لاستخدام ميزات المصادقة، تحتاج إلى نسخ إعدادات Firebase الخاصة بك ولصقها في ملف `.env` في جذر مشروعك. تأكد من أن جميع المتغيرات التي تبدأ بـ `NEXT_PUBLIC_FIREBASE_` لها قيم من لوحة تحكم Firebase.
+                    <p className="text-sm text-muted-foreground mb-4">
+                        اذهب إلى "Project settings" &gt; "General" في لوحة تحكم Firebase الخاصة بك، وابحث عن هذه القيم ضمن "Your apps" &gt; "SDK setup and configuration".
                     </p>
+                    <div className="text-left bg-muted p-4 rounded-md font-mono text-xs space-y-1">
+                        {missingKeys.map(key => (
+                            <p key={key}><span className="text-destructive font-bold">&#10007;</span> {key}=... <span className="text-muted-foreground italic">(مفقود)</span></p>
+                        ))}
+                    </div>
                 </CardContent>
             </Card>
         </div>

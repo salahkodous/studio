@@ -1,3 +1,4 @@
+
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
@@ -21,7 +22,28 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-export const isFirebaseConfigured = isValidKey(firebaseConfig.apiKey) && isValidKey(firebaseConfig.projectId);
+const requiredKeys = [
+    'NEXT_PUBLIC_FIREBASE_API_KEY',
+    'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
+    'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
+    'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
+    'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+    'NEXT_PUBLIC_FIREBASE_APP_ID'
+];
+
+export const getMissingFirebaseKeys = (): string[] => {
+    const missing: string[] = [];
+    if (!isValidKey(firebaseConfig.apiKey)) missing.push('NEXT_PUBLIC_FIREBASE_API_KEY');
+    if (!isValidKey(firebaseConfig.authDomain)) missing.push('NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN');
+    if (!isValidKey(firebaseConfig.projectId)) missing.push('NEXT_PUBLIC_FIREBASE_PROJECT_ID');
+    if (!isValidKey(firebaseConfig.storageBucket)) missing.push('NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET');
+    if (!isValidKey(firebaseConfig.messagingSenderId)) missing.push('NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID');
+    if (!isValidKey(firebaseConfig.appId)) missing.push('NEXT_PUBLIC_FIREBASE_APP_ID');
+    return missing;
+}
+
+
+export const isFirebaseConfigured = getMissingFirebaseKeys().length === 0;
 
 function initialize() {
     if (isFirebaseConfigured && getApps().length === 0) {
