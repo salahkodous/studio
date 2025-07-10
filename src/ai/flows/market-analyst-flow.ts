@@ -7,7 +7,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 import { getStockPrice, getLatestNews } from '../tools/market-tools';
 import { MarketAnalysisInputSchema, MarketAnalysisSchema, type MarketAnalysis } from '../schemas/market-analysis-schema';
 import { assets } from '@/lib/data';
