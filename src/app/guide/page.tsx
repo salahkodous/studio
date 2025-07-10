@@ -48,6 +48,11 @@ const formSchema = z.object({
 }, {
     message: 'الرجاء تحديد نوع الاستثمار الآخر.',
     path: ['otherCategory'],
+}).transform((data) => {
+    if (!data.categories.includes('Other')) {
+        return { ...data, otherCategory: undefined };
+    }
+    return data;
 });
 
 
