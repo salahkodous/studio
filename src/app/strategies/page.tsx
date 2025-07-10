@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { useAuth } from '@/hooks/use-auth'
-import { getStrategies, type SavedStrategy } from '@/lib/firestore'
+import { onStrategiesUpdate, type SavedStrategy } from '@/lib/firestore'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Accordion,
@@ -30,7 +30,7 @@ export default function StrategiesPage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [strategies, setStrategies] = useState<SavedStrategy[]>([])
-  const [strategiesLoading, setStrategiesLoading] = useState(true)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -40,19 +40,17 @@ export default function StrategiesPage() {
 
   useEffect(() => {
     if (user) {
-      const fetchStrategies = async () => {
-        setStrategiesLoading(true)
-        const userStrategies = await getStrategies(user.uid)
+      const unsubscribe = onStrategiesUpdate(user.uid, (userStrategies) => {
         setStrategies(userStrategies)
-        setStrategiesLoading(false)
-      }
-      fetchStrategies()
+        setLoading(false)
+      })
+      return () => unsubscribe?.()
     } else if (!authLoading) {
-        setStrategiesLoading(false)
+      setLoading(false)
     }
   }, [user, authLoading])
 
-  if (authLoading || strategiesLoading) {
+  if (authLoading || loading) {
     return <LoadingSkeleton />
   }
 
