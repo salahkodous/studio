@@ -4,7 +4,7 @@ import type { InvestmentStrategyOutput } from "@/ai/schemas/investment-strategy-
 
 export type SavedStrategy = InvestmentStrategyOutput & {
   id: string
-  createdAt: Date
+  createdAt: Date // Standardized to always be a Date object
 }
 
 export interface PortfolioDetails {
@@ -255,33 +255,9 @@ export async function saveStrategy(userId: string, strategy: InvestmentStrategyO
     const strategiesCollectionRef = collection(db, "users", userId, "strategies");
     await addDoc(strategiesCollectionRef, {
         ...strategy,
-        createdAt: new Date(),
+        createdAt: Timestamp.fromDate(new Date()), // Store as a Firestore Timestamp
     });
 }
-
-/**
- * Retrieves all saved investment strategies for a user.
- * @param userId - The ID of the user.
- * @returns A promise that resolves to an array of saved strategy objects.
- */
-export async function getStrategies(userId: string): Promise<SavedStrategy[]> {
-    const db = getFirestoreDb();
-    if (!db) return [];
-    
-    const strategiesCollectionRef = collection(db, "users", userId, "strategies");
-    const q = query(strategiesCollectionRef, orderBy("createdAt", "desc"));
-    const querySnapshot = await getDocs(q);
-    
-    return querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-            id: doc.id,
-            ...data,
-            createdAt: (data.createdAt as Timestamp).toDate(),
-        } as SavedStrategy;
-    });
-}
-
 
 /**
  * Sets up a real-time listener for the user's strategies.
@@ -302,10 +278,12 @@ export function onStrategiesUpdate(userId: string, callback: (strategies: SavedS
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const strategies = querySnapshot.docs.map(doc => {
             const data = doc.data();
+            // Convert Firestore Timestamp to JavaScript Date object
+            const createdAt = (data.createdAt as Timestamp)?.toDate() || new Date();
             return {
                 id: doc.id,
                 ...data,
-                createdAt: (data.createdAt as Timestamp).toDate(),
+                createdAt: createdAt,
             } as SavedStrategy;
         });
         callback(strategies);

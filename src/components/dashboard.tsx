@@ -18,8 +18,8 @@ interface DashboardProps {
 
 export function Dashboard({ user }: DashboardProps) {
   const [watchlist, setWatchlist] = useState<Asset[]>([])
-  const [latestPortfolio, setLatestPortfolio] = useState<PortfolioDetails | null>(null)
-  const [latestStrategy, setLatestStrategy] = useState<SavedStrategy | null>(null)
+  const [portfolios, setPortfolios] = useState<PortfolioDetails[]>([])
+  const [strategies, setStrategies] = useState<SavedStrategy[]>([])
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,31 +33,28 @@ export function Dashboard({ user }: DashboardProps) {
     let unsubPortfolios: (() => void) | undefined;
     let unsubStrategies: (() => void) | undefined;
 
-    Promise.all([
-        new Promise<void>((resolve) => {
-            unsubWatchlist = onWatchlistUpdate(user.uid, (tickers) => {
-              const assetsInList = assets.filter(asset => tickers.includes(asset.ticker));
-              if (active) setWatchlist(assetsInList);
-              resolve();
-            });
-        }),
-        new Promise<void>((resolve) => {
-            unsubPortfolios = onPortfoliosUpdate(user.uid, (portfolios) => {
-                if (active) setLatestPortfolio(portfolios.length > 0 ? portfolios[0] : null);
-                resolve();
-            });
-        }),
-        new Promise<void>((resolve) => {
-            unsubStrategies = onStrategiesUpdate(user.uid, (strategies) => {
-              if (active) setLatestStrategy(strategies.length > 0 ? strategies[0] : null);
-              resolve();
-            });
-        })
-    ]).then(() => {
-        if (active) {
-            setLoading(false);
-        }
-    });
+    const setupListeners = async () => {
+        unsubWatchlist = onWatchlistUpdate(user.uid, (tickers) => {
+          const assetsInList = assets.filter(asset => tickers.includes(asset.ticker));
+          if (active) setWatchlist(assetsInList);
+        });
+
+        unsubPortfolios = onPortfoliosUpdate(user.uid, (portfolios) => {
+            if (active) setPortfolios(portfolios);
+        });
+        
+        unsubStrategies = onStrategiesUpdate(user.uid, (strategies) => {
+          if (active) setStrategies(strategies);
+        });
+
+        // This is a simple way to wait for the initial data load.
+        // For a more robust solution, you might check if each array has been populated.
+        setTimeout(() => {
+            if(active) setLoading(false);
+        }, 1500); // Wait 1.5s for initial data to populate
+    }
+
+    setupListeners();
 
     return () => {
       active = false;
@@ -66,6 +63,10 @@ export function Dashboard({ user }: DashboardProps) {
       unsubStrategies?.();
     };
   }, [user?.uid]);
+  
+  const latestPortfolio = portfolios.length > 0 ? portfolios[0] : null;
+  const latestStrategy = strategies.length > 0 ? strategies[0] : null;
+
 
   if (loading) {
     return <DashboardSkeleton />
@@ -265,5 +266,3 @@ function DashboardSkeleton() {
     </div>
   )
 }
-
-    

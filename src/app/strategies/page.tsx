@@ -120,7 +120,7 @@ function StrategyDetails({ strategy }: { strategy: SavedStrategy }) {
                 <div className="order-2 md:order-1">
                   <div className="grid gap-3 text-sm">
                     {strategy.assetAllocation.map((asset, index) => (
-                      <div key={index} className="flex items-start gap-3">
+                      <div key={asset.category} className="flex items-start gap-3">
                         <div
                           className="w-3 h-3 rounded-full shrink-0 mt-1"
                           style={{
@@ -147,8 +147,8 @@ function StrategyDetails({ strategy }: { strategy: SavedStrategy }) {
             <div>
               <h3 className="text-lg font-semibold mb-3">توصيات الخبراء</h3>
                <div className="space-y-4">
-                {strategy.recommendations.map((rec, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
+                {strategy.recommendations.map((rec) => (
+                  <div key={rec.ticker} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
                     <div className="flex-1 space-y-1">
                       <p className="font-bold">{rec.name} <span className="text-xs text-muted-foreground">{rec.ticker}</span></p>
                       <p className="text-sm text-muted-foreground">{rec.justification}</p>
