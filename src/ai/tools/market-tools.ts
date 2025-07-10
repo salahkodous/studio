@@ -6,11 +6,12 @@
  * - getLatestNews: Fetches (simulated) recent news headlines for a stock.
  * - findCompanyUrlTool: Finds a relevant financial data URL for a company.
  * - findCompanyNameTool: Finds the full company name for a given stock ticker.
+ * - findMarketAssetsTool: Finds a comprehensive list of assets for a given market.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { assets, newsArticles } from '@/lib/data';
+import { assets, newsArticles, type Asset } from '@/lib/data';
 import { webScraperTool } from './web-scraper-tool';
 
 export const findCompanyUrlTool = ai.defineTool(
@@ -89,10 +90,10 @@ export const getStockPrice = ai.defineTool(
     // This is a powerful pattern. We do the scraping, the LLM does the data extraction.
     const extractionPrompt = ai.definePrompt({
         name: 'priceExtractor',
+        model: 'googleai/gemini-1.5-flash',
         input: { schema: z.object({ context: z.string() }) },
         output: { schema: z.object({ price: z.number(), currency: z.string() })},
         prompt: `From the following financial data, extract the current stock price and its currency. The currency might be abbreviated (e.g., SAR, AED, QAR). Respond with only a JSON object containing the price and currency. \n\n${scrapeResult.content}`,
-        model: 'googleai/gemini-1.5-flash',
     });
     
     const { output } = await extractionPrompt({ context: scrapeResult.content });
@@ -127,10 +128,10 @@ export const getLatestNews = ai.defineTool(
 
     const extractionPrompt = ai.definePrompt({
         name: 'newsExtractor',
+        model: 'googleai/gemini-1.5-flash',
         input: { schema: z.object({ context: z.string() }) },
         output: { schema: z.object({ headlines: z.array(z.string()) })},
         prompt: `From the following financial data page content, extract the top 3-5 latest news headlines. Respond with only a JSON object containing a "headlines" array. \n\n${scrapeResult.content}`,
-        model: 'googleai/gemini-1.5-flash',
     });
     
     const { output } = await extractionPrompt({ context: scrapeResult.content });
@@ -144,4 +145,33 @@ export const getLatestNews = ai.defineTool(
     
     return output.headlines;
   }
+);
+
+
+export const findMarketAssetsTool = ai.defineTool(
+    {
+        name: 'findMarketAssetsTool',
+        description: 'Finds a list of all publicly traded stocks for a given market (country). This is used to populate selection lists for the user.',
+        inputSchema: z.object({
+            market: z.enum(['SA', 'AE', 'QA']).describe('The stock market to search (SA: Saudi Arabia, AE: UAE, QA: Qatar).'),
+        }),
+        outputSchema: z.array(z.object({
+            ticker: z.string(),
+            name: z.string(),
+        })),
+    },
+    async ({ market }) => {
+        console.log(`[findMarketAssetsTool] Simulating search for all assets in market: ${market}`);
+        // In a real application, this tool would use the webScraperTool to scrape the main page
+        // of the Tadawul, DFM, or QE website and then use another LLM call to extract all the listed
+        // company names and tickers from the scraped content.
+
+        // For this prototype, we will filter our comprehensive local data.
+        const marketAssets = assets
+            .filter(a => a.country === market && a.category === 'Stocks')
+            .map(a => ({ ticker: a.ticker, name: a.name }));
+        
+        console.log(`[findMarketAssetsTool] Found ${marketAssets.length} assets for ${market}.`);
+        return marketAssets;
+    }
 );

@@ -17,10 +17,12 @@ import { Label } from '@/components/ui/label'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { PlusCircle, Trash2, DollarSign, TrendingUp, AlertCircle, PackageOpen, Briefcase, ChevronLeft } from 'lucide-react'
+import { PlusCircle, Trash2, DollarSign, TrendingUp, AlertCircle, PackageOpen, Briefcase, ChevronLeft, Loader2 } from 'lucide-react'
 import { getCurrencySymbol } from '@/lib/utils'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { findMarketAssetsTool } from '@/ai/tools/market-tools'
+
 
 const addAssetSchema = z.object({
     name: z.string().min(2, "اسم الأصل مطلوب.").max(50, "الاسم طويل جدًا."),
@@ -61,6 +63,9 @@ export default function PortfolioDetailPage() {
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
     const [selectedAsset, setSelectedAsset] = useState<Asset | RealEstateCity | null>(null);
+    const [availableAssets, setAvailableAssets] = useState<(Asset | RealEstateCity)[]>([]);
+    const [isFetchingAssets, setIsFetchingAssets] = useState(false);
+
 
     const { register, handleSubmit, formState: { errors }, reset, setValue: setFormValue } = useForm<AddAssetFormValues>({
         resolver: zodResolver(addAssetSchema),
@@ -99,6 +104,7 @@ export default function PortfolioDetailPage() {
         setSelectedCategory(null);
         setSelectedCountry(null);
         setSelectedAsset(null);
+        setAvailableAssets([]);
         reset();
     }
     
@@ -108,18 +114,46 @@ export default function PortfolioDetailPage() {
         }
         setAddAssetOpen(open);
     }
+    
+    const fetchAssetsForCategory = async (category: string, country?: string | null) => {
+        setIsFetchingAssets(true);
+        try {
+            if (category === 'Stocks' && country) {
+                const foundAssets = await findMarketAssetsTool({ market: country as 'SA' | 'AE' | 'QA' });
+                setAvailableAssets(foundAssets);
+            } else if (category === 'Real Estate') {
+                setAvailableAssets(realEstateData);
+            } else {
+                setAvailableAssets(assets.filter(a => a.category === category));
+            }
+        } catch (error) {
+            console.error("Error fetching assets:", error);
+            toast({ title: "خطأ", description: "فشل في جلب قائمة الأصول. الرجاء المحاولة مرة أخرى.", variant: 'destructive' });
+            setAvailableAssets([]);
+        } finally {
+            setIsFetchingAssets(false);
+        }
+    };
+
 
     const handleCategorySelect = (categoryId: string) => {
         setSelectedCategory(categoryId);
         if (categoryId === 'Stocks') {
             setStep(2);
-        } else if (categoryId === 'Real Estate') {
-            setStep(3);
-        } else if (categoryId === 'Gold' || categoryId === 'Bonds') {
+        } else if (categoryId === 'Real Estate' || categoryId === 'Gold' || categoryId === 'Bonds') {
+            fetchAssetsForCategory(categoryId);
             setStep(3);
         } else { // 'Other'
             setStep(4);
         }
+    }
+    
+    const handleCountrySelect = (countryId: string) => {
+        setSelectedCountry(countryId);
+        if (selectedCategory) {
+            fetchAssetsForCategory(selectedCategory, countryId);
+        }
+        setStep(3);
     }
 
     const handleAssetSelect = (assetIdentifier: string) => {
@@ -207,17 +241,6 @@ export default function PortfolioDetailPage() {
     const totalChange = totals.totalCurrentValue - totals.totalPurchaseValue;
     const totalChangePercent = totals.totalPurchaseValue > 0 ? (totalChange / totals.totalPurchaseValue) * 100 : 0;
 
-    const assetsForCategory = useMemo(() => {
-        if (!selectedCategory) return [];
-        if (selectedCategory === 'Stocks') {
-            return assets.filter(a => a.category === 'Stocks' && (selectedCountry ? a.country === selectedCountry : true));
-        }
-        if (selectedCategory === 'Real Estate') {
-            return realEstateData;
-        }
-        return assets.filter(a => a.category === selectedCategory);
-    }, [selectedCategory, selectedCountry]);
-
     if (loading) return <PageSkeleton />;
 
     if (!portfolioDetails) {
@@ -280,7 +303,7 @@ export default function PortfolioDetailPage() {
                         {step === 2 && selectedCategory === 'Stocks' && (
                             <div className="space-y-4 py-4">
                                 <Label>الخطوة 2: اختر السوق</Label>
-                                <RadioGroup onValueChange={(country) => { setSelectedCountry(country); setStep(3); }} className="grid grid-cols-3 gap-4">
+                                <RadioGroup onValueChange={handleCountrySelect} className="grid grid-cols-3 gap-4">
                                     {stockCountries.map(country => (
                                          <Label key={country.id} htmlFor={country.id} className="border rounded-md p-4 flex items-center justify-center cursor-pointer hover:bg-accent has-[:checked]:bg-primary has-[:checked]:text-primary-foreground">
                                             <RadioGroupItem value={country.id} id={country.id} className="sr-only" />
@@ -296,18 +319,24 @@ export default function PortfolioDetailPage() {
                         {step === 3 && (
                             <div className="space-y-4 py-4">
                                 <Label>الخطوة 3: اختر الأصل</Label>
-                                <Select onValueChange={handleAssetSelect}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="اختر أصلاً من القائمة..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {assetsForCategory.map(asset => (
-                                            <SelectItem key={'ticker' in asset ? asset.ticker : asset.cityKey} value={'ticker' in asset ? asset.ticker : asset.cityKey}>
-                                                {asset.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                {isFetchingAssets ? (
+                                    <div className="flex items-center justify-center h-24">
+                                        <Loader2 className="animate-spin text-primary" />
+                                    </div>
+                                ) : (
+                                    <Select onValueChange={handleAssetSelect}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="اختر أصلاً من القائمة..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {availableAssets.map(asset => (
+                                                <SelectItem key={'ticker' in asset ? asset.ticker : asset.cityKey} value={'ticker' in asset ? asset.ticker : asset.cityKey}>
+                                                    {asset.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
                                  <Button variant="link" onClick={() => setStep(selectedCategory === 'Stocks' ? 2 : 1)}>العودة</Button>
                             </div>
                         )}
@@ -471,5 +500,3 @@ function PageSkeleton() {
         </div>
     );
 }
-
-    
