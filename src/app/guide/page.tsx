@@ -103,7 +103,7 @@ export default function GuidePage() {
 
     try {
       const standardCategories = data.categories.filter(c => c !== 'Other');
-      const customCategory = (data.categories.includes('Other') && data.otherCategory) 
+      const customCategory = (data.categories.includes('Other') && data.otherCategory && data.otherCategory.trim() !== '') 
         ? [data.otherCategory.trim()] 
         : [];
       
@@ -238,9 +238,6 @@ export default function GuidePage() {
                           ? [...currentCategories, item.id]
                           : currentCategories.filter((value) => value !== item.id);
                         setValue('categories', newCategories, { shouldValidate: true });
-                        if (!newCategories.includes('Other')) {
-                            setValue('otherCategory', '', { shouldValidate: true });
-                        }
                       }}
                     />
                     <Label htmlFor={item.id} className="font-normal">{item.label}</Label>
@@ -401,5 +398,3 @@ export default function GuidePage() {
     </div>
   )
 }
-
-    

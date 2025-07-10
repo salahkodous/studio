@@ -38,5 +38,3 @@ export const InvestmentStrategyOutputSchema = z.object({
   riskAnalysis: z.string().describe("An analysis of the risks associated with this strategy in Arabic."),
 });
 export type InvestmentStrategyOutput = z.infer<typeof InvestmentStrategyOutputSchema>;
-
-    
