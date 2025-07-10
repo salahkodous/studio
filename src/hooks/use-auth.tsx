@@ -17,17 +17,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const auth = getFirebaseAuth();
-    if (auth) {
-      const unsubscribe = onAuthStateChanged(auth, (user) => {
-        setUser(user)
-        setLoading(false)
-      })
-      return () => unsubscribe()
-    } else {
-        // If firebase is not configured, stop loading and continue
-        console.warn("Firebase is not configured. Authentication will not work.");
-        setLoading(false);
-    }
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user)
+      setLoading(false)
+    })
+    return () => unsubscribe()
   }, [])
 
   return (

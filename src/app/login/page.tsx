@@ -71,9 +71,9 @@ export default function LoginPage() {
             case 'auth/wrong-password':
                 description = 'كلمة المرور غير صحيحة.';
                 break;
+             default:
+                description = `حدث خطأ أثناء تسجيل الدخول: ${error.message}`;
         }
-      } else if (error.message && error.message.includes('Failed to initialize')) {
-        description = 'تهيئة Firebase ناقصة. يرجى التأكد من أن ملف .env الخاص بك يحتوي على مفاتيح صالحة.'
       }
 
       toast({

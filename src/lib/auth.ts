@@ -8,7 +8,7 @@ import { getFirebaseAuth } from './firebase'
 
 export async function signUp(email: string, password: string, displayName: string) {
   const auth = getFirebaseAuth();
-  if (!auth) throw new Error("Failed to initialize Firebase. Please check your .env configuration.");
+  if (!auth) throw new Error("Firebase is not initialized.");
 
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -22,7 +22,7 @@ export async function signUp(email: string, password: string, displayName: strin
 
 export async function signIn(email: string, password: string) {
   const auth = getFirebaseAuth();
-  if (!auth) throw new Error("Failed to initialize Firebase. Please check your .env configuration.");
+  if (!auth) throw new Error("Firebase is not initialized.");
 
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -35,7 +35,7 @@ export async function signIn(email: string, password: string) {
 
 export async function logOut() {
   const auth = getFirebaseAuth();
-  if (!auth) throw new Error("Failed to initialize Firebase. Please check your .env configuration.");
+  if (!auth) throw new Error("Firebase is not initialized.");
   
   try {
     return await signOut(auth);
