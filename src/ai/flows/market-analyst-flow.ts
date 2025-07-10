@@ -24,7 +24,7 @@ const analystPrompt = ai.definePrompt({
         scrapedNewsData: z.any()
     }) },
     output: { schema: MarketAnalysisSchema },
-    model: 'googleai/gemini-pro',
+    model: 'googleai/gemini-1.5-flash',
     prompt: `You are "Tharawat", a sophisticated AI financial analyst for the Gulf markets. Your task is to provide a clear, concise, and insightful analysis of a specific stock based on the provided data. The entire output MUST be in Arabic.
 
     Stock to Analyze:

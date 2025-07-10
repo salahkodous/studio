@@ -92,7 +92,7 @@ export const getStockPrice = ai.defineTool(
         input: { schema: z.object({ context: z.string() }) },
         output: { schema: z.object({ price: z.number(), currency: z.string() })},
         prompt: `From the following financial data, extract the current stock price and its currency. The currency might be abbreviated (e.g., SAR, AED, QAR). Respond with only a JSON object containing the price and currency. \n\n${scrapeResult.content}`,
-        model: 'googleai/gemini-pro',
+        model: 'googleai/gemini-1.5-flash',
     });
     
     const { output } = await extractionPrompt({ context: scrapeResult.content });
@@ -130,7 +130,7 @@ export const getLatestNews = ai.defineTool(
         input: { schema: z.object({ context: z.string() }) },
         output: { schema: z.object({ headlines: z.array(z.string()) })},
         prompt: `From the following financial data page content, extract the top 3-5 latest news headlines. Respond with only a JSON object containing a "headlines" array. \n\n${scrapeResult.content}`,
-        model: 'googleai/gemini-pro',
+        model: 'googleai/gemini-1.5-flash',
     });
     
     const { output } = await extractionPrompt({ context: scrapeResult.content });
