@@ -28,7 +28,7 @@ const investmentStrategyPrompt = ai.definePrompt({
     prompt: `You are an expert financial advisor specializing in investment opportunities within the GCC (Gulf Cooperation Council) countries. Your task is to create a personalized investment strategy for a client based on their profile. The output MUST be in Arabic.
 
 Client Profile:
-- Investment Capital: $${'{{capital}}'} USD
+- Investment Capital: ${{capital}} USD
 - Interested Asset Categories: {{#each categories}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
 - Risk Tolerance: {{{riskLevel}}}
 - Investment Goals: {{{investmentGoals}}}

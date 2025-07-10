@@ -105,6 +105,17 @@ export const assets: Asset[] = [
     category: 'Stocks',
     country: 'SA',
   },
+   {
+    ticker: 'RIYAD-BANK',
+    name: 'بنك الرياض',
+    price: 28.5,
+    change: '+0.10',
+    changePercent: '+0.35%',
+    trend: 'up',
+    currency: 'SAR',
+    category: 'Stocks',
+    country: 'SA',
+  },
 
   // Qatar Stocks (QA)
   {
@@ -136,6 +147,17 @@ export const assets: Asset[] = [
     change: '+0.10',
     changePercent: '+0.45%',
     trend: 'up',
+    currency: 'QAR',
+    category: 'Stocks',
+    country: 'QA',
+  },
+  {
+    ticker: 'OOREDOO',
+    name: 'Ooredoo',
+    price: 10.1,
+    change: '-0.05',
+    changePercent: '-0.49%',
+    trend: 'down',
     currency: 'QAR',
     category: 'Stocks',
     country: 'QA',
@@ -186,6 +208,17 @@ export const assets: Asset[] = [
     category: 'Stocks',
     country: 'AE',
   },
+  {
+    ticker: 'ETISALAT',
+    name: 'مجموعة اتصالات',
+    price: 21.5,
+    change: '+0.20',
+    changePercent: '+0.94%',
+    trend: 'up',
+    currency: 'AED',
+    category: 'Stocks',
+    country: 'AE',
+  },
 
   // Gold Assets
   {
@@ -226,6 +259,17 @@ export const assets: Asset[] = [
     country: 'SA',
   },
   {
+    ticker: 'SUKUK-ISDB',
+    name: 'صكوك البنك الإسلامي للتنمية',
+    price: 100.2,
+    change: '+0.02',
+    changePercent: '+0.02%',
+    trend: 'up',
+    currency: 'USD',
+    category: 'Bonds',
+    country: 'Global',
+  },
+  {
     ticker: 'SAVINGS-CERT-SAR',
     name: 'شهادات ادخار (ريال سعودي)',
     price: 1, // Represents a base value
@@ -247,6 +291,14 @@ export const newsArticles: Record<string, string[]> = {
     'https://www.arabianbusiness.com/industries/energy/sabic-launches-new-sustainable-polymers-at-leading-plastics-conference',
     'https://www.argaam.com/en/article/articledetail/id/1654321',
   ],
+  IHC: [
+    'https://www.thenationalnews.com/business/markets/2023/10/26/ihc-reports-18-rise-in-q3-net-profit-on-higher-revenue/',
+    'https://www.khaleejtimes.com/business/ihc-to-list-subsidiary-on-adx-second-market'
+  ],
+  QNB: [
+    'https://www.gulf-times.com/article/669821/business/qnb-groups-net-profit-up-8-to-qr11-9bn-in-9m-2023',
+    'https://www.zawya.com/en/islamic-economy/islamic-finance/qatar-national-bank-qnb-unit-qnb-finansbank-mandates-banks-for-green-bonds-issuance-x2wv61a9'
+  ]
 }
 
 export const getStockPriceHistory = (
