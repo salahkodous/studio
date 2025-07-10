@@ -110,11 +110,16 @@ export default function PortfolioDetailPage() {
 
     const handleAddAsset = async (data: AddAssetFormValues) => {
         if (!user) return;
+
+        // For Savings Certificates, find the corresponding asset to use its ticker
+        const ticker = data.category === 'Savings Certificates'
+            ? assets.find(a => a.category === 'Savings Certificates')?.ticker || 'SAVINGS-CERT-SAR'
+            : data.ticker;
         
         const assetPayload: Omit<PortfolioAsset, 'id'> = {
             category: data.category,
             purchasePrice: data.purchasePrice,
-            ticker: data.ticker ?? null,
+            ticker: ticker ?? null,
             city: data.city ?? null,
             area: data.area ?? null,
             quantity: data.quantity ?? null,
@@ -146,15 +151,16 @@ export default function PortfolioDetailPage() {
         return portfolioAssets.map(pa => {
             let name, ticker, currentValue, currency;
             const purchaseValue = pa.purchasePrice;
+            let assetDetails;
 
             switch (pa.category) {
                 case 'Stocks':
-                    const stockDetails = assets.find(a => a.ticker === pa.ticker);
-                    if (!stockDetails || !pa.quantity) return null;
-                    name = stockDetails.name;
-                    ticker = stockDetails.ticker;
-                    currentValue = pa.quantity * stockDetails.price;
-                    currency = stockDetails.currency;
+                    assetDetails = assets.find(a => a.ticker === pa.ticker);
+                    if (!assetDetails || !pa.quantity) return null;
+                    name = assetDetails.name;
+                    ticker = assetDetails.ticker;
+                    currentValue = pa.quantity * assetDetails.price;
+                    currency = assetDetails.currency;
                     break;
                 case 'Real Estate':
                     const cityData = realEstateData.find(c => c.cityKey === pa.city);
@@ -165,18 +171,25 @@ export default function PortfolioDetailPage() {
                     currency = cityData.currency;
                     break;
                 case 'Gold':
-                    const goldAsset = assets.find(a => a.category === 'Gold');
-                    if (!goldAsset) return null;
+                    assetDetails = assets.find(a => a.category === 'Gold');
+                    if (!assetDetails) return null;
                     name = "ذهب";
                     ticker = "GOLD";
-                    currentValue = (pa.purchasePrice / goldAsset.price) * goldAsset.price; // This is a simplified logic
-                    currency = "USD";
+                    // Simplified logic: value of gold doesn't depend on purchase price, but its current market price.
+                    // This assumes purchasePrice represents the value of gold bought at a time.
+                    // A more complex impl would store grams/ounces instead of just purchase price.
+                    // For now, we simulate the change based on its movement since an arbitrary point.
+                    currentValue = pa.purchasePrice * (assetDetails.price / (assetDetails.price - parseFloat(assetDetails.change)));
+                    currency = assetDetails.currency;
                     break;
                 case 'Savings Certificates':
-                     name = "شهادات ادخار";
-                     ticker = "SAVINGS";
-                     currentValue = pa.purchasePrice * 1.05; // Assuming 5% annual return for simplicity
-                     currency = "SAR";
+                     assetDetails = assets.find(a => a.ticker === pa.ticker && a.category === 'Savings Certificates');
+                     if (!assetDetails) return null;
+                     name = assetDetails.name;
+                     ticker = assetDetails.ticker;
+                     // Use the annualYield from the data file, assuming a simple 1-year appreciation for this prototype
+                     currentValue = pa.purchasePrice * (1 + (assetDetails.annualYield || 0));
+                     currency = assetDetails.currency;
                      break;
                 default:
                     return null;
@@ -201,6 +214,9 @@ export default function PortfolioDetailPage() {
     const totals = useMemo(() => {
         return enrichedAssets.reduce((acc, asset) => {
             if (asset) {
+                // For a unified total, we'd need currency conversion.
+                // For this prototype, we'll assume SAR as the base currency for simplicity.
+                // This is NOT accurate for multi-currency portfolios.
                 acc.totalPurchaseValue += asset.purchaseValue;
                 acc.totalCurrentValue += asset.currentValue;
             }
@@ -209,7 +225,7 @@ export default function PortfolioDetailPage() {
     }, [enrichedAssets]);
     
     const totalChange = totals.totalCurrentValue - totals.totalPurchaseValue;
-    const totalChangePercent = totals.totalPurchaseValue > 0 ? (totalChange / totals.totalPurchaseValue) * 100 : 0;
+    const totalChangePercent = totals.totalPurchaseValue > 0 ? (change / totals.totalPurchaseValue) * 100 : 0;
 
 
     if (loading) {
@@ -345,7 +361,7 @@ export default function PortfolioDetailPage() {
 
                                 <div className="space-y-2">
                                     <Label htmlFor="purchasePrice">
-                                        {selectedCategory === 'Real Estate' ? 'إجمالي سعر الشراء' : 'إجمالي قيمة الشراء'}
+                                        {selectedCategory === 'Gold' ? 'قيمة الشراء الإجمالية' : selectedCategory === 'Real Estate' ? 'إجمالي سعر الشراء' : selectedCategory === 'Savings Certificates' ? 'قيمة الشهادة عند الشراء' : 'إجمالي قيمة الشراء'}
                                     </Label>
                                     <Input id="purchasePrice" type="number" step="any" {...register('purchasePrice')} />
                                     {errors.purchasePrice && <p className="text-sm text-destructive">{errors.purchasePrice.message}</p>}
@@ -368,8 +384,8 @@ export default function PortfolioDetailPage() {
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{totals.totalCurrentValue.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR' })}</div>
-                        <p className="text-xs text-muted-foreground">القيمة الإجمالية لجميع الأصول بالأسعار الحالية</p>
+                        <div className="text-2xl font-bold">{totals.totalCurrentValue.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                        <p className="text-xs text-muted-foreground">مجموع تقديري. يتطلب تحويل عملات للوصول لقيمة دقيقة.</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -444,7 +460,7 @@ export default function PortfolioDetailPage() {
                             </TableBody>
                              <TableFooter>
                                 <TableRow>
-                                    <TableCell colSpan={2} className="font-bold">الإجمالي</TableCell>
+                                    <TableCell colSpan={2} className="font-bold">الإجمالي (تقديري)</TableCell>
                                     <TableCell className="text-center font-bold">{totals.totalPurchaseValue.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR' })}</TableCell>
                                     <TableCell className="text-center font-bold">{totals.totalCurrentValue.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR' })}</TableCell>
                                     <TableCell colSpan={2} className={`text-center font-bold ${totalChange >= 0 ? 'text-success' : 'text-destructive'}`}>

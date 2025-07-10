@@ -8,6 +8,7 @@ export interface Asset {
   currency: 'SAR' | 'QAR' | 'AED' | 'USD'
   category: 'Stocks' | 'Gold' | 'Oil' | 'Bonds' | 'Savings Certificates' | 'Other'
   country: 'SA' | 'QA' | 'AE' | 'Global'
+  annualYield?: number
 }
 
 export interface RealEstateCity {
@@ -279,6 +280,7 @@ export const assets: Asset[] = [
     currency: 'SAR',
     category: 'Savings Certificates',
     country: 'Global',
+    annualYield: 0.05, // 5% annual yield
   },
 ]
 
