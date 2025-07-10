@@ -11,10 +11,13 @@ import FirecrawlApp from '@mendable/firecrawl-js';
  * @returns The scraped data, including markdown and metadata.
  */
 export async function scrapeUrl(url: string) {
-  const apiKey = process.env.FIRECRAWL_API_KEY;
+  // Read the API key from environment variables.
+  // Server-side code can access variables without the NEXT_PUBLIC_ prefix.
+  // We check for both to be safe, in case of build/cache issues.
+  const apiKey = process.env.FIRECRAWL_API_KEY || process.env.NEXT_PUBLIC_FIRECRAWL_API_KEY;
 
   if (!apiKey || apiKey.length < 5) {
-      console.error("[Firecrawl] API key is missing or invalid.");
+      console.error("[Firecrawl] API key is missing or invalid in .env file.");
       throw new Error("Firecrawl API key not configured. Please add your FIRECRAWL_API_KEY to the .env file.");
   }
   
