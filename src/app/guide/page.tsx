@@ -48,11 +48,6 @@ const formSchema = z.object({
 }, {
     message: 'الرجاء تحديد نوع الاستثمار الآخر.',
     path: ['otherCategory'],
-}).transform((data) => {
-    if (!data.categories.includes('Other')) {
-        return { ...data, otherCategory: undefined };
-    }
-    return data;
 });
 
 
@@ -105,8 +100,14 @@ export default function GuidePage() {
     setIsGenerating(true);
     setIsSaving(false);
     
+    // Create a clean data object to send to the AI
+    const submissionData = {
+        ...data,
+        otherCategory: data.categories.includes('Other') ? data.otherCategory : undefined,
+    };
+
     try {
-      const {stream, response} = await streamInvestmentStrategy(data);
+      const {stream, response} = await streamInvestmentStrategy(submissionData);
       for await (const chunk of stream) {
         setResult(chunk);
       }
@@ -227,6 +228,10 @@ export default function GuidePage() {
                           ? [...currentCategories, item.id]
                           : currentCategories.filter((value) => value !== item.id);
                         setValue('categories', newCategories, { shouldValidate: true });
+                        // Proactively clear the 'other' field if it's unchecked
+                        if (!newCategories.includes('Other')) {
+                            setValue('otherCategory', '');
+                        }
                       }}
                     />
                     <Label htmlFor={item.id} className="font-normal">{item.label}</Label>
