@@ -98,11 +98,12 @@ export default function PortfolioDetailPage() {
     }, [user, portfolioId, router, toast])
     
     const availableAssetsGrouped = useMemo(() => {
-        return assets.reduce((acc, asset) => {
-            if (!acc[asset.category]) {
-                acc[asset.category] = [];
+        const stocks = assets.filter(a => a.category === 'Stocks');
+        return stocks.reduce((acc, asset) => {
+            if (!acc[asset.country]) {
+                acc[asset.country] = [];
             }
-            acc[asset.category].push(asset);
+            acc[asset.country].push(asset);
             return acc;
         }, {} as Record<string, Asset[]>);
     }, []);
@@ -292,9 +293,9 @@ export default function PortfolioDetailPage() {
                                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                         <SelectTrigger><SelectValue placeholder="ابحث عن سهم..." /></SelectTrigger>
                                                         <SelectContent>
-                                                            {Object.entries(availableAssetsGrouped).map(([category, assetsInCategory]) => (
-                                                                <SelectGroup key={category}>
-                                                                    <SelectLabel>{category}</SelectLabel>
+                                                            {Object.entries(availableAssetsGrouped).map(([country, assetsInCategory]) => (
+                                                                <SelectGroup key={country}>
+                                                                    <SelectLabel>{country === 'SA' ? 'السعودية' : country === 'AE' ? 'الإمارات' : 'قطر'}</SelectLabel>
                                                                     {assetsInCategory.map(asset => (
                                                                         <SelectItem key={asset.ticker} value={asset.ticker}>{asset.name}</SelectItem>
                                                                     ))}
@@ -491,5 +492,3 @@ function PageSkeleton() {
         </div>
     );
 }
-
-    
