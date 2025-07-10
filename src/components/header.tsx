@@ -1,9 +1,10 @@
+
 'use client'
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Menu } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -84,6 +85,9 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left">
+              <SheetHeader>
+                <SheetTitle className="sr-only">القائمة الرئيسية</SheetTitle>
+              </SheetHeader>
               <Link href="/" className="mr-6 flex items-center space-x-2">
                 <Logo className="h-6 w-6 text-primary" />
                 <span className="font-bold font-headline">
