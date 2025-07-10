@@ -16,9 +16,13 @@ export interface PortfolioDetails {
 
 export interface PortfolioAsset {
   id: string
-  ticker: string
-  quantity: number
+  category: "Stocks" | "Real Estate" | "Gold" | "Savings Certificates"
   purchasePrice: number
+  // Optional fields based on category
+  ticker?: string | null
+  quantity?: number | null
+  city?: string | null
+  area?: number | null
 }
 
 
@@ -209,7 +213,7 @@ export function onPortfolioAssetsUpdate(userId: string, portfolioId: string, cal
  * Adds a new asset to a specific portfolio.
  * @param userId The ID of the user.
  * @param portfolioId The ID of the portfolio.
- * @param asset The asset data to add (ticker, quantity, purchasePrice).
+ * @param asset The asset data to add.
  */
 export async function addAssetToPortfolio(userId: string, portfolioId: string, asset: Omit<PortfolioAsset, 'id'>) {
     const db = getFirestoreDb();
@@ -294,3 +298,5 @@ export function onStrategiesUpdate(userId: string, callback: (strategies: SavedS
 
     return unsubscribe;
 }
+
+    

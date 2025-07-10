@@ -6,9 +6,25 @@ export interface Asset {
   changePercent: string
   trend: 'up' | 'down' | 'stable'
   currency: 'SAR' | 'QAR' | 'AED' | 'USD'
-  category: 'Stocks' | 'Gold' | 'Oil' | 'Bonds' | 'Other'
+  category: 'Stocks' | 'Gold' | 'Oil' | 'Bonds' | 'Savings Certificates' | 'Other'
   country: 'SA' | 'QA' | 'AE' | 'Global'
 }
+
+export interface RealEstateCity {
+    cityKey: string;
+    name: string;
+    country: 'SA' | 'AE' | 'QA';
+    pricePerSqM: number;
+    currency: 'SAR' | 'AED' | 'QAR';
+}
+
+export const realEstateData: RealEstateCity[] = [
+    { cityKey: 'RIYADH', name: 'الرياض', country: 'SA', pricePerSqM: 4500, currency: 'SAR'},
+    { cityKey: 'JEDDAH', name: 'جدة', country: 'SA', pricePerSqM: 3800, currency: 'SAR'},
+    { cityKey: 'DUBAI', name: 'دبي', country: 'AE', pricePerSqM: 12000, currency: 'AED'},
+    { cityKey: 'ABUDHABI', name: 'أبوظبي', country: 'AE', pricePerSqM: 10500, currency: 'AED'},
+    { cityKey: 'DOHA', name: 'الدوحة', country: 'QA', pricePerSqM: 15000, currency: 'QAR'},
+];
 
 export const assets: Asset[] = [
   // Saudi Stocks (SA)
@@ -62,6 +78,28 @@ export const assets: Asset[] = [
     price: 38.7,
     change: '-0.15',
     changePercent: '-0.39%',
+    trend: 'down',
+    currency: 'SAR',
+    category: 'Stocks',
+    country: 'SA',
+  },
+  {
+    ticker: 'ACWA',
+    name: 'أكوا باور',
+    price: 130.0,
+    change: '+2.50',
+    changePercent: '+1.96%',
+    trend: 'up',
+    currency: 'SAR',
+    category: 'Stocks',
+    country: 'SA',
+  },
+  {
+    ticker: 'MAADEN',
+    name: 'معادن',
+    price: 65.4,
+    change: '-0.20',
+    changePercent: '-0.31%',
     trend: 'down',
     currency: 'SAR',
     category: 'Stocks',
@@ -137,25 +175,25 @@ export const assets: Asset[] = [
     category: 'Stocks',
     country: 'AE',
   },
+  {
+    ticker: 'IHC',
+    name: 'الشركة العالمية القابضة',
+    price: 400.0,
+    change: '+1.50',
+    changePercent: '+0.38%',
+    trend: 'up',
+    currency: 'AED',
+    category: 'Stocks',
+    country: 'AE',
+  },
 
   // Gold Assets
   {
-    ticker: 'GLD',
-    name: 'سبائك الذهب (SPDR Gold Shares)',
-    price: 180.5,
+    ticker: 'GOLD',
+    name: 'ذهب',
+    price: 2330, // Price per ounce
     change: '+1.25',
     changePercent: '+0.70%',
-    trend: 'up',
-    currency: 'USD',
-    category: 'Gold',
-    country: 'Global',
-  },
-  {
-    ticker: 'IAU',
-    name: 'صندوق الذهب (iShares Gold Trust)',
-    price: 17.5,
-    change: '+0.12',
-    changePercent: '+0.69%',
     trend: 'up',
     currency: 'USD',
     category: 'Gold',
@@ -174,19 +212,8 @@ export const assets: Asset[] = [
     category: 'Oil',
     country: 'Global',
   },
-  {
-    ticker: 'WTI',
-    name: 'نفط غرب تكساس',
-    price: 81.2,
-    change: '-0.45',
-    changePercent: '-0.55%',
-    trend: 'down',
-    currency: 'USD',
-    category: 'Oil',
-    country: 'Global',
-  },
 
-  // Bonds
+  // Bonds & Savings
   {
     ticker: 'SA-BOND-2030',
     name: 'سندات حكومة السعودية 2030',
@@ -197,6 +224,17 @@ export const assets: Asset[] = [
     currency: 'USD',
     category: 'Bonds',
     country: 'SA',
+  },
+  {
+    ticker: 'SAVINGS-CERT-SAR',
+    name: 'شهادات ادخار (ريال سعودي)',
+    price: 1, // Represents a base value
+    change: '+0.00',
+    changePercent: '5.00%', // Represents annual yield
+    trend: 'stable',
+    currency: 'SAR',
+    category: 'Savings Certificates',
+    country: 'Global',
   },
 ]
 
