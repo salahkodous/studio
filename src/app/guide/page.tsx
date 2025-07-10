@@ -100,14 +100,8 @@ export default function GuidePage() {
     setIsGenerating(true);
     setIsSaving(false);
     
-    // Create a clean data object to send to the AI
-    const submissionData = {
-        ...data,
-        otherCategory: data.categories.includes('Other') ? data.otherCategory : undefined,
-    };
-
     try {
-      const {stream, response} = await streamInvestmentStrategy(submissionData);
+      const {stream, response} = await streamInvestmentStrategy(data);
       for await (const chunk of stream) {
         setResult(chunk);
       }
