@@ -21,17 +21,21 @@ export async function streamInvestmentStrategy(
   return investmentStrategyStreamFlow(input);
 }
 
-const investmentStrategyPrompt = ai.definePrompt({
-  name: 'investmentStrategyStreamPrompt',
-  input: {schema: InvestmentStrategyInputSchema},
-  output: {schema: InvestmentStrategyOutputSchema},
-  prompt: `You are an expert financial advisor specializing in investment opportunities within the GCC (Gulf Cooperation Council) countries. Your task is to create a personalized investment strategy for a client based on their profile. The output MUST be in Arabic.
+const investmentStrategyStreamFlow = ai.defineFlow(
+  {
+    name: 'investmentStrategyStreamFlow',
+    inputSchema: InvestmentStrategyInputSchema,
+    outputSchema: InvestmentStrategyOutputSchema,
+  },
+  async (input) => {
+    // Dynamically build the prompt string in JavaScript to avoid template errors.
+    const promptText = `You are an expert financial advisor specializing in investment opportunities within the GCC (Gulf Cooperation Council) countries. Your task is to create a personalized investment strategy for a client based on their profile. The output MUST be in Arabic.
 
 Client Profile:
-- Investment Capital: $\{ {capital}} USD
-- Interested Asset Categories: {{#each categories}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
-- Risk Tolerance: {{{riskLevel}}}
-- Investment Goals: {{{investmentGoals}}}
+- Investment Capital: $${input.capital} USD
+- Interested Asset Categories: ${input.categories.join(', ')}
+- Risk Tolerance: ${input.riskLevel}
+- Investment Goals: ${input.investmentGoals}
 
 Based on this profile, generate a comprehensive and actionable investment strategy. If the user specified a custom category like "Art" or "Collectibles", be sure to include analysis and recommendations for that specific interest.
 
@@ -43,19 +47,11 @@ Your response should include:
 5.  **Risk Analysis:** Briefly describe the potential risks associated with this strategy and how they align with the user's stated risk tolerance.
 
 Ensure all financial advice is high-level and for informational purposes. The entire output, including all field names and text, MUST be in ARABIC.
-`,
-});
+`;
 
-const investmentStrategyStreamFlow = ai.defineFlow(
-  {
-    name: 'investmentStrategyStreamFlow',
-    inputSchema: InvestmentStrategyInputSchema,
-    outputSchema: InvestmentStrategyOutputSchema,
-  },
-  async input => {
-    const {stream, response} = await ai.generate({
-      prompt: investmentStrategyPrompt,
-      input,
+    const {stream, response} = ai.generate({
+      prompt: promptText,
+      output: { schema: InvestmentStrategyOutputSchema },
       stream: true,
     });
     return {stream, response};
