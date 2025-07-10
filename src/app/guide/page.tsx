@@ -238,6 +238,9 @@ export default function GuidePage() {
                           ? [...currentCategories, item.id]
                           : currentCategories.filter((value) => value !== item.id);
                         setValue('categories', newCategories, { shouldValidate: true });
+                        if (item.id === 'Other' && !checked) {
+                          setValue('otherCategory', '', { shouldValidate: true });
+                        }
                       }}
                     />
                     <Label htmlFor={item.id} className="font-normal">{item.label}</Label>
