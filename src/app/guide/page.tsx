@@ -6,7 +6,7 @@ import { useForm, type SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import dynamic from 'next/dynamic'
-import { streamInvestmentStrategy } from '@/ai/flows/stream-investment-strategy'
+import { generateInvestmentStrategy } from '@/ai/flows/generate-investment-strategy'
 import type { InvestmentStrategyOutput, InvestmentStrategyInput } from '@/ai/schemas/investment-strategy-schema'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -65,8 +65,7 @@ const investmentCategories = [
 export default function GuidePage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [result, setResult] = useState<Partial<InvestmentStrategyOutput>>({});
-  const finalResultRef = useRef<InvestmentStrategyOutput | null>(null);
+  const [result, setResult] = useState<InvestmentStrategyOutput | null>(null);
   const [isClient, setIsClient] = useState(false)
   const { toast } = useToast()
   const { user } = useAuth()
@@ -96,8 +95,7 @@ export default function GuidePage() {
   const showOtherField = watchedCategories.includes('Other');
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
-    setResult({});
-    finalResultRef.current = null;
+    setResult(null);
     setIsGenerating(true);
     setIsSaving(false);
 
@@ -116,13 +114,9 @@ export default function GuidePage() {
           investmentGoals: data.investmentGoals,
       };
 
-      const {stream, response} = await streamInvestmentStrategy(submissionData);
+      const finalResult = await generateInvestmentStrategy(submissionData);
+      setResult(finalResult);
 
-      for await (const chunk of stream) {
-        setResult(chunk);
-      }
-      const finalResult = await response;
-      finalResultRef.current = finalResult;
 
       if (user && finalResult) {
         setIsSaving(true);
@@ -171,7 +165,7 @@ export default function GuidePage() {
     return acc;
   }, {} as ChartConfig)), [chartData]);
   
-  const hasResult = Object.keys(result).length > 0;
+  const hasResult = result && Object.keys(result).length > 0;
 
   if (!isClient) {
     return (
