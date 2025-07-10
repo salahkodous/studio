@@ -26,7 +26,7 @@ const investmentStrategyPrompt = ai.definePrompt({
 Client Profile:
 - Investment Capital: $\{${'{{capital}}'}\} USD
 - Interested Asset Categories: {{#each categories}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
-{{#if (ne otherCategory "")}}
+{{#if otherCategory}}
 - Other Interests: {{{otherCategory}}}
 {{/if}}
 - Risk Tolerance: {{{riskLevel}}}

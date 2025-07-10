@@ -40,14 +40,14 @@ const formSchema = z.object({
     required_error: 'الرجاء اختيار مستوى المخاطرة.',
   }),
   investmentGoals: z.string().min(10, 'الرجاء وصف أهدافك الاستثمارية بمزيد من التفصيل.'),
-}).refine(data => {
-    if (data.categories.includes('Other') && (!data.otherCategory || data.otherCategory.trim().length === 0)) {
-        return false;
+}).superRefine((data, ctx) => {
+    if (data.categories.includes('Other') && (!data.otherCategory || data.otherCategory.trim() === '')) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'الرجاء تحديد نوع الاستثمار الآخر.',
+            path: ['otherCategory'],
+        });
     }
-    return true;
-}, {
-    message: 'الرجاء تحديد نوع الاستثمار الآخر.',
-    path: ['otherCategory'],
 });
 
 
@@ -101,6 +101,7 @@ export default function GuidePage() {
     setIsSaving(false);
     
     try {
+      // Pass the validated data directly
       const {stream, response} = await streamInvestmentStrategy(data);
       for await (const chunk of stream) {
         setResult(chunk);
@@ -224,7 +225,7 @@ export default function GuidePage() {
                         setValue('categories', newCategories, { shouldValidate: true });
                         // Proactively clear the 'other' field if it's unchecked
                         if (!newCategories.includes('Other')) {
-                            setValue('otherCategory', '');
+                            setValue('otherCategory', '', { shouldValidate: true });
                         }
                       }}
                     />
