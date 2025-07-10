@@ -18,20 +18,18 @@ export async function generateInvestmentStrategy(input: InvestmentStrategyInput)
   return investmentStrategyFlow(input);
 }
 
-const investmentStrategyFlow = ai.defineFlow(
-  {
-    name: 'investmentStrategyFlow',
-    inputSchema: InvestmentStrategyInputSchema,
-    outputSchema: InvestmentStrategyOutputSchema,
-  },
-  async (input) => {
-    const promptText = `You are an expert financial advisor specializing in investment opportunities within the GCC (Gulf Cooperation Council) countries. Your task is to create a personalized investment strategy for a client based on their profile. The output MUST be in Arabic.
+const investmentStrategyPrompt = ai.definePrompt({
+    name: 'investmentStrategyPrompt',
+    input: { schema: InvestmentStrategyInputSchema },
+    output: { schema: InvestmentStrategyOutputSchema },
+    model: 'googleai/gemini-1.5-flash',
+    prompt: `You are an expert financial advisor specializing in investment opportunities within the GCC (Gulf Cooperation Council) countries. Your task is to create a personalized investment strategy for a client based on their profile. The output MUST be in Arabic.
 
 Client Profile:
-- Investment Capital: $${input.capital} USD
-- Interested Asset Categories: ${input.categories.join(', ')}
-- Risk Tolerance: ${input.riskLevel}
-- Investment Goals: ${input.investmentGoals}
+- Investment Capital: $${'{{capital}}'} USD
+- Interested Asset Categories: {{#each categories}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
+- Risk Tolerance: {{{riskLevel}}}
+- Investment Goals: {{{investmentGoals}}}
 
 Based on this profile, generate a comprehensive and actionable investment strategy. If the user specified a custom category like "Art" or "Collectibles", be sure to include analysis and recommendations for that specific interest.
 
@@ -45,13 +43,18 @@ Your response should include:
 Ensure all financial advice is high-level and for informational purposes. The entire output, including all field names and text, MUST be in ARABIC.
 
 Your final output must be ONLY the JSON object, without any extra text, explanations, or markdown formatting.
-`;
+`,
+});
 
-    const {output} = await ai.generate({
-      prompt: promptText,
-      model: 'googleai/gemini-1.5-flash',
-      output: { schema: InvestmentStrategyOutputSchema },
-    });
+
+const investmentStrategyFlow = ai.defineFlow(
+  {
+    name: 'investmentStrategyFlow',
+    inputSchema: InvestmentStrategyInputSchema,
+    outputSchema: InvestmentStrategyOutputSchema,
+  },
+  async (input) => {
+    const {output} = await investmentStrategyPrompt(input);
     return output!;
   }
 );
