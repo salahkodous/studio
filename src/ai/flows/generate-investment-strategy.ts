@@ -44,6 +44,8 @@ Your response should include:
 5.  **Risk Analysis:** Briefly describe the potential risks associated with this strategy and how they align with the user's stated risk tolerance.
 
 Ensure all financial advice is high-level and for informational purposes. The entire output, including all field names and text, MUST be in ARABIC.
+
+Your final output must be ONLY the JSON object, without any extra text, explanations, or markdown formatting.
 `;
 
     const {output} = await ai.generate({
