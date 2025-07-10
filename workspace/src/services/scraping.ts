@@ -3,11 +3,7 @@
  */
 'use server';
 
-import FirecrawlApp from '@firecrawl/sdk';
-
-const firecrawl = new FirecrawlApp({
-  apiKey: process.env.FIRECRAWL_API_KEY,
-});
+import FirecrawlApp from '@mendable/firecrawl-js';
 
 /**
  * Scrapes a URL for its main content using Firecrawl.
@@ -15,10 +11,14 @@ const firecrawl = new FirecrawlApp({
  * @returns The scraped data, including markdown and metadata.
  */
 export async function scrapeUrl(url: string) {
-  if (!process.env.FIRECRAWL_API_KEY || process.env.FIRECRAWL_API_KEY.length < 5) {
+  const apiKey = process.env.NEXT_PUBLIC_FIRECRAWL_API_KEY;
+
+  if (!apiKey || apiKey.length < 5) {
       console.error("[Firecrawl] API key is missing or invalid.");
-      throw new Error("Firecrawl API key not configured.");
+      throw new Error("Firecrawl API key not configured. Please add your FIRECRAWL_API_KEY to the .env file.");
   }
+  
+  const firecrawl = new FirecrawlApp({ apiKey });
   
   console.log(`[Scraping Service] Scraping URL: ${url}`);
   try {
