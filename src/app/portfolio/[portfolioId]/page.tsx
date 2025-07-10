@@ -225,7 +225,7 @@ export default function PortfolioDetailPage() {
     }, [enrichedAssets]);
     
     const totalChange = totals.totalCurrentValue - totals.totalPurchaseValue;
-    const totalChangePercent = totals.totalPurchaseValue > 0 ? (change / totals.totalPurchaseValue) * 100 : 0;
+    const totalChangePercent = totals.totalPurchaseValue > 0 ? (totalChange / totals.totalPurchaseValue) * 100 : 0;
 
 
     if (loading) {
