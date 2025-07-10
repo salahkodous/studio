@@ -5,7 +5,7 @@
  * - getStockPrice: Fetches the (simulated) current price of a stock.
  * - getLatestNews: Fetches (simulated) recent news headlines for a stock.
  * - findCompanyUrlTool: Finds a relevant financial data URL for a company.
- * - findCompanyNameTool: Finds the full company name for a given stock ticker.
+ * - findCompanyNameTool: Finds the full official name for a given stock ticker.
  * - findMarketAssetsTool: Finds a comprehensive list of assets for a given market.
  */
 
@@ -68,9 +68,9 @@ export const findCompanyNameTool = ai.defineTool(
 export const getStockPrice = ai.defineTool(
   {
     name: 'getStockPrice',
-    description: 'Gets the current market price for a given stock ticker symbol by scraping its financial data page.',
+    description: 'Gets the current market price for a given stock ticker symbol using the Twelve Data API.',
     inputSchema: z.object({
-      ticker: z.string().describe('The stock ticker symbol, e.g., "ARAMCO" or "QNB".'),
+      ticker: z.string().describe('The stock ticker symbol, e.g., "2222" or "QNBK".'),
       companyName: z.string().describe('The name of the company.'),
     }),
     outputSchema: z.object({
@@ -79,33 +79,34 @@ export const getStockPrice = ai.defineTool(
         sourceUrl: z.string().url(),
     }),
   },
-  async ({ ticker, companyName }) => {
-    console.log(`[getStockPriceTool] AI agent is looking up URL for: ${companyName}`);
-    const url = await findCompanyUrlTool({ companyName });
-
-    console.log(`[getStockPriceTool] AI agent is scraping data from: ${url}`);
-    const scrapeResult = await webScraperTool({ url });
-
-    // Let the LLM find the price from the scraped data.
-    // This is a powerful pattern. We do the scraping, the LLM does the data extraction.
-    const extractionPrompt = ai.definePrompt({
-        name: 'priceExtractor',
-        model: 'googleai/gemini-1.5-flash',
-        input: { schema: z.object({ context: z.string() }) },
-        output: { schema: z.object({ price: z.number(), currency: z.string() })},
-        prompt: `From the following financial data, extract the current stock price and its currency. The currency might be abbreviated (e.g., SAR, AED, QAR). Respond with only a JSON object containing the price and currency. \n\n${scrapeResult.content}`,
-    });
+  async ({ ticker }) => {
+    console.log(`[getStockPriceTool] Fetching price for ${ticker} from Twelve Data API`);
+    const apiKey = process.env.TWELVE_DATA_API_KEY;
+    if (!apiKey) throw new Error("Twelve Data API key is not configured.");
     
-    const { output } = await extractionPrompt({ context: scrapeResult.content });
+    const assetDetails = assets.find(a => a.ticker === ticker);
+    const exchange = assetDetails?.country === 'SA' ? 'Tadawul' : assetDetails?.country === 'QA' ? 'QSE' : 'DFM';
 
-    if (!output) {
-        throw new Error(`Could not extract price for ${ticker} from ${url}`);
+    const url = `https://api.twelvedata.com/price?symbol=${ticker}&exchange=${exchange}&apikey=${apiKey}`;
+    
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.price) {
+            return {
+                price: parseFloat(data.price),
+                currency: assetDetails?.currency || 'USD',
+                sourceUrl: `https://twelvedata.com/symbol/${ticker}/${exchange}`,
+            };
+        } else {
+            console.warn(`[getStockPriceTool] Twelve Data API did not return a price for ${ticker}. Falling back to mock data.`);
+            return { price: assetDetails?.price || 0, currency: assetDetails?.currency || 'USD', sourceUrl: `https://twelvedata.com/` };
+        }
+    } catch (error) {
+        console.error(`[getStockPriceTool] Error fetching from Twelve Data API:`, error);
+        return { price: assetDetails?.price || 0, currency: assetDetails?.currency || 'USD', sourceUrl: `https://twelvedata.com/` };
     }
-
-    return {
-        ...output,
-        sourceUrl: url,
-    };
   }
 );
 
@@ -151,7 +152,7 @@ export const getLatestNews = ai.defineTool(
 export const findMarketAssetsTool = ai.defineTool(
     {
         name: 'findMarketAssetsTool',
-        description: 'Finds a list of all publicly traded stocks for a given market (country). This is used to populate selection lists for the user.',
+        description: 'Finds a list of all publicly traded stocks for a given market (country) using the Twelve Data API.',
         inputSchema: z.object({
             market: z.enum(['SA', 'AE', 'QA']).describe('The stock market to search (SA: Saudi Arabia, AE: UAE, QA: Qatar).'),
         }),
@@ -161,54 +162,55 @@ export const findMarketAssetsTool = ai.defineTool(
         })),
     },
     async ({ market }) => {
-        console.log(`[findMarketAssetsTool] Finding assets for market: ${market}`);
+        console.log(`[findMarketAssetsTool] Finding assets for market: ${market} via Twelve Data API`);
+        
         const fallbackToStaticData = () => {
             console.log(`[findMarketAssetsTool] Using static fallback data for market: ${market}`);
             return assets
                 .filter(a => a.country === market && a.category === 'Stocks')
                 .map(a => ({ ticker: a.ticker, name: a.name }));
         };
-
-        if (market === 'SA') {
-            try {
-                const url = 'https://www.saudiexchange.sa/wps/portal/saudiexchange/ourmarkets/main-market-watch?locale=ar';
-                console.log(`[findMarketAssetsTool] Scraping Saudi market data from: ${url}`);
-                const scrapeResult = await webScraperTool({ url });
-
-                if (!scrapeResult || !scrapeResult.content) {
-                    console.error("[findMarketAssetsTool] Scraping returned no content. Falling back to static data.");
-                    return fallbackToStaticData();
-                }
-
-                console.log("[findMarketAssetsTool] Extracting assets from scraped data...");
-                const assetsExtractor = ai.definePrompt({
-                    name: 'assetsExtractor',
-                    model: 'googleai/gemini-1.5-flash',
-                    input: { schema: z.object({ context: z.string() }) },
-                    output: { schema: z.array(z.object({ ticker: z.string(), name: z.string() })) },
-                    prompt: `From the following markdown content of a stock market page, extract all the listed companies. For each company, provide its official name and its ticker symbol. Return the data as a JSON array of objects, where each object has a "name" and a "ticker" property.
-
-                    Content:
-                    {{{context}}}
-                    `,
-                });
-                
-                const { output } = await assetsExtractor({ context: scrapeResult.content });
-                
-                if (!output || output.length === 0) {
-                    console.error("[findMarketAssetsTool] AI failed to extract assets. Falling back to static data.");
-                    return fallbackToStaticData();
-                }
-                
-                console.log(`[findMarketAssetsTool] Extracted ${output.length} assets from the Saudi Exchange.`);
-                return output;
-            } catch (error) {
-                console.error(`[findMarketAssetsTool] An error occurred during scraping or extraction for SA market:`, error);
-                return fallbackToStaticData();
-            }
+        
+        const apiKey = process.env.TWELVE_DATA_API_KEY;
+        if (!apiKey) {
+            console.error("[findMarketAssetsTool] Twelve Data API key is missing. Falling back to static data.");
+            return fallbackToStaticData();
         }
 
-        // For other markets, use static data directly.
-        return fallbackToStaticData();
+        const exchangeMap = {
+            SA: 'Tadawul',
+            AE: 'ADX', // or DFM, depends on the desired market
+            QA: 'QSE',
+        };
+        const exchange = exchangeMap[market];
+
+        if (!exchange) return fallbackToStaticData();
+        
+        const url = `https://api.twelvedata.com/stocks?exchange=${exchange}&apikey=${apiKey}`;
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                console.error(`[findMarketAssetsTool] API request failed with status ${response.status}. Falling back to static data.`);
+                return fallbackToStaticData();
+            }
+
+            const result = await response.json();
+            
+            if (result.data && Array.isArray(result.data) && result.data.length > 0) {
+                const formattedAssets = result.data.map((asset: any) => ({
+                    ticker: asset.symbol,
+                    name: asset.name,
+                }));
+                console.log(`[findMarketAssetsTool] Extracted ${formattedAssets.length} assets from ${exchange}.`);
+                return formattedAssets;
+            } else {
+                 console.error("[findMarketAssetsTool] API returned no data. Falling back to static data.");
+                 return fallbackToStaticData();
+            }
+        } catch (error) {
+            console.error(`[findMarketAssetsTool] An error occurred during API call:`, error);
+            return fallbackToStaticData();
+        }
     }
 );
