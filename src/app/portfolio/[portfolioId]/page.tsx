@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { getPortfolio, onPortfolioAssetsUpdate, removeAssetFromPortfolio, addAssetToPortfolio, type PortfolioAsset, type PortfolioDetails } from '@/lib/firestore'
-import { assets, type Asset, realEstateData } from '@/lib/data'
+import { assets, type Asset, realEstateData, type RealEstateCity } from '@/lib/data'
 import { useToast } from '@/hooks/use-toast'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
@@ -17,8 +17,10 @@ import { Label } from '@/components/ui/label'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { PlusCircle, Trash2, DollarSign, TrendingUp, AlertCircle, PackageOpen, Briefcase } from 'lucide-react'
+import { PlusCircle, Trash2, DollarSign, TrendingUp, AlertCircle, PackageOpen, Briefcase, ChevronLeft } from 'lucide-react'
 import { getCurrencySymbol } from '@/lib/utils'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 
 const addAssetSchema = z.object({
     name: z.string().min(2, "اسم الأصل مطلوب.").max(50, "الاسم طويل جدًا."),
@@ -26,8 +28,21 @@ const addAssetSchema = z.object({
     quantity: z.coerce.number().min(0, "لا يمكن أن تكون الكمية سالبة.").optional(),
 });
 
-
 type AddAssetFormValues = z.infer<typeof addAssetSchema>
+
+const assetCategories = [
+    { id: 'Stocks', label: 'الأسهم' },
+    { id: 'Real Estate', label: 'العقارات' },
+    { id: 'Gold', label: 'الذهب' },
+    { id: 'Bonds', label: 'السندات' },
+    { id: 'Other', label: 'أصل آخر (يدوي)' },
+];
+
+const stockCountries = [
+    { id: 'SA', label: 'السعودية' },
+    { id: 'AE', label: 'الإمارات' },
+    { id: 'QA', label: 'قطر' },
+];
 
 export default function PortfolioDetailPage() {
     const { user, loading: authLoading } = useAuth()
@@ -41,7 +56,13 @@ export default function PortfolioDetailPage() {
     const [loading, setLoading] = useState(true)
     const [isAddAssetOpen, setAddAssetOpen] = useState(false)
     
-    const { register, handleSubmit, formState: { errors }, reset } = useForm<AddAssetFormValues>({
+    // State for the new multi-step Add Asset form
+    const [step, setStep] = useState(1);
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+    const [selectedAsset, setSelectedAsset] = useState<Asset | RealEstateCity | null>(null);
+
+    const { register, handleSubmit, formState: { errors }, reset, setValue: setFormValue } = useForm<AddAssetFormValues>({
         resolver: zodResolver(addAssetSchema),
     })
 
@@ -73,6 +94,43 @@ export default function PortfolioDetailPage() {
         }
     }, [user, portfolioId, router, toast])
 
+    const resetAddAssetFlow = () => {
+        setStep(1);
+        setSelectedCategory(null);
+        setSelectedCountry(null);
+        setSelectedAsset(null);
+        reset();
+    }
+    
+    const handleOpenChange = (open: boolean) => {
+        if (!open) {
+            resetAddAssetFlow();
+        }
+        setAddAssetOpen(open);
+    }
+
+    const handleCategorySelect = (categoryId: string) => {
+        setSelectedCategory(categoryId);
+        if (categoryId === 'Stocks') {
+            setStep(2);
+        } else if (categoryId === 'Real Estate') {
+            setStep(3);
+        } else if (categoryId === 'Gold' || categoryId === 'Bonds') {
+            setStep(3);
+        } else { // 'Other'
+            setStep(4);
+        }
+    }
+
+    const handleAssetSelect = (assetIdentifier: string) => {
+        const foundAsset = [...assets, ...realEstateData].find(a => ('ticker' in a ? a.ticker : a.cityKey) === assetIdentifier);
+        if (foundAsset) {
+            setSelectedAsset(foundAsset);
+            setFormValue('name', foundAsset.name);
+            setStep(4);
+        }
+    }
+
     const handleAddAsset = async (data: AddAssetFormValues) => {
         if (!user) return;
 
@@ -85,8 +143,7 @@ export default function PortfolioDetailPage() {
         try {
             await addAssetToPortfolio(user.uid, portfolioId, assetPayload);
             toast({ title: "تمت إضافة الأصل", description: `تمت إضافة '${data.name}' إلى محفظتك بنجاح.` });
-            reset();
-            setAddAssetOpen(false);
+            handleOpenChange(false);
         } catch (error) {
             console.error("Error adding asset:", error);
             toast({ title: "خطأ", description: "فشل في إضافة الأصل. الرجاء المحاولة مرة أخرى.", variant: 'destructive' });
@@ -109,47 +166,37 @@ export default function PortfolioDetailPage() {
             let currentValue, currency;
             const purchaseValue = pa.purchasePrice;
             
-            // Try to find a matching asset in our mock data by ticker or name
             const assetDetails = assets.find(a => 
                 a.ticker.toLowerCase() === pa.name.toLowerCase() || 
                 a.name.toLowerCase() === pa.name.toLowerCase()
             );
 
-            if (assetDetails) { // If it's a known stock, bond, etc.
+            if (assetDetails) { 
                 currency = assetDetails.currency;
                 if (assetDetails.category === 'Stocks' && pa.quantity) {
                     currentValue = pa.quantity * assetDetails.price;
                 } else if (assetDetails.category === 'Savings Certificates') {
                     currentValue = pa.purchasePrice * (1 + (assetDetails.annualYield || 0));
                 } else {
-                    // For Gold, Bonds, etc., we'll simulate change based on its price movement
                     const originalPrice = assetDetails.price - parseFloat(assetDetails.change);
                     const changeRatio = originalPrice > 0 ? assetDetails.price / originalPrice : 1;
                     currentValue = pa.purchasePrice * changeRatio;
                 }
-            } else { // For unknown assets (like custom real estate), we can't get current value
-                currentValue = pa.purchasePrice; // Assume no change for now
-                currency = 'SAR'; // Default currency
+            } else { 
+                currentValue = pa.purchasePrice; 
+                currency = 'SAR'; 
             }
 
             const change = currentValue - purchaseValue;
             const changePercent = purchaseValue > 0 ? (change / purchaseValue) * 100 : 0;
             
-            return {
-                ...pa,
-                currentValue,
-                purchaseValue,
-                currency,
-                change,
-                changePercent,
-            }
+            return { ...pa, currentValue, purchaseValue, currency, change, changePercent }
         }).filter(Boolean);
     }, [portfolioAssets]);
 
     const totals = useMemo(() => {
         return enrichedAssets.reduce((acc, asset) => {
             if (asset) {
-                // This is a simplified total and doesn't account for currency conversion
                 acc.totalPurchaseValue += asset.purchaseValue;
                 acc.totalCurrentValue += asset.currentValue;
             }
@@ -160,10 +207,18 @@ export default function PortfolioDetailPage() {
     const totalChange = totals.totalCurrentValue - totals.totalPurchaseValue;
     const totalChangePercent = totals.totalPurchaseValue > 0 ? (totalChange / totals.totalPurchaseValue) * 100 : 0;
 
+    const assetsForCategory = useMemo(() => {
+        if (!selectedCategory) return [];
+        if (selectedCategory === 'Stocks') {
+            return assets.filter(a => a.category === 'Stocks' && (selectedCountry ? a.country === selectedCountry : true));
+        }
+        if (selectedCategory === 'Real Estate') {
+            return realEstateData;
+        }
+        return assets.filter(a => a.category === selectedCategory);
+    }, [selectedCategory, selectedCountry]);
 
-    if (loading) {
-        return <PageSkeleton />;
-    }
+    if (loading) return <PageSkeleton />;
 
     if (!portfolioDetails) {
         return (
@@ -191,7 +246,7 @@ export default function PortfolioDetailPage() {
                     <h1 className="text-4xl font-bold font-headline">{portfolioDetails.name}</h1>
                     <p className="text-muted-foreground">تم الإنشاء في: {new Date(portfolioDetails.createdAt).toLocaleDateString('ar-EG')}</p>
                 </div>
-                 <Dialog open={isAddAssetOpen} onOpenChange={setAddAssetOpen}>
+                 <Dialog open={isAddAssetOpen} onOpenChange={handleOpenChange}>
                     <DialogTrigger asChild>
                         <Button>
                             <PlusCircle className="ml-2" />
@@ -199,19 +254,73 @@ export default function PortfolioDetailPage() {
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[425px]">
-                         <form onSubmit={handleSubmit(handleAddAsset)}>
-                            <DialogHeader>
-                                <DialogTitle>إضافة أصل إلى المحفظة</DialogTitle>
-                                <DialogDescription>
-                                    أدخل اسم الأصل أو رمزه، وقيمته عند الشراء.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                               <div className="space-y-2">
-                                    <Label htmlFor="name">اسم الأصل / الرمز</Label>
-                                    <Input id="name" {...register('name')} placeholder="مثال: ARAMCO, عقار في جدة" />
-                                    {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
-                               </div>
+                        <DialogHeader>
+                            <DialogTitle>إضافة أصل جديد</DialogTitle>
+                            <DialogDescription>
+                                اتبع الخطوات لإضافة أصل جديد إلى محفظتك.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        {/* Step 1: Category Selection */}
+                        {step === 1 && (
+                            <div className="space-y-4 py-4">
+                                <Label>الخطوة 1: اختر نوع الأصل</Label>
+                                <RadioGroup onValueChange={handleCategorySelect} className="grid grid-cols-2 gap-4">
+                                    {assetCategories.map(cat => (
+                                        <Label key={cat.id} htmlFor={cat.id} className="border rounded-md p-4 flex items-center justify-center cursor-pointer hover:bg-accent has-[:checked]:bg-primary has-[:checked]:text-primary-foreground">
+                                            <RadioGroupItem value={cat.id} id={cat.id} className="sr-only" />
+                                            {cat.label}
+                                        </Label>
+                                    ))}
+                                </RadioGroup>
+                            </div>
+                        )}
+
+                        {/* Step 2: Country Selection (for Stocks) */}
+                        {step === 2 && selectedCategory === 'Stocks' && (
+                            <div className="space-y-4 py-4">
+                                <Label>الخطوة 2: اختر السوق</Label>
+                                <RadioGroup onValueChange={(country) => { setSelectedCountry(country); setStep(3); }} className="grid grid-cols-3 gap-4">
+                                    {stockCountries.map(country => (
+                                         <Label key={country.id} htmlFor={country.id} className="border rounded-md p-4 flex items-center justify-center cursor-pointer hover:bg-accent has-[:checked]:bg-primary has-[:checked]:text-primary-foreground">
+                                            <RadioGroupItem value={country.id} id={country.id} className="sr-only" />
+                                            {country.label}
+                                        </Label>
+                                    ))}
+                                </RadioGroup>
+                                <Button variant="link" onClick={() => setStep(1)}>العودة</Button>
+                            </div>
+                        )}
+                        
+                        {/* Step 3: Asset Selection */}
+                        {step === 3 && (
+                            <div className="space-y-4 py-4">
+                                <Label>الخطوة 3: اختر الأصل</Label>
+                                <Select onValueChange={handleAssetSelect}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="اختر أصلاً من القائمة..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {assetsForCategory.map(asset => (
+                                            <SelectItem key={'ticker' in asset ? asset.ticker : asset.cityKey} value={'ticker' in asset ? asset.ticker : asset.cityKey}>
+                                                {asset.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                 <Button variant="link" onClick={() => setStep(selectedCategory === 'Stocks' ? 2 : 1)}>العودة</Button>
+                            </div>
+                        )}
+
+                        {/* Step 4: Purchase Details */}
+                        {step === 4 && (
+                            <form onSubmit={handleSubmit(handleAddAsset)}>
+                                <div className="grid gap-4 py-4">
+                                <div className="space-y-2">
+                                        <Label htmlFor="name">اسم الأصل / الرمز</Label>
+                                        <Input id="name" {...register('name')} placeholder="مثال: ARAMCO, عقار في جدة" disabled={!!selectedAsset}/>
+                                        {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+                                </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="quantity">الكمية / المساحة (اختياري)</Label>
                                     <Input id="quantity" type="number" step="any" {...register('quantity')} placeholder="مثال: 100 (سهم), 250 (متر مربع)" />
@@ -223,11 +332,13 @@ export default function PortfolioDetailPage() {
                                     {errors.purchasePrice && <p className="text-sm text-destructive">{errors.purchasePrice.message}</p>}
                                 </div>
 
-                            </div>
-                            <DialogFooter>
-                                <Button type="submit">إضافة أصل</Button>
-                            </DialogFooter>
-                        </form>
+                                </div>
+                                <DialogFooter>
+                                    <Button variant="ghost" type="button" onClick={() => setStep(selectedCategory === 'Other' ? 1 : 3)}>العودة</Button>
+                                    <Button type="submit">إضافة أصل</Button>
+                                </DialogFooter>
+                            </form>
+                        )}
                     </DialogContent>
                 </Dialog>
             </div>
@@ -360,3 +471,5 @@ function PageSkeleton() {
         </div>
     );
 }
+
+    
