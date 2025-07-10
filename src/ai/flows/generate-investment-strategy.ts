@@ -22,7 +22,7 @@ const investmentStrategyPrompt = ai.definePrompt({
     name: 'investmentStrategyPrompt',
     input: { schema: InvestmentStrategyInputSchema },
     output: { schema: InvestmentStrategyOutputSchema },
-    model: 'googleai/gemini-1.5-flash-latest',
+    model: 'googleai/gemini-1.5-pro-latest',
     prompt: `You are an expert financial advisor specializing in investment opportunities within the GCC (Gulf Cooperation Council) countries. Your task is to create a personalized investment strategy for a client based on their profile. The output MUST be in Arabic.
 
 Client Profile:
