@@ -20,10 +20,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { signUp } from '@/lib/auth'
-import { Loader2, Terminal } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
-import { isFirebaseConfigured, getMissingFirebaseKeys } from '@/lib/firebase'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 const formSchema = z.object({
   name: z.string().min(2, 'يجب أن يكون الاسم من حرفين على الأقل.'),
@@ -36,9 +34,6 @@ type FormValues = z.infer<typeof formSchema>
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [isClient, setIsClient] = useState(false)
-  const [showConfigWarning, setShowConfigWarning] = useState(false);
-  const [missingKeys, setMissingKeys] = useState<string[]>([]);
-  const [authError, setAuthError] = useState<string | null>(null);
   const router = useRouter()
   const { toast } = useToast()
   const {
@@ -51,51 +46,42 @@ export default function RegisterPage() {
 
   useEffect(() => {
     setIsClient(true)
-    if (!isFirebaseConfigured) {
-        setShowConfigWarning(true);
-        setMissingKeys(getMissingFirebaseKeys());
-    }
   }, [])
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setLoading(true)
-    setAuthError(null);
     try {
       await signUp(data.email, data.password, data.name)
       toast({
         title: 'تم إنشاء الحساب بنجاح',
         description: 'تم تسجيل دخولك.',
       })
-      router.push('/watchlist')
+      router.push('/')
     } catch (error: any) {
       console.error(error)
       let description = 'حدث خطأ غير متوقع. الرجاء المحاولة مرة أخرى.';
-      let showErrorToast = true;
 
       if (error.code) {
         switch (error.code) {
             case 'auth/email-already-in-use':
                 description = 'هذا البريد الإلكتروني مستخدم بالفعل.';
                 break;
-            case 'auth/configuration-not-found':
-                setAuthError('تهيئة Firebase غير صحيحة. يرجى التأكد من تمكين تسجيل الدخول بالبريد الإلكتروني/كلمة المرور في لوحة تحكم Firebase.');
-                showErrorToast = false;
+            case 'auth/invalid-email':
+                description = 'البريد الإلكتروني الذي أدخلته غير صالح.';
                 break;
-            case 'auth/invalid-credential':
-                description = 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
+            case 'auth/weak-password':
+                description = 'كلمة المرور ضعيفة جدًا.';
                 break;
         }
-      } else if (error.message.includes('Firebase is not configured')) {
-        description = 'مفاتيح Firebase API غير موجودة أو غير صالحة. يرجى التحقق من ملف .env الخاص بك.'
+      } else if (error.message && error.message.includes('Failed to initialize')) {
+        description = 'تهيئة Firebase ناقصة. يرجى التأكد من أن ملف .env الخاص بك يحتوي على مفاتيح صالحة.'
       }
 
-      if (showErrorToast) {
-        toast({
-          title: 'خطأ في إنشاء الحساب',
-          description,
-          variant: 'destructive',
-        })
-      }
+      toast({
+        title: 'خطأ في إنشاء الحساب',
+        description,
+        variant: 'destructive',
+      })
     }
     setLoading(false)
   }
@@ -130,46 +116,9 @@ export default function RegisterPage() {
     )
   }
 
-  if (showConfigWarning) {
-    return (
-        <div className="flex items-center justify-center min-h-[calc(100vh-8rem)] p-4">
-            <Card className="w-full max-w-lg text-center">
-                <CardHeader>
-                    <CardTitle className="text-2xl text-destructive">تهيئة Firebase ناقصة</CardTitle>
-                    <CardDescription>
-                       لتمكين المصادقة، يجب توفير متغيرات البيئة التالية في ملف `.env` الخاص بك.
-                    </CardDescription>
-                </CardHeader>
-                 <CardContent>
-                    <p className="text-sm text-muted-foreground mb-4">
-                        اذهب إلى "Project settings" &gt; "General" في لوحة تحكم Firebase الخاصة بك، وابحث عن هذه القيم ضمن "Your apps" &gt; "SDK setup and configuration".
-                    </p>
-                    <div className="text-left bg-muted p-4 rounded-md font-mono text-xs space-y-1">
-                        {missingKeys.map(key => (
-                            <p key={key}><span className="text-destructive font-bold">&#10007;</span> {key}=... <span className="text-muted-foreground italic">(مفقود)</span></p>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-    )
-  }
-
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-8rem)] p-4">
         <div className="w-full max-w-sm space-y-6">
-            {authError && (
-              <Alert variant="destructive">
-                <Terminal className="h-4 w-4" />
-                <AlertTitle>خطأ في التهيئة</AlertTitle>
-                <AlertDescription>
-                    {authError}
-                    <p className="mt-2 text-xs">
-                        اذهب إلى <strong>Build &gt; Authentication &gt; Sign-in method</strong> في لوحة تحكم Firebase الخاصة بك وقم بتمكين <strong>Email/Password</strong>.
-                    </p>
-                </AlertDescription>
-              </Alert>
-            )}
             <Card>
                 <form onSubmit={handleSubmit(onSubmit)}>
                 <CardHeader>
