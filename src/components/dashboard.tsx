@@ -20,39 +20,56 @@ export function Dashboard({ user }: DashboardProps) {
   const [watchlist, setWatchlist] = useState<Asset[]>([])
   const [latestPortfolio, setLatestPortfolio] = useState<PortfolioDetails | null>(null)
   const [latestStrategy, setLatestStrategy] = useState<SavedStrategy | null>(null)
-  const [watchlistLoading, setWatchlistLoading] = useState(true)
-  const [portfolioLoading, setPortfolioLoading] = useState(true)
-  const [strategyLoading, setStrategyLoading] = useState(true)
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!user?.uid) {
+        setLoading(false);
+        return;
+    };
 
-    setWatchlistLoading(true);
-    setPortfolioLoading(true);
-    setStrategyLoading(true);
+    let active = true;
+    let unsubWatchlist: (() => void) | undefined;
+    let unsubPortfolios: (() => void) | undefined;
+    let unsubStrategies: (() => void) | undefined;
 
-    const unsubscribeWatchlist = onWatchlistUpdate(user.uid, (tickers) => {
-      const assetsInList = assets.filter(asset => tickers.includes(asset.ticker));
-      setWatchlist(assetsInList);
-      setWatchlistLoading(false);
-    });
-
-    const unsubscribePortfolios = onPortfoliosUpdate(user.uid, (portfolios) => {
-        setLatestPortfolio(portfolios.length > 0 ? portfolios[0] : null);
-        setPortfolioLoading(false);
-    });
-
-    const unsubscribeStrategies = onStrategiesUpdate(user.uid, (strategies) => {
-      setLatestStrategy(strategies.length > 0 ? strategies[0] : null);
-      setStrategyLoading(false);
+    Promise.all([
+        new Promise<void>((resolve) => {
+            unsubWatchlist = onWatchlistUpdate(user.uid, (tickers) => {
+              const assetsInList = assets.filter(asset => tickers.includes(asset.ticker));
+              if (active) setWatchlist(assetsInList);
+              resolve();
+            });
+        }),
+        new Promise<void>((resolve) => {
+            unsubPortfolios = onPortfoliosUpdate(user.uid, (portfolios) => {
+                if (active) setLatestPortfolio(portfolios.length > 0 ? portfolios[0] : null);
+                resolve();
+            });
+        }),
+        new Promise<void>((resolve) => {
+            unsubStrategies = onStrategiesUpdate(user.uid, (strategies) => {
+              if (active) setLatestStrategy(strategies.length > 0 ? strategies[0] : null);
+              resolve();
+            });
+        })
+    ]).then(() => {
+        if (active) {
+            setLoading(false);
+        }
     });
 
     return () => {
-      unsubscribeWatchlist?.();
-      unsubscribePortfolios?.();
-      unsubscribeStrategies?.();
+      active = false;
+      unsubWatchlist?.();
+      unsubPortfolios?.();
+      unsubStrategies?.();
     };
   }, [user?.uid]);
+
+  if (loading) {
+    return <DashboardSkeleton />
+  }
 
   return (
     <div className="container mx-auto max-w-6xl p-4 md:p-8 space-y-8">
@@ -75,13 +92,7 @@ export function Dashboard({ user }: DashboardProps) {
               </Button>
             </CardHeader>
             <CardContent>
-              {portfolioLoading ? (
-                <div className="space-y-3">
-                    <Skeleton className="h-6 w-1/2" />
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-4/5" />
-                </div>
-              ) : latestPortfolio ? (
+              {latestPortfolio ? (
                 <div className="space-y-3">
                   <h3 className="font-semibold text-lg">{latestPortfolio.name}</h3>
                   <p className="text-sm text-muted-foreground line-clamp-3">
@@ -118,12 +129,7 @@ export function Dashboard({ user }: DashboardProps) {
               </Button>
             </CardHeader>
             <CardContent>
-              {watchlistLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Skeleton className="h-24 w-full" />
-                  <Skeleton className="h-24 w-full" />
-                </div>
-              ) : watchlist.length > 0 ? (
+              {watchlist.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {watchlist.slice(0, 2).map(asset => (
                     <AssetCard key={asset.ticker} asset={asset} />
@@ -148,13 +154,7 @@ export function Dashboard({ user }: DashboardProps) {
                 <CardDescription>ملخص سريع لآخر استراتيجية قمت بإنشائها.</CardDescription>
             </CardHeader>
             <CardContent>
-              {strategyLoading ? (
-                 <div className="space-y-3">
-                  <Skeleton className="h-5 w-2/3" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-4/5" />
-                </div>
-              ) : latestStrategy ? (
+              {latestStrategy ? (
                 <div className="space-y-3">
                   <h3 className="font-semibold text-lg">{latestStrategy.strategyTitle}</h3>
                   <p className="text-sm text-muted-foreground line-clamp-3">
@@ -201,3 +201,69 @@ export function Dashboard({ user }: DashboardProps) {
     </div>
   )
 }
+
+function DashboardSkeleton() {
+  return (
+    <div className="container mx-auto max-w-6xl p-4 md:p-8 space-y-8">
+      <Skeleton className="h-9 w-1/3" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <Skeleton className="h-6 w-40" />
+                  <Skeleton className="h-4 w-64 mt-2" />
+                </div>
+                <Skeleton className="h-8 w-32" />
+              </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <Skeleton className="h-6 w-1/2" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-4/5" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <Skeleton className="h-6 w-48" />
+                  <Skeleton className="h-4 w-56 mt-2" />
+                </div>
+                <Skeleton className="h-8 w-24" />
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+            </CardContent>
+          </Card>
+        </div>
+        <div className="space-y-8">
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-1/2" />
+               <Skeleton className="h-4 w-3/4 mt-2" />
+            </CardHeader>
+            <CardContent className="space-y-3">
+                <Skeleton className="h-5 w-2/3" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-4/5" />
+            </CardContent>
+          </Card>
+           <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-1/2" />
+            </CardHeader>
+            <CardContent className="flex flex-col space-y-4">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+    
