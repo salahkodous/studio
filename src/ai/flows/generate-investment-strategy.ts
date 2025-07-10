@@ -25,7 +25,6 @@ const investmentStrategyFlow = ai.defineFlow(
     outputSchema: InvestmentStrategyOutputSchema,
   },
   async (input) => {
-    // Dynamically build the prompt string in JavaScript to avoid template errors.
     const promptText = `You are an expert financial advisor specializing in investment opportunities within the GCC (Gulf Cooperation Council) countries. Your task is to create a personalized investment strategy for a client based on their profile. The output MUST be in Arabic.
 
 Client Profile:
@@ -50,6 +49,7 @@ Your final output must be ONLY the JSON object, without any extra text, explanat
 
     const {output} = await ai.generate({
       prompt: promptText,
+      model: 'googleai/gemini-1.5-flash',
       output: { schema: InvestmentStrategyOutputSchema },
     });
     return output!;
