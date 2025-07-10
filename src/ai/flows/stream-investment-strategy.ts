@@ -25,7 +25,7 @@ const investmentStrategyStreamPrompt = ai.definePrompt({
     name: 'investmentStrategyStreamPrompt',
     input: { schema: InvestmentStrategyInputSchema },
     output: { schema: InvestmentStrategyOutputSchema },
-    model: 'googleai/gemini-1.5-flash',
+    model: 'googleai/gemini-pro',
     prompt: `You are an expert financial advisor specializing in investment opportunities within the GCC (Gulf Cooperation Council) countries. Your task is to create a personalized investment strategy for a client based on their profile. The output MUST be in Arabic.
 
 Client Profile:
@@ -57,7 +57,7 @@ const investmentStrategyStreamFlow = ai.defineFlow(
     outputSchema: InvestmentStrategyOutputSchema,
   },
   async (input) => {
-    const {stream, response} = await investmentStrategyStreamPrompt(input, {stream: true});
+    const {stream, response} = investmentStrategyStreamPrompt(input, {stream: true});
     return {stream, response};
   }
 );
