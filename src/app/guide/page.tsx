@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
@@ -6,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import dynamic from 'next/dynamic'
 import { streamInvestmentStrategy } from '@/ai/flows/stream-investment-strategy'
-import type { InvestmentStrategyOutput } from '@/ai/schemas/investment-strategy-schema'
+import type { InvestmentStrategyOutput, InvestmentStrategyInput } from '@/ai/schemas/investment-strategy-schema'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -99,10 +100,22 @@ export default function GuidePage() {
     finalResultRef.current = null;
     setIsGenerating(true);
     setIsSaving(false);
-    
+
     try {
-      // Pass the validated data directly
-      const {stream, response} = await streamInvestmentStrategy(data);
+      const finalCategories = data.categories
+        .filter(c => c !== 'Other')
+        .concat(data.categories.includes('Other') && data.otherCategory ? [data.otherCategory] : [])
+        .filter(Boolean) as string[];
+
+      const submissionData: InvestmentStrategyInput = {
+          capital: data.capital,
+          categories: finalCategories,
+          riskLevel: data.riskLevel,
+          investmentGoals: data.investmentGoals,
+      };
+
+      const {stream, response} = await streamInvestmentStrategy(submissionData);
+
       for await (const chunk of stream) {
         setResult(chunk);
       }
@@ -218,12 +231,11 @@ export default function GuidePage() {
                       id={item.id}
                       checked={watchedCategories.includes(item.id)}
                       onCheckedChange={(checked) => {
-                        const currentCategories = watchedCategories;
+                        const currentCategories = watch('categories', []);
                         const newCategories = checked
                           ? [...currentCategories, item.id]
                           : currentCategories.filter((value) => value !== item.id);
                         setValue('categories', newCategories, { shouldValidate: true });
-                        // Proactively clear the 'other' field if it's unchecked
                         if (!newCategories.includes('Other')) {
                             setValue('otherCategory', '', { shouldValidate: true });
                         }
@@ -387,3 +399,5 @@ export default function GuidePage() {
     </div>
   )
 }
+
+    

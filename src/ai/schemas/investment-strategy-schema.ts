@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Defines the data schemas and types for the investment strategy generation feature.
  *
@@ -11,8 +12,7 @@ import {z} from 'genkit';
 
 export const InvestmentStrategyInputSchema = z.object({
   capital: z.number().min(1000).describe('The amount of capital to invest, in USD.'),
-  categories: z.array(z.string()).min(1).describe('The asset categories the user is interested in (e.g., Stocks, Gold, Real Estate).'),
-  otherCategory: z.string().optional().describe('A user-defined category if "Other" is selected.'),
+  categories: z.array(z.string()).min(1).describe('The asset categories the user is interested in (e.g., Stocks, Gold, Real Estate, Vintage Cars). This can include standard and user-defined categories.'),
   riskLevel: z.enum(['low', 'medium', 'high']).describe("The user's risk tolerance."),
   investmentGoals: z.string().describe("The user's financial goals or expected payoff."),
 });
@@ -38,3 +38,5 @@ export const InvestmentStrategyOutputSchema = z.object({
   riskAnalysis: z.string().describe("An analysis of the risks associated with this strategy in Arabic."),
 });
 export type InvestmentStrategyOutput = z.infer<typeof InvestmentStrategyOutputSchema>;
+
+    
