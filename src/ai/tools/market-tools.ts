@@ -162,48 +162,53 @@ export const findMarketAssetsTool = ai.defineTool(
     },
     async ({ market }) => {
         console.log(`[findMarketAssetsTool] Finding assets for market: ${market}`);
+        const fallbackToStaticData = () => {
+            console.log(`[findMarketAssetsTool] Using static fallback data for market: ${market}`);
+            return assets
+                .filter(a => a.country === market && a.category === 'Stocks')
+                .map(a => ({ ticker: a.ticker, name: a.name }));
+        };
 
         if (market === 'SA') {
-            const url = 'https://www.saudiexchange.sa/wps/portal/saudiexchange/ourmarkets/main-market-watch?locale=ar';
-            console.log(`[findMarketAssetsTool] Scraping Saudi market data from: ${url}`);
-            const scrapeResult = await webScraperTool({ url });
+            try {
+                const url = 'https://www.saudiexchange.sa/wps/portal/saudiexchange/ourmarkets/main-market-watch?locale=ar';
+                console.log(`[findMarketAssetsTool] Scraping Saudi market data from: ${url}`);
+                const scrapeResult = await webScraperTool({ url });
 
-            if (!scrapeResult.content) {
-                console.error("[findMarketAssetsTool] Scraping returned no content.");
-                return assets.filter(a => a.country === market); // Fallback to static data
+                if (!scrapeResult || !scrapeResult.content) {
+                    console.error("[findMarketAssetsTool] Scraping returned no content. Falling back to static data.");
+                    return fallbackToStaticData();
+                }
+
+                console.log("[findMarketAssetsTool] Extracting assets from scraped data...");
+                const assetsExtractor = ai.definePrompt({
+                    name: 'assetsExtractor',
+                    model: 'googleai/gemini-1.5-flash',
+                    input: { schema: z.object({ context: z.string() }) },
+                    output: { schema: z.array(z.object({ ticker: z.string(), name: z.string() })) },
+                    prompt: `From the following markdown content of a stock market page, extract all the listed companies. For each company, provide its official name and its ticker symbol. Return the data as a JSON array of objects, where each object has a "name" and a "ticker" property.
+
+                    Content:
+                    {{{context}}}
+                    `,
+                });
+                
+                const { output } = await assetsExtractor({ context: scrapeResult.content });
+                
+                if (!output || output.length === 0) {
+                    console.error("[findMarketAssetsTool] AI failed to extract assets. Falling back to static data.");
+                    return fallbackToStaticData();
+                }
+                
+                console.log(`[findMarketAssetsTool] Extracted ${output.length} assets from the Saudi Exchange.`);
+                return output;
+            } catch (error) {
+                console.error(`[findMarketAssetsTool] An error occurred during scraping or extraction for SA market:`, error);
+                return fallbackToStaticData();
             }
-
-            console.log("[findMarketAssetsTool] Extracting assets from scraped data...");
-            const assetsExtractor = ai.definePrompt({
-                name: 'assetsExtractor',
-                model: 'googleai/gemini-1.5-flash',
-                input: { schema: z.object({ context: z.string() }) },
-                output: { schema: z.array(z.object({ ticker: z.string(), name: z.string() })) },
-                prompt: `From the following markdown content of a stock market page, extract all the listed companies. For each company, provide its official name and its ticker symbol. Return the data as a JSON array of objects, where each object has a "name" and a "ticker" property.
-
-                Content:
-                {{{context}}}
-                `,
-            });
-            
-            const { output } = await assetsExtractor({ context: scrapeResult.content });
-            
-            if (!output || output.length === 0) {
-                console.error("[findMarketAssetsTool] AI failed to extract assets. Falling back to static data.");
-                return assets.filter(a => a.country === market); // Fallback
-            }
-            
-            console.log(`[findMarketAssetsTool] Extracted ${output.length} assets from the Saudi Exchange.`);
-            return output;
         }
 
-        // Fallback for other markets until URLs are provided
-        console.log(`[findMarketAssetsTool] Using static data for market: ${market}`);
-        const marketAssets = assets
-            .filter(a => a.country === market && a.category === 'Stocks')
-            .map(a => ({ ticker: a.ticker, name: a.name }));
-        
-        console.log(`[findMarketAssetsTool] Found ${marketAssets.length} static assets for ${market}.`);
-        return marketAssets;
+        // For other markets, use static data directly.
+        return fallbackToStaticData();
     }
 );
