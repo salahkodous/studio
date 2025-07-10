@@ -102,10 +102,12 @@ export default function GuidePage() {
     setIsSaving(false);
 
     try {
-      const finalCategories = data.categories
-        .filter(c => c !== 'Other')
-        .concat(data.otherCategory ? [data.otherCategory.trim()] : [])
-        .filter(Boolean) as string[];
+      const standardCategories = data.categories.filter(c => c !== 'Other');
+      const customCategory = (data.categories.includes('Other') && data.otherCategory) 
+        ? [data.otherCategory.trim()] 
+        : [];
+      
+      const finalCategories = [...standardCategories, ...customCategory];
 
       const submissionData: InvestmentStrategyInput = {
           capital: data.capital,
