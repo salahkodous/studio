@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { getPortfolio, onPortfolioAssetsUpdate, removeAssetFromPortfolio, addAssetToPortfolio, type PortfolioAsset, type PortfolioDetails } from '@/lib/firestore'
 import { assets, type Asset } from '@/lib/data'
@@ -29,11 +29,12 @@ const addAssetSchema = z.object({
 
 type AddAssetFormValues = z.infer<typeof addAssetSchema>
 
-export default function PortfolioDetailPage({ params }: { params: { portfolioId: string } }) {
+export default function PortfolioDetailPage() {
     const { user, loading: authLoading } = useAuth()
     const router = useRouter()
     const { toast } = useToast()
-    const portfolioId = params.portfolioId
+    const params = useParams()
+    const portfolioId = params.portfolioId as string
 
     const [portfolioDetails, setPortfolioDetails] = useState<PortfolioDetails | null>(null)
     const [portfolioAssets, setPortfolioAssets] = useState<PortfolioAsset[]>([])
