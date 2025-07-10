@@ -16,13 +16,9 @@ export interface PortfolioDetails {
 
 export interface PortfolioAsset {
   id: string
-  category: "Stocks" | "Real Estate" | "Gold" | "Savings Certificates"
+  name: string
   purchasePrice: number
-  // Optional fields based on category
-  ticker?: string | null
   quantity?: number | null
-  city?: string | null
-  area?: number | null
 }
 
 
@@ -298,5 +294,3 @@ export function onStrategiesUpdate(userId: string, callback: (strategies: SavedS
 
     return unsubscribe;
 }
-
-    

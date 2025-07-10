@@ -1,11 +1,11 @@
-// This is a new file for displaying a single, detailed portfolio.
+
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { getPortfolio, onPortfolioAssetsUpdate, removeAssetFromPortfolio, addAssetToPortfolio, type PortfolioAsset, type PortfolioDetails } from '@/lib/firestore'
-import { assets, type Asset, realEstateData, type RealEstateCity } from '@/lib/data'
+import { assets, type Asset, realEstateData } from '@/lib/data'
 import { useToast } from '@/hooks/use-toast'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
@@ -14,35 +14,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFoo
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useForm, Controller } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { PlusCircle, Trash2, DollarSign, TrendingUp, AlertCircle, PackageOpen, Building, PiggyBank, Briefcase } from 'lucide-react'
+import { PlusCircle, Trash2, DollarSign, TrendingUp, AlertCircle, PackageOpen, Briefcase } from 'lucide-react'
 import { getCurrencySymbol } from '@/lib/utils'
 
 const addAssetSchema = z.object({
-    category: z.enum(["Stocks", "Real Estate", "Gold", "Savings Certificates"]),
-    ticker: z.string().optional(),
-    city: z.string().optional(),
-    quantity: z.coerce.number().optional(), // For Stocks
-    area: z.coerce.number().optional(), // For Real Estate
+    name: z.string().min(2, "اسم الأصل مطلوب.").max(50, "الاسم طويل جدًا."),
     purchasePrice: z.coerce.number().min(0.01, "سعر الشراء يجب أن يكون أكبر من صفر."),
-}).superRefine((data, ctx) => {
-    switch (data.category) {
-        case "Stocks":
-            if (!data.ticker) ctx.addIssue({ code: "custom", message: "الرجاء اختيار سهم.", path: ["ticker"] });
-            if (!data.quantity || data.quantity <= 0) ctx.addIssue({ code: "custom", message: "الكمية يجب أن تكون أكبر من صفر.", path: ["quantity"] });
-            break;
-        case "Real Estate":
-            if (!data.city) ctx.addIssue({ code: "custom", message: "الرجاء اختيار مدينة.", path: ["city"] });
-            if (!data.area || data.area <= 0) ctx.addIssue({ code: "custom", message: "المساحة يجب أن تكون أكبر من صفر.", path: ["area"] });
-            break;
-        case "Gold":
-            break; 
-        case "Savings Certificates":
-            break;
-    }
+    quantity: z.coerce.number().min(0, "لا يمكن أن تكون الكمية سالبة.").optional(),
 });
 
 
@@ -60,14 +41,9 @@ export default function PortfolioDetailPage() {
     const [loading, setLoading] = useState(true)
     const [isAddAssetOpen, setAddAssetOpen] = useState(false)
     
-    const { register, handleSubmit, control, watch, formState: { errors }, reset } = useForm<AddAssetFormValues>({
+    const { register, handleSubmit, formState: { errors }, reset } = useForm<AddAssetFormValues>({
         resolver: zodResolver(addAssetSchema),
-        defaultValues: {
-            category: "Stocks"
-        }
     })
-
-    const selectedCategory = watch("category");
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -96,39 +72,20 @@ export default function PortfolioDetailPage() {
             return () => unsubscribe?.();
         }
     }, [user, portfolioId, router, toast])
-    
-    const availableAssetsGrouped = useMemo(() => {
-        const stocks = assets.filter(a => a.category === 'Stocks');
-        return stocks.reduce((acc, asset) => {
-            if (!acc[asset.country]) {
-                acc[asset.country] = [];
-            }
-            acc[asset.country].push(asset);
-            return acc;
-        }, {} as Record<string, Asset[]>);
-    }, []);
 
     const handleAddAsset = async (data: AddAssetFormValues) => {
         if (!user) return;
 
-        // For Savings Certificates, find the corresponding asset to use its ticker
-        const ticker = data.category === 'Savings Certificates'
-            ? assets.find(a => a.category === 'Savings Certificates')?.ticker || 'SAVINGS-CERT-SAR'
-            : data.ticker;
-        
         const assetPayload: Omit<PortfolioAsset, 'id'> = {
-            category: data.category,
+            name: data.name,
             purchasePrice: data.purchasePrice,
-            ticker: ticker ?? null,
-            city: data.city ?? null,
-            area: data.area ?? null,
             quantity: data.quantity ?? null,
         };
         
         try {
             await addAssetToPortfolio(user.uid, portfolioId, assetPayload);
-            toast({ title: "تمت إضافة الأصل", description: `تمت إضافة الأصل إلى محفظتك بنجاح.` });
-            reset({ category: "Stocks" });
+            toast({ title: "تمت إضافة الأصل", description: `تمت إضافة '${data.name}' إلى محفظتك بنجاح.` });
+            reset();
             setAddAssetOpen(false);
         } catch (error) {
             console.error("Error adding asset:", error);
@@ -149,50 +106,30 @@ export default function PortfolioDetailPage() {
     
     const enrichedAssets = useMemo(() => {
         return portfolioAssets.map(pa => {
-            let name, ticker, currentValue, currency;
+            let currentValue, currency;
             const purchaseValue = pa.purchasePrice;
-            let assetDetails;
+            
+            // Try to find a matching asset in our mock data by ticker or name
+            const assetDetails = assets.find(a => 
+                a.ticker.toLowerCase() === pa.name.toLowerCase() || 
+                a.name.toLowerCase() === pa.name.toLowerCase()
+            );
 
-            switch (pa.category) {
-                case 'Stocks':
-                    assetDetails = assets.find(a => a.ticker === pa.ticker);
-                    if (!assetDetails || !pa.quantity) return null;
-                    name = assetDetails.name;
-                    ticker = assetDetails.ticker;
+            if (assetDetails) { // If it's a known stock, bond, etc.
+                currency = assetDetails.currency;
+                if (assetDetails.category === 'Stocks' && pa.quantity) {
                     currentValue = pa.quantity * assetDetails.price;
-                    currency = assetDetails.currency;
-                    break;
-                case 'Real Estate':
-                    const cityData = realEstateData.find(c => c.cityKey === pa.city);
-                    if (!cityData || !pa.area) return null;
-                    name = `عقار في ${cityData.name}`;
-                    ticker = cityData.cityKey;
-                    currentValue = pa.area * cityData.pricePerSqM;
-                    currency = cityData.currency;
-                    break;
-                case 'Gold':
-                    assetDetails = assets.find(a => a.category === 'Gold');
-                    if (!assetDetails) return null;
-                    name = "ذهب";
-                    ticker = "GOLD";
-                    // Simplified logic: value of gold doesn't depend on purchase price, but its current market price.
-                    // This assumes purchasePrice represents the value of gold bought at a time.
-                    // A more complex impl would store grams/ounces instead of just purchase price.
-                    // For now, we simulate the change based on its movement since an arbitrary point.
-                    currentValue = pa.purchasePrice * (assetDetails.price / (assetDetails.price - parseFloat(assetDetails.change)));
-                    currency = assetDetails.currency;
-                    break;
-                case 'Savings Certificates':
-                     assetDetails = assets.find(a => a.ticker === pa.ticker && a.category === 'Savings Certificates');
-                     if (!assetDetails) return null;
-                     name = assetDetails.name;
-                     ticker = assetDetails.ticker;
-                     // Use the annualYield from the data file, assuming a simple 1-year appreciation for this prototype
-                     currentValue = pa.purchasePrice * (1 + (assetDetails.annualYield || 0));
-                     currency = assetDetails.currency;
-                     break;
-                default:
-                    return null;
+                } else if (assetDetails.category === 'Savings Certificates') {
+                    currentValue = pa.purchasePrice * (1 + (assetDetails.annualYield || 0));
+                } else {
+                    // For Gold, Bonds, etc., we'll simulate change based on its price movement
+                    const originalPrice = assetDetails.price - parseFloat(assetDetails.change);
+                    const changeRatio = originalPrice > 0 ? assetDetails.price / originalPrice : 1;
+                    currentValue = pa.purchasePrice * changeRatio;
+                }
+            } else { // For unknown assets (like custom real estate), we can't get current value
+                currentValue = pa.purchasePrice; // Assume no change for now
+                currency = 'SAR'; // Default currency
             }
 
             const change = currentValue - purchaseValue;
@@ -200,8 +137,6 @@ export default function PortfolioDetailPage() {
             
             return {
                 ...pa,
-                name,
-                ticker,
                 currentValue,
                 purchaseValue,
                 currency,
@@ -214,9 +149,7 @@ export default function PortfolioDetailPage() {
     const totals = useMemo(() => {
         return enrichedAssets.reduce((acc, asset) => {
             if (asset) {
-                // For a unified total, we'd need currency conversion.
-                // For this prototype, we'll assume SAR as the base currency for simplicity.
-                // This is NOT accurate for multi-currency portfolios.
+                // This is a simplified total and doesn't account for currency conversion
                 acc.totalPurchaseValue += asset.purchaseValue;
                 acc.totalCurrentValue += asset.currentValue;
             }
@@ -270,100 +203,23 @@ export default function PortfolioDetailPage() {
                             <DialogHeader>
                                 <DialogTitle>إضافة أصل إلى المحفظة</DialogTitle>
                                 <DialogDescription>
-                                    اختر فئة الأصل وأدخل تفاصيله.
+                                    أدخل اسم الأصل أو رمزه، وقيمته عند الشراء.
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
                                <div className="space-y-2">
-                                    <Label htmlFor="category">فئة الأصل</Label>
-                                    <Controller
-                                        name="category"
-                                        control={control}
-                                        render={({ field }) => (
-                                            <Select onValueChange={(value) => {
-                                                field.onChange(value);
-                                                reset({ ...watch(), category: value, ticker: undefined, city: undefined, area: undefined, quantity: undefined });
-                                            }} defaultValue={field.value}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="اختر فئة" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="Stocks">أسهم</SelectItem>
-                                                    <SelectItem value="Real Estate">عقارات</SelectItem>
-                                                    <SelectItem value="Gold">ذهب</SelectItem>
-                                                    <SelectItem value="Savings Certificates">شهادات ادخار</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        )}
-                                    />
-                                </div>
-                                
-                                {selectedCategory === "Stocks" && (
-                                    <>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="ticker">السهم</Label>
-                                             <Controller
-                                                name="ticker"
-                                                control={control}
-                                                render={({ field }) => (
-                                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                        <SelectTrigger><SelectValue placeholder="ابحث عن سهم..." /></SelectTrigger>
-                                                        <SelectContent>
-                                                            {Object.entries(availableAssetsGrouped).map(([country, assetsInCategory]) => (
-                                                                <SelectGroup key={country}>
-                                                                    <SelectLabel>{country === 'SA' ? 'السعودية' : country === 'AE' ? 'الإمارات' : 'قطر'}</SelectLabel>
-                                                                    {assetsInCategory.map(asset => (
-                                                                        <SelectItem key={asset.ticker} value={asset.ticker}>{asset.name}</SelectItem>
-                                                                    ))}
-                                                                </SelectGroup>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                )}
-                                            />
-                                            {errors.ticker && <p className="text-sm text-destructive">{errors.ticker.message}</p>}
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="quantity">الكمية (عدد الأسهم)</Label>
-                                            <Input id="quantity" type="number" step="any" {...register('quantity')} />
-                                            {errors.quantity && <p className="text-sm text-destructive">{errors.quantity.message}</p>}
-                                        </div>
-                                    </>
-                                )}
-
-                                {selectedCategory === "Real Estate" && (
-                                    <>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="city">المدينة</Label>
-                                            <Controller
-                                                name="city"
-                                                control={control}
-                                                render={({ field }) => (
-                                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                        <SelectTrigger><SelectValue placeholder="اختر مدينة" /></SelectTrigger>
-                                                        <SelectContent>
-                                                            {realEstateData.map(city => (
-                                                                <SelectItem key={city.cityKey} value={city.cityKey}>{city.name}</SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                )}
-                                            />
-                                            {errors.city && <p className="text-sm text-destructive">{errors.city.message}</p>}
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="area">المساحة (متر مربع)</Label>
-                                            <Input id="area" type="number" step="any" {...register('area')} />
-                                            {errors.area && <p className="text-sm text-destructive">{errors.area.message}</p>}
-                                        </div>
-                                    </>
-                                )}
-
+                                    <Label htmlFor="name">اسم الأصل / الرمز</Label>
+                                    <Input id="name" {...register('name')} placeholder="مثال: ARAMCO, عقار في جدة" />
+                                    {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+                               </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="purchasePrice">
-                                        {selectedCategory === 'Gold' ? 'قيمة الشراء الإجمالية' : selectedCategory === 'Real Estate' ? 'إجمالي سعر الشراء' : selectedCategory === 'Savings Certificates' ? 'قيمة الشهادة عند الشراء' : 'إجمالي قيمة الشراء'}
-                                    </Label>
-                                    <Input id="purchasePrice" type="number" step="any" {...register('purchasePrice')} />
+                                    <Label htmlFor="quantity">الكمية / المساحة (اختياري)</Label>
+                                    <Input id="quantity" type="number" step="any" {...register('quantity')} placeholder="مثال: 100 (سهم), 250 (متر مربع)" />
+                                    {errors.quantity && <p className="text-sm text-destructive">{errors.quantity.message}</p>}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="purchasePrice">إجمالي قيمة الشراء</Label>
+                                    <Input id="purchasePrice" type="number" step="any" {...register('purchasePrice')} placeholder="القيمة الإجمالية عند الشراء" />
                                     {errors.purchasePrice && <p className="text-sm text-destructive">{errors.purchasePrice.message}</p>}
                                 </div>
 
@@ -436,13 +292,9 @@ export default function PortfolioDetailPage() {
                                     <TableRow key={asset.id}>
                                         <TableCell>
                                             <div className="font-medium">{asset.name}</div>
-                                            <div className="text-sm text-muted-foreground">{asset.ticker}</div>
                                         </TableCell>
                                         <TableCell className="text-center">
-                                            {asset.category === 'Stocks' && `الكمية: ${asset.quantity?.toLocaleString('ar-EG')}`}
-                                            {asset.category === 'Real Estate' && `المساحة: ${asset.area?.toLocaleString('ar-EG')} م²`}
-                                            {asset.category === 'Gold' && '-'}
-                                            {asset.category === 'Savings Certificates' && '-'}
+                                            {asset.quantity ? `الكمية: ${asset.quantity?.toLocaleString('ar-EG')}` : '-'}
                                         </TableCell>
                                         <TableCell className="text-center">{asset.purchaseValue.toLocaleString('ar-SA', { style: 'currency', currency: asset.currency })}</TableCell>
                                         <TableCell className="text-center">{asset.currentValue.toLocaleString('ar-SA', { style: 'currency', currency: asset.currency })}</TableCell>

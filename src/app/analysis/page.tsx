@@ -1,24 +1,23 @@
-// This is a new file for the Market Analyst AI Agent
+
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Wand2, TrendingUp, Newspaper, Shield, BadgeCheck, AlertTriangle, Info } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton';
-import { assets, type Asset } from '@/lib/data';
 import { analyzeMarketForTicker } from '@/ai/flows/market-analyst-flow';
 import type { MarketAnalysis } from '@/ai/schemas/market-analysis-schema';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const formSchema = z.object({
-  ticker: z.string().min(1, 'الرجاء اختيار سهم لتحليله.'),
+  ticker: z.string().min(2, 'الرجاء إدخال رمز سهم صالح.').max(20, 'رمز السهم طويل جدًا.'),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -29,36 +28,25 @@ export default function AnalysisPage() {
   const { toast } = useToast();
 
   const {
+    register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
   });
-
-  const availableAssetsGrouped = useMemo(() => {
-    const stocks = assets.filter(a => a.category === 'Stocks');
-    return stocks.reduce((acc, asset) => {
-      if (!acc[asset.country]) {
-        acc[asset.country] = [];
-      }
-      acc[asset.country].push(asset);
-      return acc;
-    }, {} as Record<string, Asset[]>);
-  }, []);
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setResult(null);
     setIsGenerating(true);
 
     try {
-      const finalResult = await analyzeMarketForTicker({ ticker: data.ticker });
+      const finalResult = await analyzeMarketForTicker({ ticker: data.ticker.toUpperCase() });
       setResult(finalResult);
     } catch (error) {
       console.error('Error generating analysis:', error);
       toast({
         title: 'حدث خطأ',
-        description: 'لم نتمكن من إنشاء التحليل. الرجاء المحاولة مرة أخرى.',
+        description: 'لم نتمكن من إنشاء التحليل. قد يكون رمز السهم غير صالح أو أن الخدمة تواجه ضغطًا. الرجاء المحاولة مرة أخرى.',
         variant: 'destructive',
       });
     } finally {
@@ -66,53 +54,31 @@ export default function AnalysisPage() {
     }
   };
 
-  const recommendationStyle = useMemo(() => {
-    if (!result) return { Icon: Info, color: 'text-muted-foreground', label: 'غير محدد' };
-    switch (result.recommendation.decision) {
-      case 'Buy':
-        return { Icon: BadgeCheck, color: 'text-success', label: 'شراء' };
-      case 'Sell':
-        return { Icon: AlertTriangle, color: 'text-destructive', label: 'بيع' };
-      case 'Hold':
-      default:
-        return { Icon: Shield, color: 'text-blue-500', label: 'احتفاظ' };
-    }
-  }, [result]);
+  const recommendationStyle = result ? {
+    'Buy': { Icon: BadgeCheck, color: 'text-success', label: 'شراء' },
+    'Sell': { Icon: AlertTriangle, color: 'text-destructive', label: 'بيع' },
+    'Hold': { Icon: Shield, color: 'text-blue-500', label: 'احتفاظ' },
+  }[result.recommendation.decision] : { Icon: Info, color: 'text-muted-foreground', label: 'غير محدد' };
 
   return (
     <div className="container mx-auto max-w-4xl p-4 md:p-8">
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold font-headline">المحلل المالي الذكي</h1>
         <p className="text-lg text-muted-foreground mt-2">
-          احصل على تحليل فوري للأسهم مدعوم بالذكاء الاصطناعي وأدوات بحث متقدمة.
+          احصل على تحليل فوري لأي سهم في أسواق الخليج باستخدام أدوات الذكاء الاصطناعي المتقدمة.
         </p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>تحليل سهم</CardTitle>
-          <CardDescription>اختر سهمًا من القائمة للحصول على تحليل شامل.</CardDescription>
+          <CardDescription>أدخل رمز السهم (Ticker) للحصول على تحليل شامل ومباشر.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Select onValueChange={(value) => setValue('ticker', value, { shouldValidate: true })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر سهمًا من السوق..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(availableAssetsGrouped).map(([country, assetsInCategory]) => (
-                    <SelectGroup key={country}>
-                      <SelectLabel>{country === 'SA' ? 'السعودية' : country === 'AE' ? 'الإمارات' : 'قطر'}</SelectLabel>
-                      {assetsInCategory.map(asset => (
-                        <SelectItem key={asset.ticker} value={asset.ticker}>
-                          {asset.name} ({asset.ticker})
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="ticker">رمز السهم</Label>
+              <Input id="ticker" {...register('ticker')} placeholder="مثال: ARAMCO, QNB, EMAAR" />
               {errors.ticker && <p className="text-sm text-destructive">{errors.ticker.message}</p>}
             </div>
 
@@ -137,6 +103,7 @@ export default function AnalysisPage() {
         <div className="text-center p-8 space-y-4">
           <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
           <p className="text-muted-foreground">يقوم المحلل الافتراضي بجمع البيانات وتحليلها...</p>
+          <p className="text-xs text-muted-foreground">(قد تستغرق هذه العملية لحظات)</p>
         </div>
       )}
 
@@ -147,7 +114,7 @@ export default function AnalysisPage() {
               تحليل سهم: {result.companyName} ({result.ticker})
             </CardTitle>
             <CardDescription>
-              تم إنشاء هذا التحليل بواسطة الذكاء الاصطناعي بناءً على بيانات السوق والأخبار المتاحة.
+              تم إنشاء هذا التحليل بواسطة الذكاء الاصطناعي بناءً على بيانات السوق والأخبار المتاحة لحظة الطلب.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
