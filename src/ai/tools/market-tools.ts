@@ -156,22 +156,54 @@ export const findMarketAssetsTool = ai.defineTool(
             market: z.enum(['SA', 'AE', 'QA']).describe('The stock market to search (SA: Saudi Arabia, AE: UAE, QA: Qatar).'),
         }),
         outputSchema: z.array(z.object({
-            ticker: z.string(),
-            name: z.string(),
+            ticker: z.string().describe('The official ticker symbol.'),
+            name: z.string().describe('The full official name of the company.'),
         })),
     },
     async ({ market }) => {
-        console.log(`[findMarketAssetsTool] Simulating search for all assets in market: ${market}`);
-        // In a real application, this tool would use the webScraperTool to scrape the main page
-        // of the Tadawul, DFM, or QE website and then use another LLM call to extract all the listed
-        // company names and tickers from the scraped content.
+        console.log(`[findMarketAssetsTool] Finding assets for market: ${market}`);
 
-        // For this prototype, we will filter our comprehensive local data.
+        if (market === 'SA') {
+            const url = 'https://www.saudiexchange.sa/wps/portal/saudiexchange/ourmarkets/main-market-watch?locale=ar';
+            console.log(`[findMarketAssetsTool] Scraping Saudi market data from: ${url}`);
+            const scrapeResult = await webScraperTool({ url });
+
+            if (!scrapeResult.content) {
+                console.error("[findMarketAssetsTool] Scraping returned no content.");
+                return assets.filter(a => a.country === market); // Fallback to static data
+            }
+
+            console.log("[findMarketAssetsTool] Extracting assets from scraped data...");
+            const assetsExtractor = ai.definePrompt({
+                name: 'assetsExtractor',
+                model: 'googleai/gemini-1.5-flash',
+                input: { schema: z.object({ context: z.string() }) },
+                output: { schema: z.array(z.object({ ticker: z.string(), name: z.string() })) },
+                prompt: `From the following markdown content of a stock market page, extract all the listed companies. For each company, provide its official name and its ticker symbol. Return the data as a JSON array of objects, where each object has a "name" and a "ticker" property.
+
+                Content:
+                {{{context}}}
+                `,
+            });
+            
+            const { output } = await assetsExtractor({ context: scrapeResult.content });
+            
+            if (!output || output.length === 0) {
+                console.error("[findMarketAssetsTool] AI failed to extract assets. Falling back to static data.");
+                return assets.filter(a => a.country === market); // Fallback
+            }
+            
+            console.log(`[findMarketAssetsTool] Extracted ${output.length} assets from the Saudi Exchange.`);
+            return output;
+        }
+
+        // Fallback for other markets until URLs are provided
+        console.log(`[findMarketAssetsTool] Using static data for market: ${market}`);
         const marketAssets = assets
             .filter(a => a.country === market && a.category === 'Stocks')
             .map(a => ({ ticker: a.ticker, name: a.name }));
         
-        console.log(`[findMarketAssetsTool] Found ${marketAssets.length} assets for ${market}.`);
+        console.log(`[findMarketAssetsTool] Found ${marketAssets.length} static assets for ${market}.`);
         return marketAssets;
     }
 );
