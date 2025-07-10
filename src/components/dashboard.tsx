@@ -9,7 +9,7 @@ import type { Asset } from '@/lib/data'
 import { AssetCard } from '@/components/stock-card'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
-import { ArrowLeft, LayoutDashboard, Lightbulb, Newspaper, Briefcase, PlusCircle, FolderKanban } from 'lucide-react'
+import { ArrowLeft, LayoutDashboard, Lightbulb, Newspaper, Briefcase, PlusCircle, FolderKanban, Wand2 } from 'lucide-react'
 import { Skeleton } from './ui/skeleton'
 
 interface DashboardProps {
@@ -180,11 +180,14 @@ export function Dashboard({ user }: DashboardProps) {
 
           <Card>
             <CardHeader>
-              <CardTitle>روابط سريعة</CardTitle>
+              <CardTitle>أدوات الذكاء الاصطناعي</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col space-y-4">
               <Button asChild size="lg">
                 <Link href="/guide"><Lightbulb className="ml-2 h-4 w-4" /> أنشئ خطة استثمار</Link>
+              </Button>
+               <Button asChild size="lg" variant="secondary">
+                <Link href="/analysis"><Wand2 className="ml-2 h-4 w-4" /> استخدم المحلل الذكي</Link>
               </Button>
                <Button asChild size="lg" variant="secondary">
                 <Link href="/portfolios"><FolderKanban className="ml-2 h-4 w-4" /> إدارة المحافظ</Link>
@@ -259,6 +262,7 @@ function DashboardSkeleton() {
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
             </CardContent>
           </Card>
         </div>
@@ -266,3 +270,5 @@ function DashboardSkeleton() {
     </div>
   )
 }
+
+    

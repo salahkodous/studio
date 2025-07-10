@@ -1,4 +1,3 @@
-
 'use client'
 
 import Link from 'next/link'
@@ -24,11 +23,11 @@ import { Logo } from './logo'
 const navItems = [
   { href: '/', label: 'الرئيسية' },
   { href: '/guide', label: 'دليل الاستثمار' },
+  { href: '/analysis', label: 'المحلل الذكي' },
   { href: '/watchlist', label: 'قائمة المتابعة', auth: true },
   { href: '/portfolios', label: 'المحافظ', auth: true },
   { href: '/strategies', label: 'خططي الاستثمارية', auth: true },
   { href: '/news', label: 'أخبار السوق' },
-  { href: '/analysis', label: 'المحلل الذكي' },
 ];
 
 export function Header() {
@@ -166,3 +165,5 @@ export function Header() {
     </header>
   )
 }
+
+    
