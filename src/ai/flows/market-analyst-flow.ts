@@ -68,22 +68,37 @@ const marketAnalystFlow = ai.defineFlow(
     
     console.log('[marketAnalystFlow] Data gathered, generating analysis...');
     
-    const { output } = await analystPrompt({ 
-        ticker, 
-        companyName,
-        scrapedPriceData,
-        scrapedNewsData
-    });
-    
-    if (!output) {
-      throw new Error("The AI analyst failed to generate a response.");
-    }
+    try {
+        const { output } = await analystPrompt({ 
+            ticker, 
+            companyName,
+            scrapedPriceData,
+            scrapedNewsData
+        });
 
-    // Ensure the output from the AI has the ticker and name we used, overriding any hallucinations.
-    return {
-        ...output,
-        ticker,
-        companyName,
-    };
+        if (!output) {
+            throw new Error("The AI analyst did not generate a response.");
+        }
+
+        // Validate the output against the Zod schema to ensure it's in the correct format.
+        const parsedOutput = MarketAnalysisSchema.safeParse(output);
+        if (!parsedOutput.success) {
+            console.error("[marketAnalystFlow] Zod validation failed:", parsedOutput.error);
+            throw new Error("The AI returned data in an unexpected format. Please try again.");
+        }
+        
+        // Ensure the output from the AI has the ticker and name we used, overriding any hallucinations.
+        return {
+            ...parsedOutput.data,
+            ticker,
+            companyName,
+        };
+
+    } catch(error) {
+        console.error("[marketAnalystFlow] Failed to generate or validate analysis:", error);
+        throw new Error("Failed to get a valid analysis from the AI. It might be experiencing high load or the ticker is not supported.");
+    }
   }
 );
+
+    
