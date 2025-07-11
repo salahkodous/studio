@@ -215,42 +215,46 @@ export default function PortfolioDetailPage() {
         return portfolioAssets.map(pa => {
             let currentValue, currency;
             const purchaseValue = pa.purchasePrice;
-            
-            // Extract ticker from name like "Some Asset (TICKER)"
+
+            // Extract ticker from name like "Some Asset (TICKER)" or "Some Asset (1234)"
             const tickerMatch = pa.name.match(/\(([^)]+)\)$/);
             const ticker = tickerMatch ? tickerMatch[1] : null;
 
+            // Find asset details by ticker first, then by name as a fallback.
             const assetDetails = assets.find(a => 
-                (ticker && a.ticker.toUpperCase() === ticker.toUpperCase()) || 
-                a.name.toLowerCase() === pa.name.toLowerCase()
-            );
+                (ticker && a.ticker.toUpperCase() === ticker.toUpperCase()) 
+            ) || assets.find(a => a.name.toLowerCase() === pa.name.toLowerCase());
 
-            if (assetDetails) { 
+            if (assetDetails) {
                 currency = assetDetails.currency;
-                // If it's a stock and we have quantity, calculate total value
-                if (assetDetails.category === 'Stocks' && pa.quantity) {
+                // If it's a stock and we have quantity, calculate total value based on current price.
+                if (assetDetails.category === 'Stocks' && pa.quantity != null) {
                     currentValue = pa.quantity * assetDetails.price;
-                } 
-                // For savings certificates, apply yield
-                else if (assetDetails.category === 'Savings Certificates') {
-                    currentValue = pa.purchasePrice * (1 + (assetDetails.annualYield || 0));
-                } 
+                }
                 // For other assets without quantity, calculate value based on price change ratio
-                else {
+                else if (assetDetails.category !== 'Stocks' && !pa.quantity) {
                     const originalPrice = assetDetails.price - parseFloat(assetDetails.change);
                     const changeRatio = originalPrice > 0 ? assetDetails.price / originalPrice : 1;
                     currentValue = pa.purchasePrice * changeRatio;
                 }
-            } else { 
+                // For assets with quantity but not stocks (e.g. Gold ounces)
+                else if (pa.quantity != null) {
+                    currentValue = pa.quantity * assetDetails.price;
+                }
+                // Fallback if logic fails
+                else {
+                    currentValue = pa.purchasePrice;
+                }
+            } else {
                 // If no details found (e.g., manually added asset), current value is same as purchase
-                currentValue = pa.purchasePrice; 
+                currentValue = pa.purchasePrice;
                 currency = 'SAR'; // Default currency
             }
 
             const change = currentValue - purchaseValue;
             const changePercent = purchaseValue > 0 ? (change / purchaseValue) * 100 : 0;
             
-            return { ...pa, currentValue, purchaseValue, currency, change, changePercent }
+            return { ...pa, currentValue, purchaseValue, currency, change, changePercent };
         }).filter(Boolean);
     }, [portfolioAssets]);
 
@@ -526,3 +530,5 @@ function PageSkeleton() {
         </div>
     );
 }
+
+    
