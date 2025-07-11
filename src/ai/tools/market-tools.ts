@@ -82,11 +82,14 @@ export const getStockPrice = ai.defineTool(
   async ({ ticker }) => {
     console.log(`[getStockPriceTool] Fetching price for ${ticker} from Twelve Data API`);
     const apiKey = process.env.TWELVE_DATA_API_KEY;
-    if (!apiKey) throw new Error("Twelve Data API key is not configured.");
-    
     const assetDetails = assets.find(a => a.ticker === ticker);
-    const exchange = assetDetails?.country === 'SA' ? 'Tadawul' : assetDetails?.country === 'QA' ? 'QSE' : 'DFM';
 
+    if (!apiKey) {
+      console.warn(`[getStockPriceTool] Twelve Data API key not configured. Falling back to mock data.`);
+      return { price: assetDetails?.price || 0, currency: assetDetails?.currency || 'USD', sourceUrl: `https://twelvedata.com/` };
+    }
+    
+    const exchange = assetDetails?.country === 'SA' ? 'Tadawul' : assetDetails?.country === 'QA' ? 'QSE' : 'DFM';
     const url = `https://api.twelvedata.com/price?symbol=${ticker}&exchange=${exchange}&apikey=${apiKey}`;
     
     try {
@@ -153,7 +156,7 @@ const translateToArabicPrompt = ai.definePrompt({
   name: 'translateToArabicPrompt',
   input: { schema: z.object({ assets: z.array(z.object({ ticker: z.string(), name: z.string() })) }) },
   output: { schema: z.array(z.object({ ticker: z.string(), name: z.string() })) },
-  prompt: `Translate the 'name' field of each JSON object in the following array to Arabic. Maintain the 'ticker' field as is. Respond with only the translated JSON array.
+  prompt: `Translate the 'name' of each company in the JSON array to Arabic. Keep the 'ticker' the same. Respond only with the translated JSON array.
 
 Input:
 {{{json assets}}}
@@ -192,6 +195,8 @@ export const findMarketAssetsTool = ai.defineTool(
         };
         const exchange = exchangeMap[market];
         const url = `https://api.twelvedata.com/stocks?exchange=${exchange}&country=${market}`;
+        
+        let englishAssets: { ticker: string; name: string }[] = [];
 
         try {
             console.log(`[findMarketAssetsTool] Fetching assets for ${market} from Twelve Data API...`);
@@ -202,30 +207,41 @@ export const findMarketAssetsTool = ai.defineTool(
             const result = await response.json();
             
             if (result && result.data && Array.isArray(result.data) && result.data.length > 0) {
-                 const englishAssets = result.data.map((asset: any) => ({
+                 englishAssets = result.data.map((asset: any) => ({
                     ticker: asset.symbol,
                     name: asset.name,
                 }));
-
-                console.log(`[findMarketAssetsTool] Translating ${englishAssets.length} asset names to Arabic...`);
-                const { output } = await translateToArabicPrompt({ assets: englishAssets });
-
-                if (!output) {
-                    console.warn(`[findMarketAssetsTool] AI translation failed. Returning English names.`);
-                    return englishAssets;
-                }
-
-                return output;
-
             } else {
                  console.warn(`[findMarketAssetsTool] No assets returned from Twelve Data for ${market}. Falling back to static data.`);
                  throw new Error("Empty data from API");
             }
         } catch (error) {
             console.error(`[findMarketAssetsTool] Error fetching from Twelve Data API, using fallback data. Error:`, error);
+            // Fallback to our large static list if the API fails
             return assets
                 .filter(a => a.country === market && a.category === 'Stocks')
                 .map(a => ({ ticker: a.ticker, name: a.name }));
         }
+
+        // If we have assets, try to translate them.
+        if (englishAssets.length > 0) {
+            try {
+                console.log(`[findMarketAssetsTool] Translating ${englishAssets.length} asset names to Arabic...`);
+                const { output } = await translateToArabicPrompt({ assets: englishAssets });
+
+                if (!output || output.length === 0) {
+                    console.warn(`[findMarketAssetsTool] AI translation returned empty or invalid data. Returning English names.`);
+                    return englishAssets; // Fallback to English names if translation fails
+                }
+
+                return output;
+            } catch (translationError) {
+                console.error(`[findMarketAssetsTool] AI translation step failed. Returning English names. Error:`, translationError);
+                return englishAssets; // Fallback to English names if translation step throws an error
+            }
+        }
+
+        // If we reached here, it means the API call succeeded but returned no data, so we return an empty array.
+        return [];
     }
 );
