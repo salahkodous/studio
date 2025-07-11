@@ -213,44 +213,45 @@ export default function PortfolioDetailPage() {
     
     const enrichedAssets = useMemo(() => {
         return portfolioAssets.map(pa => {
-            let currentValue, currency;
             const purchaseValue = pa.purchasePrice;
-
-            // Extract ticker from name like "Some Asset (TICKER)" or "Some Asset (1234)"
+            let currentValue = purchaseValue; // Default to purchase value
+            let currency: Asset['currency'] = 'SAR'; // Default currency
+            
+            // --- Robust Asset Matching Logic ---
             const tickerMatch = pa.name.match(/\(([^)]+)\)$/);
             const ticker = tickerMatch ? tickerMatch[1] : null;
 
-            // Find asset details by ticker first, then by name as a fallback.
-            const assetDetails = assets.find(a => 
-                (ticker && a.ticker.toUpperCase() === ticker.toUpperCase()) 
-            ) || assets.find(a => a.name.toLowerCase() === pa.name.toLowerCase());
+            let assetDetails: Asset | undefined;
+
+            // 1. Match by Ticker (most reliable)
+            if (ticker) {
+                assetDetails = assets.find(a => a.ticker.toUpperCase() === ticker.toUpperCase());
+            }
+
+            // 2. Fallback to matching by Name (for assets without tickers in name)
+            if (!assetDetails) {
+                 assetDetails = assets.find(a => a.name === pa.name);
+            }
+            // --- End Matching Logic ---
+
 
             if (assetDetails) {
                 currency = assetDetails.currency;
-                // If it's a stock and we have quantity, calculate total value based on current price.
-                if (assetDetails.category === 'Stocks' && pa.quantity != null) {
+                
+                // --- Value Calculation Logic ---
+                if (pa.quantity != null && pa.quantity > 0) {
+                    // If quantity is present, current value is quantity * current price
                     currentValue = pa.quantity * assetDetails.price;
+                } else {
+                    // If no quantity, estimate value change based on percentage.
+                    // This is less accurate but provides a reasonable estimation for non-unitized assets.
+                    const changePercentNumeric = parseFloat(assetDetails.changePercent.replace('%', ''));
+                    currentValue = purchaseValue * (1 + changePercentNumeric / 100);
                 }
-                // For other assets without quantity, calculate value based on price change ratio
-                else if (assetDetails.category !== 'Stocks' && !pa.quantity) {
-                    const originalPrice = assetDetails.price - parseFloat(assetDetails.change);
-                    const changeRatio = originalPrice > 0 ? assetDetails.price / originalPrice : 1;
-                    currentValue = pa.purchasePrice * changeRatio;
-                }
-                // For assets with quantity but not stocks (e.g. Gold ounces)
-                else if (pa.quantity != null) {
-                    currentValue = pa.quantity * assetDetails.price;
-                }
-                // Fallback if logic fails
-                else {
-                    currentValue = pa.purchasePrice;
-                }
-            } else {
-                // If no details found (e.g., manually added asset), current value is same as purchase
-                currentValue = pa.purchasePrice;
-                currency = 'SAR'; // Default currency
-            }
 
+            }
+            // If assetDetails is not found, currentValue remains purchaseValue, and currency is default.
+            
             const change = currentValue - purchaseValue;
             const changePercent = purchaseValue > 0 ? (change / purchaseValue) * 100 : 0;
             
@@ -530,5 +531,3 @@ function PageSkeleton() {
         </div>
     );
 }
-
-    
