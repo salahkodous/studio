@@ -33,7 +33,7 @@ const extractorPrompt = ai.definePrompt({
     name: 'marketDataExtractorPrompt',
     input: { schema: z.object({ scrapedContent: z.string() }) },
     output: { schema: ExtractionResultSchema },
-    model: 'googleai/gemini-1.5-flash',
+    model: 'googleai/gemini-pro',
     prompt: `You are an expert financial data analyst. Your task is to parse the provided HTML/Markdown content from a stock market website and extract all company names and their corresponding ticker symbols.
 
     - Identify every company listed on the page.
