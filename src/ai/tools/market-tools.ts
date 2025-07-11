@@ -152,7 +152,7 @@ export const getLatestNews = ai.defineTool(
 export const findMarketAssetsTool = ai.defineTool(
     {
         name: 'findMarketAssetsTool',
-        description: 'Finds a list of all publicly traded stocks for a given market (country) using the Twelve Data API.',
+        description: 'Finds a list of all publicly traded stocks for a given market (country) from a reliable internal list.',
         inputSchema: z.object({
             market: z.enum(['SA', 'AE', 'QA']).describe('The stock market to search (SA: Saudi Arabia, AE: UAE, QA: Qatar).'),
         }),
@@ -162,55 +162,9 @@ export const findMarketAssetsTool = ai.defineTool(
         })),
     },
     async ({ market }) => {
-        console.log(`[findMarketAssetsTool] Finding assets for market: ${market} via Twelve Data API`);
-        
-        const fallbackToStaticData = () => {
-            console.log(`[findMarketAssetsTool] Using static fallback data for market: ${market}`);
-            return assets
-                .filter(a => a.country === market && a.category === 'Stocks')
-                .map(a => ({ ticker: a.ticker, name: a.name }));
-        };
-        
-        const apiKey = process.env.TWELVE_DATA_API_KEY;
-        if (!apiKey) {
-            console.error("[findMarketAssetsTool] Twelve Data API key is missing. Falling back to static data.");
-            return fallbackToStaticData();
-        }
-
-        const exchangeMap = {
-            SA: 'Tadawul',
-            AE: 'ADX', // or DFM, depends on the desired market
-            QA: 'QSE',
-        };
-        const exchange = exchangeMap[market];
-
-        if (!exchange) return fallbackToStaticData();
-        
-        const url = `https://api.twelvedata.com/stocks?exchange=${exchange}&apikey=${apiKey}`;
-
-        try {
-            const response = await fetch(url);
-            if (!response.ok) {
-                console.error(`[findMarketAssetsTool] API request failed with status ${response.status}. Falling back to static data.`);
-                return fallbackToStaticData();
-            }
-
-            const result = await response.json();
-            
-            if (result.data && Array.isArray(result.data) && result.data.length > 0) {
-                const formattedAssets = result.data.map((asset: any) => ({
-                    ticker: asset.symbol,
-                    name: asset.name,
-                }));
-                console.log(`[findMarketAssetsTool] Extracted ${formattedAssets.length} assets from ${exchange}.`);
-                return formattedAssets;
-            } else {
-                 console.error("[findMarketAssetsTool] API returned no data. Falling back to static data.");
-                 return fallbackToStaticData();
-            }
-        } catch (error) {
-            console.error(`[findMarketAssetsTool] An error occurred during API call:`, error);
-            return fallbackToStaticData();
-        }
+        console.log(`[findMarketAssetsTool] Using static fallback data for market: ${market}`);
+        return assets
+            .filter(a => a.country === market && a.category === 'Stocks')
+            .map(a => ({ ticker: a.ticker, name: a.name }));
     }
 );
