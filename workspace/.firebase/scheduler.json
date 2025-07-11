@@ -1,0 +1,19 @@
+{
+  "jobs": [
+    {
+      "id": "updateStockPrices",
+      "schedule": "every 1 hours",
+      "timeZone": "Asia/Riyadh",
+      "httpTarget": {
+        "uri": "updateStockPrices",
+        "method": "POST"
+      },
+      "retryConfig": {
+        "retryCount": 3,
+        "maxRetryDuration": "10m",
+        "minBackoffDuration": "1m",
+        "maxBackoffDuration": "5m"
+      }
+    }
+  ]
+}
