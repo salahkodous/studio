@@ -46,6 +46,13 @@ const stockCountries = [
     { id: 'QA', label: 'قطر' },
 ];
 
+// Define a unified type for available assets
+type AvailableAsset = {
+    ticker: string;
+    name: string;
+} | RealEstateCity;
+
+
 export default function PortfolioDetailPage() {
     const { user, loading: authLoading } = useAuth()
     const router = useRouter()
@@ -62,8 +69,8 @@ export default function PortfolioDetailPage() {
     const [step, setStep] = useState(1);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
-    const [selectedAsset, setSelectedAsset] = useState<Asset | RealEstateCity | null>(null);
-    const [availableAssets, setAvailableAssets] = useState<(Asset | RealEstateCity)[]>([]);
+    const [selectedAsset, setSelectedAsset] = useState<AvailableAsset | null>(null);
+    const [availableAssets, setAvailableAssets] = useState<AvailableAsset[]>([]);
     const [isFetchingAssets, setIsFetchingAssets] = useState(false);
 
 
@@ -124,7 +131,8 @@ export default function PortfolioDetailPage() {
             } else if (category === 'Real Estate') {
                 setAvailableAssets(realEstateData);
             } else {
-                setAvailableAssets(assets.filter(a => a.category === category));
+                const filteredAssets = assets.filter(a => a.category === category);
+                setAvailableAssets(filteredAssets);
             }
         } catch (error) {
             console.error("Error fetching assets:", error);
@@ -157,7 +165,7 @@ export default function PortfolioDetailPage() {
     }
 
     const handleAssetSelect = (assetIdentifier: string) => {
-        const foundAsset = [...assets, ...realEstateData].find(a => ('ticker' in a ? a.ticker : a.cityKey) === assetIdentifier);
+        const foundAsset = availableAssets.find(a => ('ticker' in a ? a.ticker : a.cityKey) === assetIdentifier);
         if (foundAsset) {
             setSelectedAsset(foundAsset);
             setFormValue('name', foundAsset.name);
@@ -168,15 +176,19 @@ export default function PortfolioDetailPage() {
     const handleAddAsset = async (data: AddAssetFormValues) => {
         if (!user) return;
 
+        // Use the selected asset's details if available, otherwise use form data
+        const name = selectedAsset ? selectedAsset.name : data.name;
+        const ticker = selectedAsset && 'ticker' in selectedAsset ? selectedAsset.ticker : null;
+
         const assetPayload: Omit<PortfolioAsset, 'id'> = {
-            name: data.name,
+            name: ticker ? `${name} (${ticker})` : name,
             purchasePrice: data.purchasePrice,
             quantity: data.quantity ?? null,
         };
         
         try {
             await addAssetToPortfolio(user.uid, portfolioId, assetPayload);
-            toast({ title: "تمت إضافة الأصل", description: `تمت إضافة '${data.name}' إلى محفظتك بنجاح.` });
+            toast({ title: "تمت إضافة الأصل", description: `تمت إضافة '${assetPayload.name}' إلى محفظتك بنجاح.` });
             handleOpenChange(false);
         } catch (error) {
             console.error("Error adding asset:", error);
@@ -201,7 +213,7 @@ export default function PortfolioDetailPage() {
             const purchaseValue = pa.purchasePrice;
             
             const assetDetails = assets.find(a => 
-                a.ticker.toLowerCase() === pa.name.toLowerCase() || 
+                pa.name.includes(`(${a.ticker})`) || 
                 a.name.toLowerCase() === pa.name.toLowerCase()
             );
 
@@ -347,7 +359,7 @@ export default function PortfolioDetailPage() {
                                 <div className="grid gap-4 py-4">
                                 <div className="space-y-2">
                                         <Label htmlFor="name">اسم الأصل / الرمز</Label>
-                                        <Input id="name" {...register('name')} placeholder="مثال: ARAMCO, عقار في جدة" disabled={!!selectedAsset}/>
+                                        <Input id="name" {...register('name')} placeholder="مثال: ARAMCO, عقار في جدة" disabled={selectedCategory !== 'Other'}/>
                                         {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
                                 </div>
                                 <div className="space-y-2">

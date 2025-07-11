@@ -149,6 +149,20 @@ export const getLatestNews = ai.defineTool(
 );
 
 
+const translateToArabicPrompt = ai.definePrompt({
+  name: 'translateToArabicPrompt',
+  input: { schema: z.object({ assets: z.array(z.object({ ticker: z.string(), name: z.string() })) }) },
+  output: { schema: z.array(z.object({ ticker: z.string(), name: z.string() })) },
+  prompt: `Translate the 'name' field of each JSON object in the following array to Arabic. Maintain the 'ticker' field as is. Respond with only the translated JSON array.
+
+Input:
+{{{json assets}}}
+
+Translated Output (JSON array only):
+`,
+});
+
+
 export const findMarketAssetsTool = ai.defineTool(
     {
         name: 'findMarketAssetsTool',
@@ -188,10 +202,21 @@ export const findMarketAssetsTool = ai.defineTool(
             const result = await response.json();
             
             if (result && result.data && Array.isArray(result.data) && result.data.length > 0) {
-                 return result.data.map((asset: any) => ({
+                 const englishAssets = result.data.map((asset: any) => ({
                     ticker: asset.symbol,
                     name: asset.name,
                 }));
+
+                console.log(`[findMarketAssetsTool] Translating ${englishAssets.length} asset names to Arabic...`);
+                const { output } = await translateToArabicPrompt({ assets: englishAssets });
+
+                if (!output) {
+                    console.warn(`[findMarketAssetsTool] AI translation failed. Returning English names.`);
+                    return englishAssets;
+                }
+
+                return output;
+
             } else {
                  console.warn(`[findMarketAssetsTool] No assets returned from Twelve Data for ${market}. Falling back to static data.`);
                  throw new Error("Empty data from API");
