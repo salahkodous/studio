@@ -1,4 +1,3 @@
-
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
@@ -6,7 +5,7 @@ import { getFirestore, type Firestore } from "firebase/firestore";
 const firebaseConfig = {
   // IMPORTANT: Replace this with your actual Firebase web app's API key
   // You can find this in your Firebase project settings -> General
-  apiKey: "REPLACE_WITH_YOUR_FIREBASE_BROWSER_API_KEY", 
+  apiKey: "AIzaSyBYwzcemnqD8_9UMONfg0jOURWQV-ivd8M", 
   authDomain: "tharawat99998.firebaseapp.com",
   projectId: "tharawat99998",
   storageBucket: "tharawat99998.appspot.com",
