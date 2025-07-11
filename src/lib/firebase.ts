@@ -3,7 +3,6 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 
-// This configuration is hardcoded to ensure Firebase initializes correctly.
 const firebaseConfig = {
   apiKey: "AIzaSyBYwzcemnqD8_9UMONfg0jOURWQV-ivd8M",
   authDomain: "tharawat99998.firebaseapp.com",
@@ -14,16 +13,33 @@ const firebaseConfig = {
   measurementId: "G-N60HHTHR21"
 };
 
-// Singleton pattern to ensure Firebase is initialized only once.
-const app: FirebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
-const auth: Auth = getAuth(app);
-const db: Firestore = getFirestore(app);
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
 
+function initializeFirebase() {
+    if (!getApps().length) {
+        app = initializeApp(firebaseConfig);
+    } else {
+        app = getApp();
+    }
+    auth = getAuth(app);
+    db = getFirestore(app);
+}
+
+// Call the function to ensure Firebase is initialized
+initializeFirebase();
 
 export function getFirebaseAuth() {
+    if (!auth) {
+        initializeFirebase();
+    }
     return auth;
 }
 
 export function getFirestoreDb() {
+    if (!db) {
+        initializeFirebase();
+    }
     return db;
 }
