@@ -151,6 +151,7 @@ export const getLatestNews = ai.defineTool(
   }
 );
 
+
 export const findMarketAssetsTool = ai.defineTool(
     {
         name: 'findMarketAssetsTool',

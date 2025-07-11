@@ -17,6 +17,7 @@ export interface PortfolioDetails {
 export interface PortfolioAsset {
   id: string
   name: string
+  ticker: string | null; // Added for reliable matching
   purchasePrice: number
   quantity?: number | null
 }
@@ -189,7 +190,8 @@ export function onPortfolioAssetsUpdate(userId: string, portfolioId: string, cal
     const unsubscribe = onSnapshot(assetsColRef, (snapshot) => {
         const assets = snapshot.docs.map(doc => ({
             id: doc.id,
-            ...doc.data()
+            ...doc.data(),
+            ticker: doc.data().ticker || null, // Ensure ticker exists
         } as PortfolioAsset));
         callback(assets);
     }, (error) => {

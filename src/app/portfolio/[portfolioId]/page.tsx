@@ -176,16 +176,12 @@ export default function PortfolioDetailPage() {
     const handleAddAsset = async (data: AddAssetFormValues) => {
         if (!user) return;
 
-        // Use the selected asset's details if available, otherwise use form data
-        let name = selectedAsset ? selectedAsset.name : data.name;
+        const name = selectedAsset ? selectedAsset.name : data.name;
         const ticker = selectedAsset && 'ticker' in selectedAsset ? selectedAsset.ticker : null;
-
-        if (ticker && !name.includes(`(${ticker})`)) {
-            name = `${name} (${ticker})`;
-        }
 
         const assetPayload: Omit<PortfolioAsset, 'id'> = {
             name: name,
+            ticker: ticker, // Store the ticker explicitly
             purchasePrice: data.purchasePrice,
             quantity: data.quantity ?? null,
         };
@@ -214,21 +210,18 @@ export default function PortfolioDetailPage() {
     const enrichedAssets = useMemo(() => {
         return portfolioAssets.map(pa => {
             const purchaseValue = pa.purchasePrice;
-            let currentValue = purchaseValue; // Default to purchase value
+            let currentValue = purchaseValue;
             let currency: Asset['currency'] = 'SAR'; // Default currency
             
             // --- Robust Asset Matching Logic ---
-            const tickerMatch = pa.name.match(/\(([^)]+)\)$/);
-            const ticker = tickerMatch ? tickerMatch[1] : null;
-
             let assetDetails: Asset | undefined;
 
             // 1. Match by Ticker (most reliable)
-            if (ticker) {
-                assetDetails = assets.find(a => a.ticker.toUpperCase() === ticker.toUpperCase());
+            if (pa.ticker) {
+                assetDetails = assets.find(a => a.ticker.toUpperCase() === pa.ticker!.toUpperCase());
             }
 
-            // 2. Fallback to matching by Name (for assets without tickers in name)
+            // 2. Fallback to matching by Name (for legacy or manual assets)
             if (!assetDetails) {
                  assetDetails = assets.find(a => a.name === pa.name);
             }
@@ -362,7 +355,7 @@ export default function PortfolioDetailPage() {
                                         <SelectContent>
                                             {availableAssets.map(asset => (
                                                 <SelectItem key={'ticker' in asset ? asset.ticker : asset.cityKey} value={'ticker' in asset ? asset.ticker : asset.cityKey}>
-                                                    {asset.name}
+                                                    {asset.name}{'ticker' in asset && ` (${asset.ticker})`}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -463,6 +456,7 @@ export default function PortfolioDetailPage() {
                                     <TableRow key={asset.id}>
                                         <TableCell>
                                             <div className="font-medium">{asset.name}</div>
+                                            {asset.ticker && <div className="text-xs text-muted-foreground">{asset.ticker}</div>}
                                         </TableCell>
                                         <TableCell className="text-center">
                                             {asset.quantity ? `الكمية: ${asset.quantity?.toLocaleString('ar-EG')}` : '-'}
