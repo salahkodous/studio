@@ -80,39 +80,51 @@ export const getStockPrice = ai.defineTool(
     }),
   },
   async ({ ticker }) => {
-    console.log(`[getStockPriceTool] Fetching price for ${ticker} from Twelve Data API`);
-    const apiKey = process.env.TWELVE_DATA_API_KEY;
+    console.log(`[getStockPriceTool] Looking up price for ${ticker}`);
     const assetDetails = assets.find(a => a.ticker === ticker);
+    
+    // Always fall back to static price from data.ts if the API key is missing or the call fails
+    const fallbackPrice = {
+        price: assetDetails?.price || 0,
+        currency: assetDetails?.currency || 'USD',
+        sourceUrl: 'https://twelvedata.com/'
+    };
 
-    if (apiKey) {
-      const exchange = assetDetails?.country === 'SA' ? 'Tadawul' : assetDetails?.country === 'QA' ? 'QSE' : 'DFM';
-      const url = `https://api.twelvedata.com/price?symbol=${ticker}&exchange=${exchange}&apikey=${apiKey}`;
-      
-      try {
-          const response = await fetch(url);
-          if (!response.ok) {
-              throw new Error(`API call failed with status ${response.status}`);
-          }
-          const data = await response.json();
-          
-          if (data.price) {
-              return {
-                  price: parseFloat(data.price),
-                  currency: assetDetails?.currency || 'USD',
-                  sourceUrl: `https://twelvedata.com/symbol/${ticker}/${exchange}`,
-              };
-          } else {
-               throw new Error(`Twelve Data API did not return a price for ${ticker}.`);
-          }
-      } catch (error) {
-          console.error(`[getStockPriceTool] Error fetching from Twelve Data API for ${ticker}, falling back to static data:`, error);
-      }
-    } else {
-        console.warn(`[getStockPriceTool] Twelve Data API key not configured. Using static data.`);
+    const apiKey = process.env.TWELVE_DATA_API_KEY;
+    if (!apiKey) {
+        console.warn(`[getStockPriceTool] Twelve Data API key not configured. Using static data for ${ticker}.`);
+        return fallbackPrice;
+    }
+    
+    if (!assetDetails) {
+        console.warn(`[getStockPriceTool] Ticker ${ticker} not found in local data. Cannot determine exchange. Using static data.`);
+        return fallbackPrice;
     }
 
-    // Fallback to static price from data.ts ONLY if API call fails or key is missing
-    return { price: assetDetails?.price || 0, currency: assetDetails?.currency || 'USD', sourceUrl: `https://twelvedata.com/` };
+    try {
+        const exchange = assetDetails.country === 'SA' ? 'Tadawul' : assetDetails.country === 'QA' ? 'QSE' : 'DFM';
+        const url = `https://api.twelvedata.com/price?symbol=${ticker}&exchange=${exchange}&apikey=${apiKey}`;
+        
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`API call failed with status ${response.status}`);
+        }
+        const data = await response.json();
+        
+        if (data && data.price) {
+            console.log(`[getStockPriceTool] Live price for ${ticker}: ${data.price}`);
+            return {
+                price: parseFloat(data.price),
+                currency: assetDetails.currency,
+                sourceUrl: `https://twelvedata.com/symbol/${ticker}/${exchange}`,
+            };
+        } else {
+            throw new Error(`Twelve Data API did not return a valid price for ${ticker}.`);
+        }
+    } catch (error) {
+        console.error(`[getStockPriceTool] Error fetching from Twelve Data API for ${ticker}, falling back to static data:`, error);
+        return fallbackPrice;
+    }
   }
 );
 

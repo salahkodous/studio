@@ -28,7 +28,7 @@ import { findMarketAssetsTool, getStockPrice } from '@/ai/tools/market-tools'
 const addAssetSchema = z.object({
     name: z.string().min(2, "اسم الأصل مطلوب.").max(50, "الاسم طويل جدًا."),
     purchasePrice: z.coerce.number().min(0.01, "يجب أن يكون سعر الشراء أكبر من صفر."),
-    quantity: z.coerce.number().min(0, "لا يمكن أن تكون الكمية سالبة.").optional(),
+    quantity: z.coerce.number().min(0.01, "يجب أن تكون الكمية أكبر من صفر."),
 });
 
 type AddAssetFormValues = z.infer<typeof addAssetSchema>
@@ -117,7 +117,9 @@ export default function PortfolioDetailPage() {
             
             console.log(`Fetching live prices for ${stockAssets.length} stock(s)`);
 
-            const pricePromises = stockAssets.map(asset => getStockPrice({ ticker: asset.ticker!, companyName: asset.name }));
+            const pricePromises = stockAssets.map(asset => 
+                getStockPrice({ ticker: asset.ticker!, companyName: asset.name_ar })
+            );
 
             const results = await Promise.allSettled(pricePromises);
             
@@ -217,7 +219,8 @@ export default function PortfolioDetailPage() {
             : null;
 
         const assetPayload: Omit<PortfolioAsset, 'id'> = {
-            name: selectedAsset ? ('name_ar' in selectedAsset ? selectedAsset.name_ar : selectedAsset.name) : data.name,
+            name: selectedAsset ? selectedAsset.name : data.name,
+            name_ar: selectedAsset ? ('name_ar' in selectedAsset ? selectedAsset.name_ar : selectedAsset.name) : data.name,
             ticker: assetTicker,
             category: selectedCategory!,
             purchasePrice: data.purchasePrice,
@@ -226,7 +229,7 @@ export default function PortfolioDetailPage() {
         
         try {
             await addAssetToPortfolio(user.uid, portfolioId, assetPayload);
-            toast({ title: "تمت إضافة الأصل", description: `تمت إضافة '${assetPayload.name}' إلى محفظتك بنجاح.` });
+            toast({ title: "تمت إضافة الأصل", description: `تمت إضافة '${assetPayload.name_ar}' إلى محفظتك بنجاح.` });
             handleOpenChange(false);
         } catch (error) {
             console.error("Error adding asset:", error);
@@ -247,7 +250,7 @@ export default function PortfolioDetailPage() {
     
     const enrichedAssets = useMemo(() => {
         return portfolioAssets.map(pa => {
-            const purchaseValue = pa.purchasePrice;
+            const purchaseValue = pa.purchasePrice * (pa.quantity || 1);
             
             const staticAssetDetails = assets.find(a => a.ticker === pa.ticker);
             const livePriceData = pa.ticker ? livePrices[pa.ticker] : undefined;
@@ -255,24 +258,14 @@ export default function PortfolioDetailPage() {
             let currentValue: number;
             let currency = staticAssetDetails?.currency || 'USD';
 
-            if (livePriceData && livePriceData.price > 0) {
+            if (livePriceData?.price && livePriceData.price > 0 && pa.quantity) {
                 currency = livePriceData.currency as any;
-                if (pa.quantity != null && pa.quantity > 0) {
-                    currentValue = pa.quantity * livePriceData.price;
-                } else {
-                    const staticPrice = staticAssetDetails?.price || purchaseValue;
-                    const changeRatio = staticPrice > 0 ? livePriceData.price / staticPrice : 1;
-                    currentValue = purchaseValue * changeRatio;
-                }
-            } else if (staticAssetDetails) {
+                currentValue = pa.quantity * livePriceData.price;
+            } else if (staticAssetDetails?.price && pa.quantity) {
                  currency = staticAssetDetails.currency;
-                 if (pa.quantity != null && pa.quantity > 0) {
-                    currentValue = pa.quantity * staticAssetDetails.price;
-                } else {
-                    currentValue = purchaseValue;
-                }
+                 currentValue = pa.quantity * staticAssetDetails.price;
             } else {
-                currentValue = purchaseValue;
+                currentValue = purchaseValue; // Fallback to purchase value if no quantity or live/static price
             }
             
             const change = currentValue - purchaseValue;
@@ -399,13 +392,13 @@ export default function PortfolioDetailPage() {
                                         {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="quantity">الكمية / المساحة (اختياري)</Label>
-                                    <Input id="quantity" type="number" step="any" {...register('quantity')} placeholder="مثال: 100 (سهم), 250 (متر مربع)" />
+                                    <Label htmlFor="quantity">الكمية (أسهم) / المساحة (متر مربع)</Label>
+                                    <Input id="quantity" type="number" step="any" {...register('quantity')} placeholder="مثال: 100" />
                                     {errors.quantity && <p className="text-sm text-destructive">{errors.quantity.message}</p>}
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="purchasePrice">قيمة الشراء الإجمالية</Label>
-                                    <Input id="purchasePrice" type="number" step="any" {...register('purchasePrice')} placeholder="القيمة الإجمالية وقت الشراء" />
+                                    <Label htmlFor="purchasePrice">سعر الشراء للوحدة الواحدة</Label>
+                                    <Input id="purchasePrice" type="number" step="any" {...register('purchasePrice')} placeholder="سعر السهم/المتر وقت الشراء" />
                                     {errors.purchasePrice && <p className="text-sm text-destructive">{errors.purchasePrice.message}</p>}
                                 </div>
 
@@ -427,7 +420,7 @@ export default function PortfolioDetailPage() {
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{totals.totalCurrentValue.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                        <div className="text-2xl font-bold">{totals.totalCurrentValue.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR', minimumFractionDigits: 2 })}</div>
                         <p className="text-xs text-muted-foreground">إجمالي تقديري. قد يتم تطبيق تحويل العملات.</p>
                     </CardContent>
                 </Card>
@@ -438,7 +431,7 @@ export default function PortfolioDetailPage() {
                     </CardHeader>
                     <CardContent>
                         <div className={`text-2xl font-bold ${totalChange >= 0 ? 'text-success' : 'text-destructive'}`}>
-                            {totalChange.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                            {totalChange.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR' })}
                         </div>
                          <p className={`text-xs ${totalChange >= 0 ? 'text-success' : 'text-destructive'}`}>
                             {totalChange >= 0 ? '+' : ''}{totalChangePercent.toFixed(2)}% منذ الشراء
@@ -467,7 +460,7 @@ export default function PortfolioDetailPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>الأصل</TableHead>
-                                    <TableHead className="text-center">التفاصيل</TableHead>
+                                    <TableHead className="text-center">الكمية</TableHead>
                                     <TableHead className="text-center">قيمة الشراء</TableHead>
                                     <TableHead className="text-center">القيمة الحالية</TableHead>
                                     <TableHead className="text-center">الربح/الخسارة</TableHead>
@@ -478,11 +471,11 @@ export default function PortfolioDetailPage() {
                                 {enrichedAssets.map((asset) => (
                                     <TableRow key={asset.id}>
                                         <TableCell>
-                                            <div className="font-medium">{asset.name}</div>
+                                            <div className="font-medium">{asset.name_ar}</div>
                                             {asset.ticker && <div className="text-xs text-muted-foreground">{asset.ticker}</div>}
                                         </TableCell>
                                         <TableCell className="text-center">
-                                            {asset.quantity ? `الكمية: ${asset.quantity?.toLocaleString()}` : '-'}
+                                            {asset.quantity ? `${asset.quantity?.toLocaleString()}` : '-'}
                                         </TableCell>
                                         <TableCell className="text-center">{asset.purchaseValue.toLocaleString('ar-SA', { style: 'currency', currency: asset.currency, minimumFractionDigits: 2 })}</TableCell>
                                         <TableCell className="text-center">{asset.currentValue.toLocaleString('ar-SA', { style: 'currency', currency: asset.currency, minimumFractionDigits: 2 })}</TableCell>
@@ -501,10 +494,10 @@ export default function PortfolioDetailPage() {
                              <TableFooter>
                                 <TableRow>
                                     <TableCell colSpan={2} className="font-bold">الإجمالي (تقديري)</TableCell>
-                                    <TableCell className="text-center font-bold">{totals.totalPurchaseValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</TableCell>
-                                    <TableCell className="text-center font-bold">{totals.totalCurrentValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</TableCell>
+                                    <TableCell className="text-center font-bold">{totals.totalPurchaseValue.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR' })}</TableCell>
+                                    <TableCell className="text-center font-bold">{totals.totalCurrentValue.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR' })}</TableCell>
                                     <TableCell colSpan={2} className={`text-center font-bold ${totalChange >= 0 ? 'text-success' : 'text-destructive'}`}>
-                                        {totalChange.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} ({totalChangePercent.toFixed(2)}%)
+                                        {totalChange.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR' })} ({totalChangePercent.toFixed(2)}%)
                                     </TableCell>
                                 </TableRow>
                             </TableFooter>

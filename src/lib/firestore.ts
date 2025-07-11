@@ -1,3 +1,4 @@
+
 import { doc, getDoc, setDoc, arrayUnion, arrayRemove, collection, addDoc, getDocs, query, orderBy, Timestamp, onSnapshot, type Unsubscribe, writeBatch, deleteDoc } from "firebase/firestore";
 import { db as firestoreDb } from "./firebase"; // Import the initialized instance
 import type { InvestmentStrategyOutput } from "@/ai/schemas/investment-strategy-schema";
@@ -17,10 +18,11 @@ export interface PortfolioDetails {
 export interface PortfolioAsset {
   id: string
   name: string
+  name_ar: string
   ticker: string | null;
   category: string;
   purchasePrice: number
-  quantity?: number | null
+  quantity: number | null
 }
 
 
