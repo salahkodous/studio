@@ -22,33 +22,32 @@ import { PlusCircle, Trash2, DollarSign, TrendingUp, AlertCircle, PackageOpen, B
 import { getCurrencySymbol } from '@/lib/utils'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { findMarketAssetsTool } from '@/ai/tools/market-tools'
+import { findMarketAssetsTool, getStockPrice } from '@/ai/tools/market-tools'
 
 
 const addAssetSchema = z.object({
-    name: z.string().min(2, "اسم الأصل مطلوب.").max(50, "الاسم طويل جدًا."),
-    purchasePrice: z.coerce.number().min(0.01, "سعر الشراء يجب أن يكون أكبر من صفر."),
-    quantity: z.coerce.number().min(0, "لا يمكن أن تكون الكمية سالبة.").optional(),
+    name: z.string().min(2, "Asset name is required.").max(50, "Name is too long."),
+    purchasePrice: z.coerce.number().min(0.01, "Purchase price must be greater than zero."),
+    quantity: z.coerce.number().min(0, "Quantity cannot be negative.").optional(),
 });
 
 type AddAssetFormValues = z.infer<typeof addAssetSchema>
 
 const assetCategories = [
-    { id: 'Stocks', label: 'الأسهم' },
-    { id: 'Real Estate', label: 'العقارات' },
-    { id: 'Gold', label: 'الذهب' },
-    { id: 'Bonds', label: 'السندات' },
-    { id: 'Other', label: 'أصل آخر (يدوي)' },
+    { id: 'Stocks', label: 'Stocks' },
+    { id: 'Real Estate', label: 'Real Estate' },
+    { id: 'Gold', label: 'Gold' },
+    { id: 'Bonds', label: 'Bonds' },
+    { id: 'Other', label: 'Other (Manual)' },
 ];
 
 const stockCountries = [
-    { id: 'SA', label: 'السعودية' },
-    { id: 'AE', label: 'الإمارات' },
-    { id: 'QA', label: 'قطر' },
+    { id: 'SA', label: 'Saudi Arabia' },
+    { id: 'AE', label: 'UAE' },
+    { id: 'QA', label: 'Qatar' },
 ];
 
-// Define a unified type for available assets
-type AvailableAsset = Asset | RealEstateCity;
+type AvailableAsset = Asset | RealEstateCity | { name: string; ticker: string };
 
 
 export default function PortfolioDetailPage() {
@@ -60,6 +59,7 @@ export default function PortfolioDetailPage() {
 
     const [portfolioDetails, setPortfolioDetails] = useState<PortfolioDetails | null>(null)
     const [portfolioAssets, setPortfolioAssets] = useState<PortfolioAsset[]>([])
+    const [livePrices, setLivePrices] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(true)
     const [isAddAssetOpen, setAddAssetOpen] = useState(false)
     
@@ -90,11 +90,11 @@ export default function PortfolioDetailPage() {
                     if (details) {
                         setPortfolioDetails(details);
                     } else {
-                        toast({ title: "المحفظة غير موجودة", description: "لم نتمكن من العثور على هذه المحفظة.", variant: 'destructive' })
+                        toast({ title: "Portfolio not found", description: "Could not find this portfolio.", variant: 'destructive' })
                         router.push('/portfolios');
                     }
                 } catch (e) {
-                     toast({ title: "خطأ", description: "لا يمكن تحميل تفاصيل المحفظة.", variant: 'destructive' })
+                     toast({ title: "Error", description: "Could not load portfolio details.", variant: 'destructive' })
                 }
             }
             fetchDetails();
@@ -107,6 +107,29 @@ export default function PortfolioDetailPage() {
             return () => unsubscribe?.();
         }
     }, [user, portfolioId, router, toast])
+
+    useEffect(() => {
+        const fetchAllLivePrices = async () => {
+            const pricePromises = portfolioAssets
+                .filter(asset => asset.ticker && asset.category === 'Stocks')
+                .map(asset => getStockPrice({ ticker: asset.ticker!, companyName: asset.name }));
+
+            const results = await Promise.allSettled(pricePromises);
+            
+            const newLivePrices: Record<string, number> = {};
+            results.forEach((result, index) => {
+                if (result.status === 'fulfilled') {
+                    const ticker = portfolioAssets[index].ticker!;
+                    newLivePrices[ticker] = result.value.price;
+                }
+            });
+            setLivePrices(newLivePrices);
+        };
+
+        if (portfolioAssets.length > 0) {
+            fetchAllLivePrices();
+        }
+    }, [portfolioAssets]);
 
     const resetAddAssetFlow = () => {
         setStep(1);
@@ -129,11 +152,7 @@ export default function PortfolioDetailPage() {
         try {
             if (category === 'Stocks' && country) {
                 const foundAssets = await findMarketAssetsTool({ market: country as 'SA' | 'AE' | 'QA' });
-                // We need to map the found assets to our internal `Asset` type
-                const matchedAssets = foundAssets
-                    .map(fa => assets.find(a => a.ticker === fa.ticker))
-                    .filter((a): a is Asset => !!a);
-                setAvailableAssets(matchedAssets);
+                setAvailableAssets(foundAssets);
             } else if (category === 'Real Estate') {
                 setAvailableAssets(realEstateData);
             } else {
@@ -142,7 +161,7 @@ export default function PortfolioDetailPage() {
             }
         } catch (error) {
             console.error("Error fetching assets:", error);
-            toast({ title: "خطأ", description: "فشل في جلب قائمة الأصول. الرجاء المحاولة مرة أخرى.", variant: 'destructive' });
+            toast({ title: "Error", description: "Failed to fetch asset list. Please try again.", variant: 'destructive' });
             setAvailableAssets([]);
         } finally {
             setIsFetchingAssets(false);
@@ -191,17 +210,18 @@ export default function PortfolioDetailPage() {
         const assetPayload: Omit<PortfolioAsset, 'id'> = {
             name: selectedAsset ? selectedAsset.name : data.name,
             ticker: assetTicker,
+            category: selectedCategory!,
             purchasePrice: data.purchasePrice,
             quantity: data.quantity ?? null,
         };
         
         try {
             await addAssetToPortfolio(user.uid, portfolioId, assetPayload);
-            toast({ title: "تمت إضافة الأصل", description: `تمت إضافة '${assetPayload.name}' إلى محفظتك بنجاح.` });
+            toast({ title: "Asset Added", description: `'${assetPayload.name}' was successfully added to your portfolio.` });
             handleOpenChange(false);
         } catch (error) {
             console.error("Error adding asset:", error);
-            toast({ title: "خطأ", description: "فشل في إضافة الأصل. الرجاء المحاولة مرة أخرى.", variant: 'destructive' });
+            toast({ title: "Error", description: "Failed to add asset. Please try again.", variant: 'destructive' });
         }
     }
     
@@ -209,10 +229,10 @@ export default function PortfolioDetailPage() {
          if (!user) return;
         try {
             await removeAssetFromPortfolio(user.uid, portfolioId, assetId);
-            toast({ title: "تم حذف الأصل", description: "تم حذف الأصل من المحفظة.", variant: 'destructive' });
+            toast({ title: "Asset Removed", description: "The asset has been removed from the portfolio.", variant: 'destructive' });
         } catch (error) {
             console.error("Error removing asset:", error);
-            toast({ title: "خطأ", description: "فشل في حذف الأصل.", variant: 'destructive' });
+            toast({ title: "Error", description: "Failed to remove the asset.", variant: 'destructive' });
         }
     }
     
@@ -220,42 +240,44 @@ export default function PortfolioDetailPage() {
         return portfolioAssets.map(pa => {
             const purchaseValue = pa.purchasePrice;
             
-            // Find the master asset data using the reliable ticker
             const assetDetails = pa.ticker ? assets.find(a => a.ticker === pa.ticker) : null;
-
-            if (!assetDetails) {
-                 // It's a manual asset or real estate, handle it gracefully
-                 const isRealEstate = realEstateData.find(re => re.cityKey === pa.ticker);
-                 if (isRealEstate) {
-                     const currentValue = purchaseValue * 1.02; // Simulate small appreciation for real estate
-                     const change = currentValue - purchaseValue;
-                     const changePercent = purchaseValue > 0 ? (change / purchaseValue) * 100 : 0;
-                     return { ...pa, currentValue, purchaseValue, currency: isRealEstate.currency, change, changePercent };
-                 }
-                // For other manual assets, we can't calculate current value, so it remains the same as purchase.
-                return { ...pa, currentValue: purchaseValue, purchaseValue, currency: 'SAR', change: 0, changePercent: 0 };
-            }
+            const livePrice = pa.ticker ? livePrices[pa.ticker] : undefined;
 
             let currentValue: number;
-            // Value Calculation Logic
-            if (pa.quantity != null && pa.quantity > 0) {
-                // If quantity is present, current value is quantity * current price
-                currentValue = pa.quantity * assetDetails.price;
+            
+            if (livePrice !== undefined && pa.quantity != null && pa.quantity > 0) {
+                 // Priority: Live price with quantity
+                currentValue = pa.quantity * livePrice;
+            } else if (livePrice !== undefined) {
+                // Live price without quantity (estimate change)
+                const staticPrice = assetDetails?.price || purchaseValue;
+                if (staticPrice > 0) {
+                    const changeRatio = livePrice / staticPrice;
+                    currentValue = purchaseValue * changeRatio;
+                } else {
+                    currentValue = purchaseValue;
+                }
+            } else if (assetDetails) {
+                 // Fallback to static price if live price isn't available
+                 if (pa.quantity != null && pa.quantity > 0) {
+                    currentValue = pa.quantity * assetDetails.price;
+                 } else {
+                    currentValue = purchaseValue; // Cannot estimate without live price or quantity
+                 }
             } else {
-                // If no quantity, estimate value change based on percentage.
-                const changePercentNumeric = parseFloat(assetDetails.changePercent.replace('%', ''));
-                currentValue = purchaseValue * (1 + changePercentNumeric / 100);
+                // Manual or non-stock asset
+                currentValue = purchaseValue; // Can't calculate current value, so it remains the same as purchase
             }
             
             const change = currentValue - purchaseValue;
             const changePercent = purchaseValue > 0 ? (change / purchaseValue) * 100 : 0;
+            const currency = assetDetails?.currency || 'USD';
             
-            return { ...pa, currentValue, purchaseValue, currency: assetDetails.currency, change, changePercent };
+            return { ...pa, currentValue, purchaseValue, currency, change, changePercent };
         }).filter(Boolean);
-    }, [portfolioAssets]);
+    }, [portfolioAssets, livePrices]);
 
     const totals = useMemo(() => {
-        // Note: This total is a rough estimate and doesn't account for currency conversion.
         return enrichedAssets.reduce((acc, asset) => {
             if (asset) {
                 acc.totalPurchaseValue += asset.purchaseValue;
@@ -276,12 +298,12 @@ export default function PortfolioDetailPage() {
                 <Card className="text-center py-20">
                      <CardHeader>
                         <AlertCircle className="mx-auto h-12 w-12 text-destructive"/>
-                        <CardTitle>المحفظة غير موجودة</CardTitle>
-                        <CardDescription>قد تكون حذفت أو أن الرابط غير صحيح.</CardDescription>
+                        <CardTitle>Portfolio Not Found</CardTitle>
+                        <CardDescription>It may have been deleted or the link is incorrect.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Button asChild>
-                            <Link href="/portfolios">العودة إلى قائمة المحافظ</Link>
+                            <Link href="/portfolios">Back to Portfolios</Link>
                         </Button>
                     </CardContent>
                 </Card>
@@ -294,27 +316,26 @@ export default function PortfolioDetailPage() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-4xl font-bold font-headline">{portfolioDetails.name}</h1>
-                    <p className="text-muted-foreground">تم الإنشاء في: {new Date(portfolioDetails.createdAt).toLocaleDateString('ar-EG')}</p>
+                    <p className="text-muted-foreground">Created on: {new Date(portfolioDetails.createdAt).toLocaleDateString()}</p>
                 </div>
                  <Dialog open={isAddAssetOpen} onOpenChange={handleOpenChange}>
                     <DialogTrigger asChild>
                         <Button>
-                            <PlusCircle className="ml-2" />
-                            إضافة أصل جديد
+                            <PlusCircle className="mr-2" />
+                            Add New Asset
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[425px]">
                         <DialogHeader>
-                            <DialogTitle>إضافة أصل جديد</DialogTitle>
+                            <DialogTitle>Add New Asset</DialogTitle>
                             <DialogDescription>
-                                اتبع الخطوات لإضافة أصل جديد إلى محفظتك.
+                                Follow the steps to add a new asset to your portfolio.
                             </DialogDescription>
                         </DialogHeader>
 
-                        {/* Step 1: Category Selection */}
                         {step === 1 && (
                             <div className="space-y-4 py-4">
-                                <Label>الخطوة 1: اختر نوع الأصل</Label>
+                                <Label>Step 1: Choose Asset Type</Label>
                                 <RadioGroup onValueChange={handleCategorySelect} className="grid grid-cols-2 gap-4">
                                     {assetCategories.map(cat => (
                                         <Label key={cat.id} htmlFor={cat.id} className="border rounded-md p-4 flex items-center justify-center cursor-pointer hover:bg-accent has-[:checked]:bg-primary has-[:checked]:text-primary-foreground">
@@ -326,10 +347,9 @@ export default function PortfolioDetailPage() {
                             </div>
                         )}
 
-                        {/* Step 2: Country Selection (for Stocks) */}
                         {step === 2 && selectedCategory === 'Stocks' && (
                             <div className="space-y-4 py-4">
-                                <Label>الخطوة 2: اختر السوق</Label>
+                                <Label>Step 2: Choose Market</Label>
                                 <RadioGroup onValueChange={handleCountrySelect} className="grid grid-cols-3 gap-4">
                                     {stockCountries.map(country => (
                                          <Label key={country.id} htmlFor={country.id} className="border rounded-md p-4 flex items-center justify-center cursor-pointer hover:bg-accent has-[:checked]:bg-primary has-[:checked]:text-primary-foreground">
@@ -338,14 +358,13 @@ export default function PortfolioDetailPage() {
                                         </Label>
                                     ))}
                                 </RadioGroup>
-                                <Button variant="link" onClick={() => setStep(1)}>العودة</Button>
+                                <Button variant="link" onClick={() => setStep(1)}>Back</Button>
                             </div>
                         )}
                         
-                        {/* Step 3: Asset Selection */}
                         {step === 3 && (
                             <div className="space-y-4 py-4">
-                                <Label>الخطوة 3: اختر الأصل</Label>
+                                <Label>Step 3: Choose Asset</Label>
                                 {isFetchingAssets ? (
                                     <div className="flex items-center justify-center h-24">
                                         <Loader2 className="animate-spin text-primary" />
@@ -353,7 +372,7 @@ export default function PortfolioDetailPage() {
                                 ) : (
                                     <Select onValueChange={handleAssetSelect}>
                                         <SelectTrigger>
-                                            <SelectValue placeholder="اختر أصلاً من القائمة..." />
+                                            <SelectValue placeholder="Select an asset..." />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {availableAssets.map(asset => (
@@ -364,34 +383,33 @@ export default function PortfolioDetailPage() {
                                         </SelectContent>
                                     </Select>
                                 )}
-                                 <Button variant="link" onClick={() => setStep(selectedCategory === 'Stocks' ? 2 : 1)}>العودة</Button>
+                                 <Button variant="link" onClick={() => setStep(selectedCategory === 'Stocks' ? 2 : 1)}>Back</Button>
                             </div>
                         )}
 
-                        {/* Step 4: Purchase Details */}
                         {step === 4 && (
                             <form onSubmit={handleSubmit(handleAddAsset)}>
                                 <div className="grid gap-4 py-4">
                                 <div className="space-y-2">
-                                        <Label htmlFor="name">اسم الأصل</Label>
-                                        <Input id="name" {...register('name')} placeholder="مثال: عقار في جدة" disabled={selectedCategory !== 'Other'}/>
+                                        <Label htmlFor="name">Asset Name</Label>
+                                        <Input id="name" {...register('name')} placeholder="e.g., Jeddah Apartment" disabled={selectedCategory !== 'Other'}/>
                                         {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="quantity">الكمية / المساحة (اختياري)</Label>
-                                    <Input id="quantity" type="number" step="any" {...register('quantity')} placeholder="مثال: 100 (سهم), 250 (متر مربع)" />
+                                    <Label htmlFor="quantity">Quantity / Area (optional)</Label>
+                                    <Input id="quantity" type="number" step="any" {...register('quantity')} placeholder="e.g., 100 (shares), 250 (sqm)" />
                                     {errors.quantity && <p className="text-sm text-destructive">{errors.quantity.message}</p>}
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="purchasePrice">إجمالي قيمة الشراء</Label>
-                                    <Input id="purchasePrice" type="number" step="any" {...register('purchasePrice')} placeholder="القيمة الإجمالية عند الشراء" />
+                                    <Label htmlFor="purchasePrice">Total Purchase Value</Label>
+                                    <Input id="purchasePrice" type="number" step="any" {...register('purchasePrice')} placeholder="Total value at time of purchase" />
                                     {errors.purchasePrice && <p className="text-sm text-destructive">{errors.purchasePrice.message}</p>}
                                 </div>
 
                                 </div>
                                 <DialogFooter>
-                                    <Button variant="ghost" type="button" onClick={() => setStep(selectedCategory === 'Other' ? 1 : 3)}>العودة</Button>
-                                    <Button type="submit">إضافة أصل</Button>
+                                    <Button variant="ghost" type="button" onClick={() => setStep(selectedCategory === 'Other' ? 1 : 3)}>Back</Button>
+                                    <Button type="submit">Add Asset</Button>
                                 </DialogFooter>
                             </form>
                         )}
@@ -399,58 +417,57 @@ export default function PortfolioDetailPage() {
                 </Dialog>
             </div>
             
-            {/* Summary Cards */}
             <div className="grid gap-4 md:grid-cols-3">
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">القيمة الحالية للمحفظة</CardTitle>
+                        <CardTitle className="text-sm font-medium">Portfolio Current Value</CardTitle>
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{totals.totalCurrentValue.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-                        <p className="text-xs text-muted-foreground">مجموع تقديري. قد يتطلب تحويل عملات لقيمة دقيقة.</p>
+                        <div className="text-2xl font-bold">{totals.totalCurrentValue.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                        <p className="text-xs text-muted-foreground">Estimated total. Currency conversion may apply.</p>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">إجمالي الربح/الخسارة</CardTitle>
+                        <CardTitle className="text-sm font-medium">Total Gain/Loss</CardTitle>
                         <TrendingUp className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className={`text-2xl font-bold ${totalChange >= 0 ? 'text-success' : 'text-destructive'}`}>
-                            {totalChange.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR' })}
+                            {totalChange.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
                         </div>
                          <p className={`text-xs ${totalChange >= 0 ? 'text-success' : 'text-destructive'}`}>
-                            {totalChange >= 0 ? '+' : ''}{totalChangePercent.toFixed(2)}% منذ الشراء
+                            {totalChange >= 0 ? '+' : ''}{totalChangePercent.toFixed(2)}% since purchase
                         </p>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">عدد الأصول</CardTitle>
+                        <CardTitle className="text-sm font-medium">Number of Assets</CardTitle>
                         <Briefcase className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{enrichedAssets.length}</div>
-                        <p className="text-xs text-muted-foreground">إجمالي الأصول المختلفة في المحفظة</p>
+                        <p className="text-xs text-muted-foreground">Total unique assets in portfolio</p>
                     </CardContent>
                 </Card>
             </div>
             
             <Card>
                 <CardHeader>
-                    <CardTitle>مكونات المحفظة</CardTitle>
+                    <CardTitle>Portfolio Holdings</CardTitle>
                 </CardHeader>
                 <CardContent>
                     {enrichedAssets.length > 0 ? (
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>الأصل</TableHead>
-                                    <TableHead className="text-center">التفاصيل</TableHead>
-                                    <TableHead className="text-center">القيمة الشرائية</TableHead>
-                                    <TableHead className="text-center">القيمة الحالية</TableHead>
-                                    <TableHead className="text-center">الربح/الخسارة</TableHead>
+                                    <TableHead>Asset</TableHead>
+                                    <TableHead className="text-center">Details</TableHead>
+                                    <TableHead className="text-center">Purchase Value</TableHead>
+                                    <TableHead className="text-center">Current Value</TableHead>
+                                    <TableHead className="text-center">Gain/Loss</TableHead>
                                     <TableHead></TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -462,12 +479,12 @@ export default function PortfolioDetailPage() {
                                             {asset.ticker && <div className="text-xs text-muted-foreground">{asset.ticker}</div>}
                                         </TableCell>
                                         <TableCell className="text-center">
-                                            {asset.quantity ? `الكمية: ${asset.quantity?.toLocaleString('ar-EG')}` : '-'}
+                                            {asset.quantity ? `Qty: ${asset.quantity?.toLocaleString()}` : '-'}
                                         </TableCell>
-                                        <TableCell className="text-center">{asset.purchaseValue.toLocaleString('ar-SA', { style: 'currency', currency: asset.currency })}</TableCell>
-                                        <TableCell className="text-center">{asset.currentValue.toLocaleString('ar-SA', { style: 'currency', currency: asset.currency })}</TableCell>
+                                        <TableCell className="text-center">{asset.purchaseValue.toLocaleString('en-US', { style: 'currency', currency: asset.currency })}</TableCell>
+                                        <TableCell className="text-center">{asset.currentValue.toLocaleString('en-US', { style: 'currency', currency: asset.currency })}</TableCell>
                                         <TableCell className={`text-center font-medium ${asset.change >= 0 ? 'text-success' : 'text-destructive'}`}>
-                                            <div>{asset.change.toLocaleString('ar-SA', { style: 'currency', currency: asset.currency })}</div>
+                                            <div>{asset.change.toLocaleString('en-US', { style: 'currency', currency: asset.currency })}</div>
                                             <div className="text-xs">({asset.changePercent.toFixed(2)}%)</div>
                                         </TableCell>
                                         <TableCell>
@@ -480,11 +497,11 @@ export default function PortfolioDetailPage() {
                             </TableBody>
                              <TableFooter>
                                 <TableRow>
-                                    <TableCell colSpan={2} className="font-bold">الإجمالي (تقديري)</TableCell>
-                                    <TableCell className="text-center font-bold">{totals.totalPurchaseValue.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR' })}</TableCell>
-                                    <TableCell className="text-center font-bold">{totals.totalCurrentValue.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR' })}</TableCell>
+                                    <TableCell colSpan={2} className="font-bold">Total (Estimated)</TableCell>
+                                    <TableCell className="text-center font-bold">{totals.totalPurchaseValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</TableCell>
+                                    <TableCell className="text-center font-bold">{totals.totalCurrentValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</TableCell>
                                     <TableCell colSpan={2} className={`text-center font-bold ${totalChange >= 0 ? 'text-success' : 'text-destructive'}`}>
-                                        {totalChange.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR' })} ({totalChangePercent.toFixed(2)}%)
+                                        {totalChange.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} ({totalChangePercent.toFixed(2)}%)
                                     </TableCell>
                                 </TableRow>
                             </TableFooter>
@@ -492,8 +509,8 @@ export default function PortfolioDetailPage() {
                     ) : (
                         <div className="text-center py-16 text-muted-foreground flex flex-col items-center gap-4">
                             <PackageOpen className="w-12 h-12"/>
-                            <h3 className="text-xl font-semibold">المحفظة فارغة</h3>
-                            <p>انقر على "إضافة أصل جديد" لبدء بناء محفظتك.</p>
+                            <h3 className="text-xl font-semibold">Portfolio is empty</h3>
+                            <p>Click "Add New Asset" to start building your portfolio.</p>
                         </div>
                     )}
                 </CardContent>

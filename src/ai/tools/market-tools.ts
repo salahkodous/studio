@@ -85,7 +85,8 @@ export const getStockPrice = ai.defineTool(
     const assetDetails = assets.find(a => a.ticker === ticker);
 
     if (!apiKey) {
-      console.warn(`[getStockPriceTool] Twelve Data API key not configured. Falling back to mock data.`);
+      console.error(`[getStockPriceTool] Twelve Data API key not configured. Cannot fetch live price.`);
+      // Return a zero price or handle error appropriately if API key is missing
       return { price: assetDetails?.price || 0, currency: assetDetails?.currency || 'USD', sourceUrl: `https://twelvedata.com/` };
     }
     
@@ -94,6 +95,9 @@ export const getStockPrice = ai.defineTool(
     
     try {
         const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`API call failed with status ${response.status}`);
+        }
         const data = await response.json();
         
         if (data.price) {
@@ -103,11 +107,11 @@ export const getStockPrice = ai.defineTool(
                 sourceUrl: `https://twelvedata.com/symbol/${ticker}/${exchange}`,
             };
         } else {
-            console.warn(`[getStockPriceTool] Twelve Data API did not return a price for ${ticker}. Falling back to mock data.`);
-            return { price: assetDetails?.price || 0, currency: assetDetails?.currency || 'USD', sourceUrl: `https://twelvedata.com/` };
+             throw new Error(`Twelve Data API did not return a price for ${ticker}.`);
         }
     } catch (error) {
-        console.error(`[getStockPriceTool] Error fetching from Twelve Data API:`, error);
+        console.error(`[getStockPriceTool] Error fetching from Twelve Data API for ${ticker}:`, error);
+        // Fallback to static price from data.ts ONLY if API call fails
         return { price: assetDetails?.price || 0, currency: assetDetails?.currency || 'USD', sourceUrl: `https://twelvedata.com/` };
     }
   }
@@ -155,7 +159,7 @@ export const getLatestNews = ai.defineTool(
 export const findMarketAssetsTool = ai.defineTool(
     {
         name: 'findMarketAssetsTool',
-        description: 'Finds a list of publicly traded stocks for a given market by querying the Twelve Data API, with a fallback to a static list.',
+        description: 'Finds a list of publicly traded stocks for a given market by querying the Twelve Data API.',
         inputSchema: z.object({
             market: z.enum(['SA', 'AE', 'QA']).describe('The stock market to search (SA: Saudi Arabia, AE: UAE, QA: Qatar).'),
         }),
@@ -167,11 +171,9 @@ export const findMarketAssetsTool = ai.defineTool(
     async ({ market }) => {
         const apiKey = process.env.TWELVE_DATA_API_KEY;
         if (!apiKey) {
-            console.error("[findMarketAssetsTool] Twelve Data API key is not configured.");
-            // Fallback to static data if API key is missing
-            return assets
-                .filter(a => a.country === market && a.category === 'Stocks')
-                .map(a => ({ ticker: a.ticker, name: a.name }));
+            console.error("[findMarketAssetsTool] Twelve Data API key is not configured. Cannot fetch live data.");
+            // Return an empty list if API key is missing to avoid using stale/static data
+            return [];
         }
 
         const exchangeMap = {
@@ -195,18 +197,17 @@ export const findMarketAssetsTool = ai.defineTool(
                     ticker: asset.symbol,
                     name: asset.name,
                 }));
-                // Return the English list directly.
+                // Return the English list directly from the API.
                 return assetList;
             } else {
-                 console.warn(`[findMarketAssetsTool] No assets returned from Twelve Data for ${market}. Falling back to static data.`);
-                 throw new Error("Empty data from API");
+                 console.warn(`[findMarketAssetsTool] No assets returned from Twelve Data for ${market}.`);
+                 // Return empty list if API gives no data, to avoid using static list.
+                 return [];
             }
         } catch (error) {
-            console.error(`[findMarketAssetsTool] Error fetching from Twelve Data API, using fallback data. Error:`, error);
-            // Fallback to our large static list if the API fails
-            return assets
-                .filter(a => a.country === market && a.category === 'Stocks')
-                .map(a => ({ ticker: a.ticker, name: a.name }));
+            console.error(`[findMarketAssetsTool] Error fetching from Twelve Data API. Error:`, error);
+            // Return empty list on error to enforce live-data-only policy.
+            return [];
         }
     }
 );

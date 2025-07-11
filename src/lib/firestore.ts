@@ -17,7 +17,8 @@ export interface PortfolioDetails {
 export interface PortfolioAsset {
   id: string
   name: string
-  ticker: string | null; // Added for reliable matching
+  ticker: string | null;
+  category: string;
   purchasePrice: number
   quantity?: number | null
 }
