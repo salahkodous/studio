@@ -180,7 +180,7 @@ export const findMarketAssetsTool = ai.defineTool(
             QA: 'QSE',
         };
         const exchange = exchangeMap[market];
-        const url = `https://api.twelvedata.com/stocks?exchange=${exchange}&country=${market}`;
+        const url = `https://api.twelvedata.com/stocks?exchange=${exchange}&country=${market}&type=stock`;
         
         try {
             console.log(`[findMarketAssetsTool] Fetching assets for ${market} from Twelve Data API...`);
@@ -191,10 +191,12 @@ export const findMarketAssetsTool = ai.defineTool(
             const result = await response.json();
             
             if (result && result.data && Array.isArray(result.data) && result.data.length > 0) {
-                 return result.data.map((asset: any) => ({
+                 const assetList = result.data.map((asset: any) => ({
                     ticker: asset.symbol,
                     name: asset.name,
                 }));
+                // Return the English list directly.
+                return assetList;
             } else {
                  console.warn(`[findMarketAssetsTool] No assets returned from Twelve Data for ${market}. Falling back to static data.`);
                  throw new Error("Empty data from API");
@@ -208,3 +210,5 @@ export const findMarketAssetsTool = ai.defineTool(
         }
     }
 );
+
+    

@@ -47,10 +47,7 @@ const stockCountries = [
 ];
 
 // Define a unified type for available assets
-type AvailableAsset = {
-    ticker: string;
-    name: string;
-} | RealEstateCity;
+type AvailableAsset = Asset | RealEstateCity;
 
 
 export default function PortfolioDetailPage() {
@@ -87,12 +84,16 @@ export default function PortfolioDetailPage() {
     useEffect(() => {
         if (user && portfolioId) {
             const fetchDetails = async () => {
-                const details = await getPortfolio(user.uid, portfolioId);
-                if (details) {
-                    setPortfolioDetails(details);
-                } else {
-                    toast({ title: "المحفظة غير موجودة", description: "لم نتمكن من العثور على هذه المحفظة.", variant: 'destructive' })
-                    router.push('/portfolios');
+                try {
+                    const details = await getPortfolio(user.uid, portfolioId);
+                    if (details) {
+                        setPortfolioDetails(details);
+                    } else {
+                        toast({ title: "المحفظة غير موجودة", description: "لم نتمكن من العثور على هذه المحفظة.", variant: 'destructive' })
+                        router.push('/portfolios');
+                    }
+                } catch (e) {
+                     toast({ title: "خطأ", description: "لا يمكن تحميل تفاصيل المحفظة.", variant: 'destructive' })
                 }
             }
             fetchDetails();
@@ -127,7 +128,11 @@ export default function PortfolioDetailPage() {
         try {
             if (category === 'Stocks' && country) {
                 const foundAssets = await findMarketAssetsTool({ market: country as 'SA' | 'AE' | 'QA' });
-                setAvailableAssets(foundAssets);
+                // We need to map the found assets to our internal `Asset` type
+                const matchedAssets = foundAssets
+                    .map(fa => assets.find(a => a.ticker === fa.ticker))
+                    .filter((a): a is Asset => !!a);
+                setAvailableAssets(matchedAssets);
             } else if (category === 'Real Estate') {
                 setAvailableAssets(realEstateData);
             } else {
@@ -148,7 +153,7 @@ export default function PortfolioDetailPage() {
         setSelectedCategory(categoryId);
         if (categoryId === 'Stocks') {
             setStep(2);
-        } else if (categoryId === 'Real Estate' || categoryId === 'Gold' || categoryId === 'Bonds') {
+        } else if (['Real Estate', 'Gold', 'Bonds'].includes(categoryId)) {
             fetchAssetsForCategory(categoryId);
             setStep(3);
         } else { // 'Other'
@@ -176,12 +181,15 @@ export default function PortfolioDetailPage() {
     const handleAddAsset = async (data: AddAssetFormValues) => {
         if (!user) return;
 
-        const name = selectedAsset ? selectedAsset.name : data.name;
-        const ticker = selectedAsset && 'ticker' in selectedAsset ? selectedAsset.ticker : null;
+        const assetTicker = selectedAsset && 'ticker' in selectedAsset 
+            ? selectedAsset.ticker 
+            : selectedAsset && 'cityKey' in selectedAsset 
+            ? selectedAsset.cityKey
+            : null;
 
         const assetPayload: Omit<PortfolioAsset, 'id'> = {
-            name: name,
-            ticker: ticker, // Store the ticker explicitly
+            name: selectedAsset ? selectedAsset.name : data.name,
+            ticker: assetTicker,
             purchasePrice: data.purchasePrice,
             quantity: data.quantity ?? null,
         };
@@ -200,59 +208,53 @@ export default function PortfolioDetailPage() {
          if (!user) return;
         try {
             await removeAssetFromPortfolio(user.uid, portfolioId, assetId);
-            toast({ title: "تم حذف الأصل", description: "تم حذف الأصل من المحفظة بنجاح.", variant: 'destructive' });
+            toast({ title: "تم حذف الأصل", description: "تم حذف الأصل من المحفظة.", variant: 'destructive' });
         } catch (error) {
             console.error("Error removing asset:", error);
-            toast({ title: "خطأ", description: "فشل في حذف الأصل. الرجاء المحاولة مرة أخرى.", variant: 'destructive' });
+            toast({ title: "خطأ", description: "فشل في حذف الأصل.", variant: 'destructive' });
         }
     }
     
     const enrichedAssets = useMemo(() => {
         return portfolioAssets.map(pa => {
             const purchaseValue = pa.purchasePrice;
-            let currentValue = purchaseValue;
-            let currency: Asset['currency'] = 'SAR'; // Default currency
             
-            // --- Robust Asset Matching Logic ---
-            let assetDetails: Asset | undefined;
+            // Find the master asset data using the reliable ticker
+            const assetDetails = pa.ticker ? assets.find(a => a.ticker === pa.ticker) : null;
 
-            // 1. Match by Ticker (most reliable)
-            if (pa.ticker) {
-                assetDetails = assets.find(a => a.ticker.toUpperCase() === pa.ticker!.toUpperCase());
-            }
-
-            // 2. Fallback to matching by Name (for legacy or manual assets)
             if (!assetDetails) {
-                 assetDetails = assets.find(a => a.name === pa.name);
+                 // It's a manual asset or real estate, handle it gracefully
+                 const isRealEstate = realEstateData.find(re => re.cityKey === pa.ticker);
+                 if (isRealEstate) {
+                     const currentValue = purchaseValue * 1.02; // Simulate small appreciation for real estate
+                     const change = currentValue - purchaseValue;
+                     const changePercent = purchaseValue > 0 ? (change / purchaseValue) * 100 : 0;
+                     return { ...pa, currentValue, purchaseValue, currency: isRealEstate.currency, change, changePercent };
+                 }
+                // For other manual assets, we can't calculate current value, so it remains the same as purchase.
+                return { ...pa, currentValue: purchaseValue, purchaseValue, currency: 'SAR', change: 0, changePercent: 0 };
             }
-            // --- End Matching Logic ---
 
-
-            if (assetDetails) {
-                currency = assetDetails.currency;
-                
-                // --- Value Calculation Logic ---
-                if (pa.quantity != null && pa.quantity > 0) {
-                    // If quantity is present, current value is quantity * current price
-                    currentValue = pa.quantity * assetDetails.price;
-                } else {
-                    // If no quantity, estimate value change based on percentage.
-                    // This is less accurate but provides a reasonable estimation for non-unitized assets.
-                    const changePercentNumeric = parseFloat(assetDetails.changePercent.replace('%', ''));
-                    currentValue = purchaseValue * (1 + changePercentNumeric / 100);
-                }
-
+            let currentValue: number;
+            // Value Calculation Logic
+            if (pa.quantity != null && pa.quantity > 0) {
+                // If quantity is present, current value is quantity * current price
+                currentValue = pa.quantity * assetDetails.price;
+            } else {
+                // If no quantity, estimate value change based on percentage.
+                const changePercentNumeric = parseFloat(assetDetails.changePercent.replace('%', ''));
+                currentValue = purchaseValue * (1 + changePercentNumeric / 100);
             }
-            // If assetDetails is not found, currentValue remains purchaseValue, and currency is default.
             
             const change = currentValue - purchaseValue;
             const changePercent = purchaseValue > 0 ? (change / purchaseValue) * 100 : 0;
             
-            return { ...pa, currentValue, purchaseValue, currency, change, changePercent };
+            return { ...pa, currentValue, purchaseValue, currency: assetDetails.currency, change, changePercent };
         }).filter(Boolean);
     }, [portfolioAssets]);
 
     const totals = useMemo(() => {
+        // Note: This total is a rough estimate and doesn't account for currency conversion.
         return enrichedAssets.reduce((acc, asset) => {
             if (asset) {
                 acc.totalPurchaseValue += asset.purchaseValue;
@@ -278,7 +280,7 @@ export default function PortfolioDetailPage() {
                     </CardHeader>
                     <CardContent>
                         <Button asChild>
-                            <a href="/portfolios">العودة إلى قائمة المحافظ</a>
+                            <Link href="/portfolios">العودة إلى قائمة المحافظ</Link>
                         </Button>
                     </CardContent>
                 </Card>
@@ -370,8 +372,8 @@ export default function PortfolioDetailPage() {
                             <form onSubmit={handleSubmit(handleAddAsset)}>
                                 <div className="grid gap-4 py-4">
                                 <div className="space-y-2">
-                                        <Label htmlFor="name">اسم الأصل / الرمز</Label>
-                                        <Input id="name" {...register('name')} placeholder="مثال: ARAMCO, عقار في جدة" disabled={selectedCategory !== 'Other'}/>
+                                        <Label htmlFor="name">اسم الأصل</Label>
+                                        <Input id="name" {...register('name')} placeholder="مثال: عقار في جدة" disabled={selectedCategory !== 'Other'}/>
                                         {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
                                 </div>
                                 <div className="space-y-2">
@@ -405,7 +407,7 @@ export default function PortfolioDetailPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{totals.totalCurrentValue.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-                        <p className="text-xs text-muted-foreground">مجموع تقديري. يتطلب تحويل عملات للوصول لقيمة دقيقة.</p>
+                        <p className="text-xs text-muted-foreground">مجموع تقديري. قد يتطلب تحويل عملات لقيمة دقيقة.</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -429,7 +431,7 @@ export default function PortfolioDetailPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{enrichedAssets.length}</div>
-                        <p className="text-xs text-muted-foreground">العدد الإجمالي للأصول المختلفة في المحفظة</p>
+                        <p className="text-xs text-muted-foreground">إجمالي الأصول المختلفة في المحفظة</p>
                     </CardContent>
                 </Card>
             </div>
@@ -525,3 +527,5 @@ function PageSkeleton() {
         </div>
     );
 }
+
+    
