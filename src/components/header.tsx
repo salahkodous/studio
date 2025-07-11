@@ -29,7 +29,6 @@ const navItems = [
   { href: '/portfolios', label: 'المحافظ', auth: true },
   { href: '/strategies', label: 'خططي الاستثمارية', auth: true },
   { href: '/news', label: 'أخبار السوق' },
-  { href: '/admin', label: 'Admin', auth: true }, // Added Admin link
 ];
 
 export function Header() {
