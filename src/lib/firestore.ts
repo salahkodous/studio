@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, arrayUnion, arrayRemove, collection, addDoc, getDocs, query, orderBy, Timestamp, onSnapshot, type Unsubscribe, writeBatch, deleteDoc } from "firebase/firestore";
-import { getFirestoreDb } from "./firebase";
+import { db as firestoreDb } from "./firebase"; // Import the initialized instance
 import type { InvestmentStrategyOutput } from "@/ai/schemas/investment-strategy-schema";
 
 export type SavedStrategy = InvestmentStrategyOutput & {
@@ -31,13 +31,13 @@ export interface PortfolioAsset {
  * @returns An unsubscribe function to detach the listener.
  */
 export function onWatchlistUpdate(userId: string, callback: (watchlist: string[]) => void): Unsubscribe | undefined {
-    const db = getFirestoreDb();
-    if (!db) {
+    if (!firestoreDb) {
+        console.error("Firestore is not initialized.");
         callback([]);
         return;
     }
 
-    const userDocRef = doc(db, "users", userId);
+    const userDocRef = doc(firestoreDb, "users", userId);
     const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
         if (docSnap.exists()) {
             callback(docSnap.data().watchlist || []);
@@ -59,10 +59,9 @@ export function onWatchlistUpdate(userId: string, callback: (watchlist: string[]
  * @param ticker - The stock ticker to add.
  */
 export async function addToWatchlist(userId: string, ticker: string) {
-    const db = getFirestoreDb();
-    if (!db) return;
+    if (!firestoreDb) throw new Error("Firestore is not initialized.");
 
-    const userDocRef = doc(db, "users", userId);
+    const userDocRef = doc(firestoreDb, "users", userId);
     await setDoc(userDocRef, {
         watchlist: arrayUnion(ticker)
     }, { merge: true });
@@ -74,10 +73,9 @@ export async function addToWatchlist(userId: string, ticker: string) {
  * @param ticker - The stock ticker to remove.
  */
 export async function removeFromWatchlist(userId: string, ticker: string) {
-    const db = getFirestoreDb();
-    if (!db) return;
+    if (!firestoreDb) throw new Error("Firestore is not initialized.");
 
-    const userDocRef = doc(db, "users", userId);
+    const userDocRef = doc(firestoreDb, "users", userId);
     await setDoc(userDocRef, {
         watchlist: arrayRemove(ticker)
     }, { merge: true });
@@ -92,10 +90,9 @@ export async function removeFromWatchlist(userId: string, ticker: string) {
  * @param name - The name of the new portfolio.
  */
 export async function createPortfolio(userId: string, name: string) {
-    const db = getFirestoreDb();
-    if (!db) throw new Error("Firestore is not initialized.");
+    if (!firestoreDb) throw new Error("Firestore is not initialized.");
 
-    const portfoliosColRef = collection(db, "users", userId, "portfolios");
+    const portfoliosColRef = collection(firestoreDb, "users", userId, "portfolios");
     await addDoc(portfoliosColRef, {
         name: name,
         createdAt: Date.now(),
@@ -109,15 +106,14 @@ export async function createPortfolio(userId: string, name: string) {
  * @param portfolioId The ID of the portfolio to delete.
  */
 export async function deletePortfolio(userId: string, portfolioId: string) {
-    const db = getFirestoreDb();
-    if (!db) throw new Error("Firestore is not initialized.");
+    if (!firestoreDb) throw new Error("Firestore is not initialized.");
 
-    const portfolioDocRef = doc(db, "users", userId, "portfolios", portfolioId);
+    const portfolioDocRef = doc(firestoreDb, "users", userId, "portfolios", portfolioId);
     
     // Optional: Delete all assets in the subcollection first
     const assetsColRef = collection(portfolioDocRef, "assets");
     const assetsSnapshot = await getDocs(assetsColRef);
-    const batch = writeBatch(db);
+    const batch = writeBatch(firestoreDb);
     assetsSnapshot.forEach(doc => batch.delete(doc.ref));
     await batch.commit();
 
@@ -133,12 +129,12 @@ export async function deletePortfolio(userId: string, portfolioId: string) {
  * @returns An unsubscribe function to detach the listener.
  */
 export function onPortfoliosUpdate(userId: string, callback: (portfolios: PortfolioDetails[]) => void): Unsubscribe | undefined {
-    const db = getFirestoreDb();
-    if (!db) {
+    if (!firestoreDb) {
+        console.error("Firestore is not initialized.");
         callback([]);
         return;
     }
-    const portfoliosColRef = collection(db, "users", userId, "portfolios");
+    const portfoliosColRef = collection(firestoreDb, "users", userId, "portfolios");
     const q = query(portfoliosColRef, orderBy("createdAt", "desc"));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -162,10 +158,9 @@ export function onPortfoliosUpdate(userId: string, callback: (portfolios: Portfo
  * @returns PortfolioDetails or null if not found.
  */
 export async function getPortfolio(userId: string, portfolioId: string): Promise<PortfolioDetails | null> {
-    const db = getFirestoreDb();
-    if (!db) return null;
+    if (!firestoreDb) throw new Error("Firestore is not initialized.");
 
-    const docRef = doc(db, "users", userId, "portfolios", portfolioId);
+    const docRef = doc(firestoreDb, "users", userId, "portfolios", portfolioId);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
@@ -184,12 +179,12 @@ export async function getPortfolio(userId: string, portfolioId: string): Promise
  * @returns An unsubscribe function to detach the listener.
  */
 export function onPortfolioAssetsUpdate(userId: string, portfolioId: string, callback: (assets: PortfolioAsset[]) => void): Unsubscribe | undefined {
-    const db = getFirestoreDb();
-    if (!db) {
+    if (!firestoreDb) {
+        console.error("Firestore is not initialized.");
         callback([]);
         return;
     }
-    const assetsColRef = collection(db, "users", userId, "portfolios", portfolioId, "assets");
+    const assetsColRef = collection(firestoreDb, "users", userId, "portfolios", portfolioId, "assets");
     
     const unsubscribe = onSnapshot(assetsColRef, (snapshot) => {
         const assets = snapshot.docs.map(doc => ({
@@ -212,14 +207,13 @@ export function onPortfolioAssetsUpdate(userId: string, portfolioId: string, cal
  * @param asset The asset data to add.
  */
 export async function addAssetToPortfolio(userId: string, portfolioId: string, asset: Omit<PortfolioAsset, 'id'>) {
-    const db = getFirestoreDb();
-    if (!db) throw new Error("Firestore is not initialized.");
+    if (!firestoreDb) throw new Error("Firestore is not initialized.");
 
-    const assetsColRef = collection(db, "users", userId, "portfolios", portfolioId, "assets");
+    const assetsColRef = collection(firestoreDb, "users", userId, "portfolios", portfolioId, "assets");
     await addDoc(assetsColRef, asset);
     
     // Update the portfolio's updatedAt timestamp
-    const portfolioDocRef = doc(db, "users", userId, "portfolios", portfolioId);
+    const portfolioDocRef = doc(firestoreDb, "users", userId, "portfolios", portfolioId);
     await setDoc(portfolioDocRef, { updatedAt: Date.now() }, { merge: true });
 }
 
@@ -230,14 +224,13 @@ export async function addAssetToPortfolio(userId: string, portfolioId: string, a
  * @param assetId The ID of the asset document to remove.
  */
 export async function removeAssetFromPortfolio(userId: string, portfolioId: string, assetId: string) {
-    const db = getFirestoreDb();
-    if (!db) throw new Error("Firestore is not initialized.");
+    if (!firestoreDb) throw new Error("Firestore is not initialized.");
 
-    const assetDocRef = doc(db, "users", userId, "portfolios", portfolioId, "assets", assetId);
+    const assetDocRef = doc(firestoreDb, "users", userId, "portfolios", portfolioId, "assets", assetId);
     await deleteDoc(assetDocRef);
 
     // Update the portfolio's updatedAt timestamp
-    const portfolioDocRef = doc(db, "users", userId, "portfolios", portfolioId);
+    const portfolioDocRef = doc(firestoreDb, "users", userId, "portfolios", portfolioId);
     await setDoc(portfolioDocRef, { updatedAt: Date.now() }, { merge: true });
 }
 
@@ -249,10 +242,9 @@ export async function removeAssetFromPortfolio(userId: string, portfolioId: stri
  * @param strategy - The investment strategy object to save.
  */
 export async function saveStrategy(userId: string, strategy: InvestmentStrategyOutput) {
-    const db = getFirestoreDb();
-    if (!db) return;
+    if (!firestoreDb) throw new Error("Firestore is not initialized.");
 
-    const strategiesCollectionRef = collection(db, "users", userId, "strategies");
+    const strategiesCollectionRef = collection(firestoreDb, "users", userId, "strategies");
     await addDoc(strategiesCollectionRef, {
         ...strategy,
         createdAt: Timestamp.fromDate(new Date()), // Store as a Firestore Timestamp
@@ -266,13 +258,13 @@ export async function saveStrategy(userId: string, strategy: InvestmentStrategyO
  * @returns An unsubscribe function to detach the listener.
  */
 export function onStrategiesUpdate(userId: string, callback: (strategies: SavedStrategy[]) => void): Unsubscribe | undefined {
-    const db = getFirestoreDb();
-    if (!db) {
+    if (!firestoreDb) {
+        console.error("Firestore is not initialized.");
         callback([]);
         return;
     }
 
-    const strategiesCollectionRef = collection(db, "users", userId, "strategies");
+    const strategiesCollectionRef = collection(firestoreDb, "users", userId, "strategies");
     const q = query(strategiesCollectionRef, orderBy("createdAt", "desc"));
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
