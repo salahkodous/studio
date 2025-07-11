@@ -151,21 +151,6 @@ export const getLatestNews = ai.defineTool(
   }
 );
 
-
-const translateToArabicPrompt = ai.definePrompt({
-  name: 'translateToArabicPrompt',
-  input: { schema: z.object({ assets: z.array(z.object({ ticker: z.string(), name: z.string() })) }) },
-  output: { schema: z.array(z.object({ ticker: z.string(), name: z.string() })) },
-  prompt: `Translate the 'name' of each company in the JSON array to Arabic. Keep the 'ticker' the same. Respond only with the translated JSON array.
-
-Input:
-{{{json assets}}}
-
-Translated Output (JSON array only):
-`,
-});
-
-
 export const findMarketAssetsTool = ai.defineTool(
     {
         name: 'findMarketAssetsTool',
@@ -196,8 +181,6 @@ export const findMarketAssetsTool = ai.defineTool(
         const exchange = exchangeMap[market];
         const url = `https://api.twelvedata.com/stocks?exchange=${exchange}&country=${market}`;
         
-        let englishAssets: { ticker: string; name: string }[] = [];
-
         try {
             console.log(`[findMarketAssetsTool] Fetching assets for ${market} from Twelve Data API...`);
             const response = await fetch(url);
@@ -207,7 +190,7 @@ export const findMarketAssetsTool = ai.defineTool(
             const result = await response.json();
             
             if (result && result.data && Array.isArray(result.data) && result.data.length > 0) {
-                 englishAssets = result.data.map((asset: any) => ({
+                 return result.data.map((asset: any) => ({
                     ticker: asset.symbol,
                     name: asset.name,
                 }));
@@ -222,26 +205,5 @@ export const findMarketAssetsTool = ai.defineTool(
                 .filter(a => a.country === market && a.category === 'Stocks')
                 .map(a => ({ ticker: a.ticker, name: a.name }));
         }
-
-        // If we have assets, try to translate them.
-        if (englishAssets.length > 0) {
-            try {
-                console.log(`[findMarketAssetsTool] Translating ${englishAssets.length} asset names to Arabic...`);
-                const { output } = await translateToArabicPrompt({ assets: englishAssets });
-
-                if (!output || output.length === 0) {
-                    console.warn(`[findMarketAssetsTool] AI translation returned empty or invalid data. Returning English names.`);
-                    return englishAssets; // Fallback to English names if translation fails
-                }
-
-                return output;
-            } catch (translationError) {
-                console.error(`[findMarketAssetsTool] AI translation step failed. Returning English names. Error:`, translationError);
-                return englishAssets; // Fallback to English names if translation step throws an error
-            }
-        }
-
-        // If we reached here, it means the API call succeeded but returned no data, so we return an empty array.
-        return [];
     }
 );
