@@ -47,7 +47,7 @@ const stockCountries = [
     { id: 'QA', label: 'قطر' },
 ];
 
-type AvailableAsset = Asset | RealEstateCity | { name: string; ticker: string };
+type AvailableAsset = Asset | RealEstateCity | { name: string; ticker: string; name_ar: string };
 
 
 export default function PortfolioDetailPage() {
@@ -114,6 +114,8 @@ export default function PortfolioDetailPage() {
 
             const stockAssets = portfolioAssets.filter(asset => asset.ticker && asset.category === 'Stocks');
             if (stockAssets.length === 0) return;
+            
+            console.log(`Fetching live prices for ${stockAssets.length} stock(s)`);
 
             const pricePromises = stockAssets.map(asset => getStockPrice({ ticker: asset.ticker!, companyName: asset.name }));
 
@@ -123,10 +125,13 @@ export default function PortfolioDetailPage() {
             results.forEach((result, index) => {
                 const stockAsset = stockAssets[index];
                 if (result.status === 'fulfilled' && stockAsset.ticker) {
+                    console.log(`Live price for ${stockAsset.ticker}:`, result.value.price);
                     newLivePrices[stockAsset.ticker] = {
                         price: result.value.price,
                         currency: result.value.currency,
                     };
+                } else if (result.status === 'rejected') {
+                    console.error(`Failed to fetch price for ${stockAsset.ticker}:`, result.reason);
                 }
             });
             setLivePrices(newLivePrices);
@@ -197,7 +202,7 @@ export default function PortfolioDetailPage() {
         const foundAsset = availableAssets.find(a => ('ticker' in a ? a.ticker : a.cityKey) === assetIdentifier);
         if (foundAsset) {
             setSelectedAsset(foundAsset);
-            setFormValue('name', foundAsset.name);
+            setFormValue('name', 'name_ar' in foundAsset ? foundAsset.name_ar : foundAsset.name);
             setStep(4);
         }
     }
@@ -212,7 +217,7 @@ export default function PortfolioDetailPage() {
             : null;
 
         const assetPayload: Omit<PortfolioAsset, 'id'> = {
-            name: selectedAsset ? selectedAsset.name : data.name,
+            name: selectedAsset ? ('name_ar' in selectedAsset ? selectedAsset.name_ar : selectedAsset.name) : data.name,
             ticker: assetTicker,
             category: selectedCategory!,
             purchasePrice: data.purchasePrice,
@@ -260,7 +265,8 @@ export default function PortfolioDetailPage() {
                     currentValue = purchaseValue * changeRatio;
                 }
             } else if (staticAssetDetails) {
-                if (pa.quantity != null && pa.quantity > 0) {
+                 currency = staticAssetDetails.currency;
+                 if (pa.quantity != null && pa.quantity > 0) {
                     currentValue = pa.quantity * staticAssetDetails.price;
                 } else {
                     currentValue = purchaseValue;
@@ -373,8 +379,8 @@ export default function PortfolioDetailPage() {
                                         </SelectTrigger>
                                         <SelectContent>
                                             {availableAssets.map(asset => (
-                                                <SelectItem key={'ticker' in asset ? asset.ticker : asset.cityKey} value={'ticker' in asset ? asset.ticker : asset.cityKey}>
-                                                    {asset.name}{'ticker' in asset && ` (${asset.ticker})`}
+                                                <SelectItem key={'ticker' in asset ? asset.ticker : ('cityKey' in asset ? asset.cityKey : asset.name)} value={'ticker' in asset ? asset.ticker : ('cityKey' in asset ? asset.cityKey : asset.name)}>
+                                                    {'name_ar' in asset ? asset.name_ar : asset.name}{'ticker' in asset && ` (${asset.ticker})`}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
