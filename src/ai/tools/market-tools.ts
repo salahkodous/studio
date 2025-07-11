@@ -152,7 +152,7 @@ export const getLatestNews = ai.defineTool(
 export const findMarketAssetsTool = ai.defineTool(
     {
         name: 'findMarketAssetsTool',
-        description: 'Finds a list of all publicly traded stocks for a given market (country) from a reliable internal list.',
+        description: 'Finds a list of publicly traded stocks for a given market by querying the Twelve Data API, with a fallback to a static list.',
         inputSchema: z.object({
             market: z.enum(['SA', 'AE', 'QA']).describe('The stock market to search (SA: Saudi Arabia, AE: UAE, QA: Qatar).'),
         }),
@@ -162,9 +162,45 @@ export const findMarketAssetsTool = ai.defineTool(
         })),
     },
     async ({ market }) => {
-        console.log(`[findMarketAssetsTool] Using static fallback data for market: ${market}`);
-        return assets
-            .filter(a => a.country === market && a.category === 'Stocks')
-            .map(a => ({ ticker: a.ticker, name: a.name }));
+        const apiKey = process.env.TWELVE_DATA_API_KEY;
+        if (!apiKey) {
+            console.error("[findMarketAssetsTool] Twelve Data API key is not configured.");
+            // Fallback to static data if API key is missing
+            return assets
+                .filter(a => a.country === market && a.category === 'Stocks')
+                .map(a => ({ ticker: a.ticker, name: a.name }));
+        }
+
+        const exchangeMap = {
+            SA: 'Tadawul',
+            AE: 'DFM',
+            QA: 'QSE',
+        };
+        const exchange = exchangeMap[market];
+        const url = `https://api.twelvedata.com/stocks?exchange=${exchange}&country=${market}`;
+
+        try {
+            console.log(`[findMarketAssetsTool] Fetching assets for ${market} from Twelve Data API...`);
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`API call failed with status: ${response.status}`);
+            }
+            const result = await response.json();
+            
+            if (result && result.data && Array.isArray(result.data) && result.data.length > 0) {
+                 return result.data.map((asset: any) => ({
+                    ticker: asset.symbol,
+                    name: asset.name,
+                }));
+            } else {
+                 console.warn(`[findMarketAssetsTool] No assets returned from Twelve Data for ${market}. Falling back to static data.`);
+                 throw new Error("Empty data from API");
+            }
+        } catch (error) {
+            console.error(`[findMarketAssetsTool] Error fetching from Twelve Data API, using fallback data. Error:`, error);
+            return assets
+                .filter(a => a.country === market && a.category === 'Stocks')
+                .map(a => ({ ticker: a.ticker, name: a.name }));
+        }
     }
 );
