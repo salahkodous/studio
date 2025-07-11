@@ -84,36 +84,35 @@ export const getStockPrice = ai.defineTool(
     const apiKey = process.env.TWELVE_DATA_API_KEY;
     const assetDetails = assets.find(a => a.ticker === ticker);
 
-    if (!apiKey) {
-      console.error(`[getStockPriceTool] Twelve Data API key not configured. Cannot fetch live price.`);
-      // Return a zero price or handle error appropriately if API key is missing
-      return { price: assetDetails?.price || 0, currency: assetDetails?.currency || 'USD', sourceUrl: `https://twelvedata.com/` };
+    if (apiKey) {
+      const exchange = assetDetails?.country === 'SA' ? 'Tadawul' : assetDetails?.country === 'QA' ? 'QSE' : 'DFM';
+      const url = `https://api.twelvedata.com/price?symbol=${ticker}&exchange=${exchange}&apikey=${apiKey}`;
+      
+      try {
+          const response = await fetch(url);
+          if (!response.ok) {
+              throw new Error(`API call failed with status ${response.status}`);
+          }
+          const data = await response.json();
+          
+          if (data.price) {
+              return {
+                  price: parseFloat(data.price),
+                  currency: assetDetails?.currency || 'USD',
+                  sourceUrl: `https://twelvedata.com/symbol/${ticker}/${exchange}`,
+              };
+          } else {
+               throw new Error(`Twelve Data API did not return a price for ${ticker}.`);
+          }
+      } catch (error) {
+          console.error(`[getStockPriceTool] Error fetching from Twelve Data API for ${ticker}, falling back to static data:`, error);
+      }
+    } else {
+        console.warn(`[getStockPriceTool] Twelve Data API key not configured. Using static data.`);
     }
-    
-    const exchange = assetDetails?.country === 'SA' ? 'Tadawul' : assetDetails?.country === 'QA' ? 'QSE' : 'DFM';
-    const url = `https://api.twelvedata.com/price?symbol=${ticker}&exchange=${exchange}&apikey=${apiKey}`;
-    
-    try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`API call failed with status ${response.status}`);
-        }
-        const data = await response.json();
-        
-        if (data.price) {
-            return {
-                price: parseFloat(data.price),
-                currency: assetDetails?.currency || 'USD',
-                sourceUrl: `https://twelvedata.com/symbol/${ticker}/${exchange}`,
-            };
-        } else {
-             throw new Error(`Twelve Data API did not return a price for ${ticker}.`);
-        }
-    } catch (error) {
-        console.error(`[getStockPriceTool] Error fetching from Twelve Data API for ${ticker}:`, error);
-        // Fallback to static price from data.ts ONLY if API call fails
-        return { price: assetDetails?.price || 0, currency: assetDetails?.currency || 'USD', sourceUrl: `https://twelvedata.com/` };
-    }
+
+    // Fallback to static price from data.ts ONLY if API call fails or key is missing
+    return { price: assetDetails?.price || 0, currency: assetDetails?.currency || 'USD', sourceUrl: `https://twelvedata.com/` };
   }
 );
 
@@ -171,9 +170,8 @@ export const findMarketAssetsTool = ai.defineTool(
     async ({ market }) => {
         const apiKey = process.env.TWELVE_DATA_API_KEY;
         if (!apiKey) {
-            console.error("[findMarketAssetsTool] Twelve Data API key is not configured. Cannot fetch live data.");
-            // Return an empty list if API key is missing to avoid using stale/static data
-            return [];
+            console.error("[findMarketAssetsTool] Twelve Data API key is not configured. Returning static data.");
+            return assets.filter(a => a.country === market).map(a => ({ ticker: a.ticker, name: a.name }));
         }
 
         const exchangeMap = {
@@ -200,14 +198,12 @@ export const findMarketAssetsTool = ai.defineTool(
                 // Return the English list directly from the API.
                 return assetList;
             } else {
-                 console.warn(`[findMarketAssetsTool] No assets returned from Twelve Data for ${market}.`);
-                 // Return empty list if API gives no data, to avoid using static list.
-                 return [];
+                 console.warn(`[findMarketAssetsTool] No assets returned from Twelve Data for ${market}. Falling back to static data.`);
+                 return assets.filter(a => a.country === market).map(a => ({ ticker: a.ticker, name: a.name }));
             }
         } catch (error) {
-            console.error(`[findMarketAssetsTool] Error fetching from Twelve Data API. Error:`, error);
-            // Return empty list on error to enforce live-data-only policy.
-            return [];
+            console.error(`[findMarketAssetsTool] Error fetching from Twelve Data API. Falling back to static data. Error:`, error);
+            return assets.filter(a => a.country === market).map(a => ({ ticker: a.ticker, name: a.name }));
         }
     }
 );
