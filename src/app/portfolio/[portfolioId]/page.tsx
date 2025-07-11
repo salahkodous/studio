@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import Link from 'next/link'
 import { useAuth } from '@/hooks/use-auth'
 import { getPortfolio, onPortfolioAssetsUpdate, removeAssetFromPortfolio, addAssetToPortfolio, type PortfolioAsset, type PortfolioDetails } from '@/lib/firestore'
 import { assets, type Asset, realEstateData, type RealEstateCity } from '@/lib/data'
@@ -527,5 +528,7 @@ function PageSkeleton() {
         </div>
     );
 }
+
+    
 
     
