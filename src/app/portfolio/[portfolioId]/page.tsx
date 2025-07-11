@@ -177,11 +177,15 @@ export default function PortfolioDetailPage() {
         if (!user) return;
 
         // Use the selected asset's details if available, otherwise use form data
-        const name = selectedAsset ? selectedAsset.name : data.name;
+        let name = selectedAsset ? selectedAsset.name : data.name;
         const ticker = selectedAsset && 'ticker' in selectedAsset ? selectedAsset.ticker : null;
 
+        if (ticker && !name.includes(`(${ticker})`)) {
+            name = `${name} (${ticker})`;
+        }
+
         const assetPayload: Omit<PortfolioAsset, 'id'> = {
-            name: ticker ? `${name} (${ticker})` : name,
+            name: name,
             purchasePrice: data.purchasePrice,
             quantity: data.quantity ?? null,
         };
@@ -212,25 +216,35 @@ export default function PortfolioDetailPage() {
             let currentValue, currency;
             const purchaseValue = pa.purchasePrice;
             
+            // Extract ticker from name like "Some Asset (TICKER)"
+            const tickerMatch = pa.name.match(/\(([^)]+)\)$/);
+            const ticker = tickerMatch ? tickerMatch[1] : null;
+
             const assetDetails = assets.find(a => 
-                pa.name.includes(`(${a.ticker})`) || 
+                (ticker && a.ticker.toUpperCase() === ticker.toUpperCase()) || 
                 a.name.toLowerCase() === pa.name.toLowerCase()
             );
 
             if (assetDetails) { 
                 currency = assetDetails.currency;
+                // If it's a stock and we have quantity, calculate total value
                 if (assetDetails.category === 'Stocks' && pa.quantity) {
                     currentValue = pa.quantity * assetDetails.price;
-                } else if (assetDetails.category === 'Savings Certificates') {
+                } 
+                // For savings certificates, apply yield
+                else if (assetDetails.category === 'Savings Certificates') {
                     currentValue = pa.purchasePrice * (1 + (assetDetails.annualYield || 0));
-                } else {
+                } 
+                // For other assets without quantity, calculate value based on price change ratio
+                else {
                     const originalPrice = assetDetails.price - parseFloat(assetDetails.change);
                     const changeRatio = originalPrice > 0 ? assetDetails.price / originalPrice : 1;
                     currentValue = pa.purchasePrice * changeRatio;
                 }
             } else { 
+                // If no details found (e.g., manually added asset), current value is same as purchase
                 currentValue = pa.purchasePrice; 
-                currency = 'SAR'; 
+                currency = 'SAR'; // Default currency
             }
 
             const change = currentValue - purchaseValue;
