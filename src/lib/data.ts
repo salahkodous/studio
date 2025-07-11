@@ -1,6 +1,7 @@
 export interface Asset {
   ticker: string
   name: string
+  name_ar: string
   price: number
   change: string
   changePercent: string
@@ -27,104 +28,371 @@ export const realEstateData: RealEstateCity[] = [
     { cityKey: 'DOHA', name: 'Doha', country: 'QA', pricePerSqM: 15000, currency: 'QAR'},
 ];
 
-export const assets: Asset[] = [
-  // Saudi Stocks (SA) - Tickers are official
-  {
-    ticker: '2222', name: 'Saudi Aramco', price: 28.55, change: '-0.15', changePercent: '-0.52%', trend: 'down', currency: 'SAR', category: 'Stocks', country: 'SA',
-  },
-  {
-    ticker: '1120', name: 'Al Rajhi Bank', price: 78.70, change: '+0.20', changePercent: '+0.25%', trend: 'up', currency: 'SAR', category: 'Stocks', country: 'SA',
-  },
-  {
-    ticker: '1180', name: 'Saudi National Bank', price: 37.05, change: '-0.20', changePercent: '-0.54%', trend: 'down', currency: 'SAR', category: 'Stocks', country: 'SA',
-  },
-  {
-    ticker: '7010', name: 'Saudi Telecom Company', price: 37.95, change: '+0.15', changePercent: '+0.40%', trend: 'up', currency: 'SAR', category: 'Stocks', country: 'SA',
-  },
-  {
-    ticker: '2010', name: 'SABIC', price: 73.80, change: '-0.10', changePercent: '-0.14%', trend: 'down', currency: 'SAR', category: 'Stocks', country: 'SA',
-  },
-  {
-    ticker: '1211', name: 'Maaden', price: 44.20, change: '-0.45', changePercent: '-1.01%', trend: 'down', currency: 'SAR', category: 'Stocks', country: 'SA',
-  },
-  {
-    ticker: '1010', name: 'Riyad Bank', price: 26.50, change: '0.00', changePercent: '0.00%', trend: 'stable', currency: 'SAR', category: 'Stocks', country: 'SA',
-  },
-  {
-    ticker: '2082', name: 'ACWA Power', price: 380.00, change: '-5.00', changePercent: '-1.30%', trend: 'down', currency: 'SAR', category: 'Stocks', country: 'SA',
-  },
-  {
-    ticker: '1150', name: 'Banque Saudi Fransi', price: 39.00, change: '+0.50', changePercent: '+1.30%', trend: 'up', currency: 'SAR', category: 'Stocks', country: 'SA',
-  },
-  {
-    ticker: '4001', name: 'Saudi Cement', price: 45.00, change: '0.00', changePercent: '0.00%', trend: 'stable', currency: 'SAR', category: 'Stocks', country: 'SA',
-  },
-  {
-    ticker: '4002', name: 'Yamama Cement', price: 30.00, change: '-0.20', changePercent: '-0.66%', trend: 'down', currency: 'SAR', category: 'Stocks', country: 'SA',
-  },
-  {
-    ticker: '6010', name: 'Jarir Marketing', price: 150.00, change: '+1.00', changePercent: '+0.67%', trend: 'up', currency: 'SAR', category: 'Stocks', country: 'SA',
-  },
+const getCountryCode = (market: string): 'SA' | 'AE' | 'QA' => {
+  switch (market) {
+    case 'Saudi Arabia':
+      return 'SA';
+    case 'UAE':
+      return 'AE';
+    case 'Qatar':
+      return 'QA';
+    default:
+      return 'SA';
+  }
+}
 
-  // Qatar Stocks (QA) - Tickers are official
-  {
-    ticker: 'QNBK', name: 'Qatar National Bank', price: 13.78, change: '+0.03', changePercent: '+0.22%', trend: 'up', currency: 'QAR', category: 'Stocks', country: 'QA',
-  },
-  {
-    ticker: 'IQCD', name: 'Industries Qatar', price: 13.00, change: '-0.05', changePercent: '-0.38%', trend: 'down', currency: 'QAR', category: 'Stocks', country: 'QA',
-  },
-  {
-    ticker: 'QIBK', name: 'Qatar Islamic Bank', price: 22.1, change: '+0.10', changePercent: '+0.45%', trend: 'up', currency: 'QAR', category: 'Stocks', country: 'QA',
-  },
-  {
-    ticker: 'ORDS', name: 'Ooredoo', price: 10.1, change: '-0.05', changePercent: '-0.49%', trend: 'down', currency: 'QAR', category: 'Stocks', country: 'QA',
-  },
-  
-  // UAE Stocks (AE) - Tickers are official
-  {
-    ticker: 'EMAAR', name: 'Emaar Properties', price: 7.75, change: '-0.03', changePercent: '-0.39%', trend: 'down', currency: 'AED', category: 'Stocks', country: 'AE',
-  },
-  {
-    ticker: 'FAB', name: 'First Abu Dhabi Bank', price: 13.50, change: '+0.02', changePercent: '+0.15%', trend: 'up', currency: 'AED', category: 'Stocks', country: 'AE',
-  },
-  {
-    ticker: 'ADCB', name: 'Abu Dhabi Commercial Bank', price: 8.9, change: '+0.01', changePercent: '+0.11%', trend: 'up', currency: 'AED', category: 'Stocks', country: 'AE',
-  },
-  {
-    ticker: 'IHC', name: 'International Holding Company', price: 400.0, change: '+1.50', changePercent: '+0.38%', trend: 'up', currency: 'AED', category: 'Stocks', country: 'AE',
-  },
-  {
-    ticker: 'EAND', name: 'e& (Etisalat Group)', price: 18.00, change: '-0.10', changePercent: '-0.55%', trend: 'down', currency: 'AED', category: 'Stocks', country: 'AE',
-  },
+const getCurrency = (country: 'SA' | 'AE' | 'QA'): 'SAR' | 'AED' | 'QAR' => {
+    switch (country) {
+        case 'SA': return 'SAR';
+        case 'AE': return 'AED';
+        case 'QA': return 'QAR';
+        default: return 'SAR';
+    }
+}
 
+// Raw data from user CSV
+const rawAssets = [
+  { Symbol: '2222', 'English Name': 'Saudi Arabian Oil Company', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '1120', 'English Name': 'Al Rajhi Banking and Investment Corporation', 'Arabic Name': 'مصرف الإنماء', Market: 'Saudi Arabia' },
+  { Symbol: '1180', 'English Name': 'The Saudi National Bank', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '1211', 'English Name': 'Saudi Arabian Mining Company (Ma\'aden)', 'Arabic Name': 'معادن', Market: 'Saudi Arabia' },
+  { Symbol: '7010', 'English Name': 'Saudi Telecom Company', 'Arabic Name': 'اتحاد اتصالات (موبايلي)', Market: 'Saudi Arabia' },
+  { Symbol: '2082', 'English Name': 'ACWA Power Company', 'Arabic Name': 'شركة أكوا باور', Market: 'Saudi Arabia' },
+  { Symbol: '2010', 'English Name': 'Saudi Basic Industries Corporation', 'Arabic Name': 'بوان', Market: 'Saudi Arabia' },
+  { Symbol: '4013', 'English Name': 'Dr. Sulaiman Al Habib Medical Services Group Company', 'Arabic Name': 'الدرع العربي للتأمين التعاوني', Market: 'Saudi Arabia' },
+  { Symbol: '1010', 'English Name': 'Riyad Bank', 'Arabic Name': 'المراعي', Market: 'Saudi Arabia' },
+  { Symbol: '7203', 'English Name': 'Elm Company', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '1060', 'English Name': 'Saudi Kayan Petrochemical Company', 'Arabic Name': 'مصرف الراجحي', Market: 'Saudi Arabia' },
+  { Symbol: '1150', 'English Name': 'Saudi Awwal Bank', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '5110', 'English Name': 'Saudi Electricity Company', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '2020', 'English Name': 'Yanbu National Petrochemical Company (Yansab)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '2280', 'English Name': 'Saudi Arabian Fertilizer Company (SAFCO)', 'Arabic Name': 'اللجين', Market: 'Saudi Arabia' },
+  { Symbol: '7020', 'English Name': 'Mobily', 'Arabic Name': 'المملكة القابضة', Market: 'Saudi Arabia' },
+  { Symbol: '1050', 'English Name': 'Banque Saudi Fransi', 'Arabic Name': 'البنك السعودي الفرنسي', Market: 'Saudi Arabia' },
+  { Symbol: '1080', 'English Name': 'Arab National Bank', 'Arabic Name': 'البنك العربي الوطني', Market: 'Saudi Arabia' },
+  { Symbol: '1140', 'English Name': 'Bank Aljazira', 'Arabic Name': 'بنك البلاد', Market: 'Saudi Arabia' },
+  { Symbol: '4325', 'English Name': 'Alinma Bank', 'Arabic Name': 'الإنماء طوكيو مارين', Market: 'Saudi Arabia' },
+  { Symbol: '4280', 'English Name': 'Saudi Arabian Refineries Company', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '7202', 'English Name': 'Solutions by STC', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '8210', 'English Name': 'Saudi Ceramic Company', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4250', 'English Name': 'Saudi Industrial Investment Group', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '8010', 'English Name': 'Saudi Arabian Airlines Catering Company', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4030', 'English Name': 'Saudi Arabian Glass Company', 'Arabic Name': 'بدجت السعودية', Market: 'Saudi Arabia' },
+  { Symbol: '4300', 'English Name': 'Saudi Paper Manufacturing Company', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '1111', 'English Name': 'Saudi British Bank (SABB)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4142', 'English Name': 'Saudi Industrial Development Company (SIDC)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '6015', 'English Name': 'Saudi Research and Marketing Group', 'Arabic Name': 'مجموعة فتيحي', Market: 'Saudi Arabia' },
+  { Symbol: '4100', 'English Name': 'Saudi Chemical Company', 'Arabic Name': 'الشركة السعودية للمنتجات الغذائية', Market: 'Saudi Arabia' },
+  { Symbol: '1030', 'English Name': 'Bank Albilad', 'Arabic Name': 'الخليجية العامة للتأمين التعاوني', Market: 'Saudi Arabia' },
+  { Symbol: '2223', 'English Name': 'Saudi Aramco Base Oil Company (Luberef)', 'Arabic Name': 'البحري', Market: 'Saudi Arabia' },
+  { Symbol: '2290', 'English Name': 'Saudi International Petrochemical Company (Sipchem)', 'Arabic Name': 'كيمانول', Market: 'Saudi Arabia' },
+  { Symbol: '4164', 'English Name': 'Saudi Arabian Amiantit Company', 'Arabic Name': 'أسمنت المدينة', Market: 'Saudi Arabia' },
+  { Symbol: '1020', 'English Name': 'Alinma Tokio Marine Company', 'Arabic Name': 'دار الأركان للتطوير العقاري', Market: 'Saudi Arabia' },
+  { Symbol: '4002', 'English Name': 'Saudi Basic Industries Corporation (SABIC) Agri-Nutrients', 'Arabic Name': 'دله الصحية', Market: 'Saudi Arabia' },
+  { Symbol: '4210', 'English Name': 'Saudi Arabian Packaging Industry Company (SAPIN)', 'Arabic Name': 'الدكتور سليمان الحبيب للخدمات الطبية', Market: 'Saudi Arabia' },
+  { Symbol: '4190', 'English Name': 'Saudi Arabian Fertilizers Marketing Company (MA\'ADEN)', 'Arabic Name': 'أنابيب الشرق المتكاملة للصناعة', Market: 'Saudi Arabia' },
+  { Symbol: '4263', 'English Name': 'Saudi Arabian Cooperative Insurance Company (SAICO)', 'Arabic Name': 'الصناعات الكهربائية', Market: 'Saudi Arabia' },
+  { Symbol: '2382', 'English Name': 'Saudi Arabian Oil Company (Aramco)', 'Arabic Name': 'علم', Market: 'Saudi Arabia' },
+  { Symbol: '2310', 'English Name': 'Saudi Arabian Mining Company (Ma\'aden)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4264', 'English Name': 'Saudi Arabian Cooperative Insurance Company (SAICO)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4200', 'English Name': 'Saudi Arabian Marketing and Agencies Company (SAMAC)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4004', 'English Name': 'Saudi Arabian Glass Company', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '2380', 'English Name': 'Rabigh Refining and Petrochemical Company (Petro Rabigh)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '1212', 'English Name': 'Saudi Arabian Oil Company (Aramco)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '8230', 'English Name': 'Saudi Ceramic Company', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4072', 'English Name': 'Saudi Arabian Cooperative Insurance Company (SAICO)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4015', 'English Name': 'Saudi Arabian Cooperative Insurance Company (SAICO)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '2250', 'English Name': 'Saudi Arabian Fertilizer Company (SAFCO)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4090', 'English Name': 'Saudi Chemical Company', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '2083', 'English Name': 'ACWA Power Company', 'Arabic Name': 'الحفر العربية', Market: 'Saudi Arabia' },
+  { Symbol: '4321', 'English Name': 'Alinma Bank', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '1303', 'English Name': 'United Wire Factories Company', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '6004', 'English Name': 'Saudi Research and Marketing Group', 'Arabic Name': 'جرير للتسويق', Market: 'Saudi Arabia' },
+  { Symbol: '7030', 'English Name': 'Mobily', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4031', 'English Name': 'Saudi Arabian Glass Company', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4017', 'English Name': 'Saudi Arabian Cooperative Insurance Company (SAICO)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '2270', 'English Name': 'Saudi Arabian Fertilizer Company (SAFCO)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '2050', 'English Name': 'Yanbu National Petrochemical Company (Yansab)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '2330', 'English Name': 'Saudi International Petrochemical Company (Sipchem)', 'Arabic Name': 'الشركة المتقدمة للبتروكيماويات', Market: 'Saudi Arabia' },
+  { Symbol: '4322', 'English Name': 'Alinma Bank', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '2381', 'English Name': 'Rabigh Refining and Petrochemical Company (Petro Rabigh)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4150', 'English Name': 'Saudi Industrial Development Company (SIDC)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4020', 'English Name': 'Saudi Arabian Glass Company', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4220', 'English Name': 'Saudi Arabian Packaging Industry Company (SAPIN)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '2350', 'English Name': 'Saudi International Petrochemical Company (Sipchem)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4005', 'English Name': 'Saudi Basic Industries Corporation (SABIC) Agri-Nutrients', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '1830', 'English Name': 'Saudi Arabian Oil Company (Aramco)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '3020', 'English Name': 'Saudi Arabian Mining Company (Ma\'aden)', 'Arabic Name': 'الأسمنت العربية', Market: 'Saudi Arabia' },
+  { Symbol: '4018', 'English Name': 'Saudi Arabian Cooperative Insurance Company (SAICO)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4291', 'English Name': 'Saudi Arabian Cooperative Insurance Company (SAICO)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4161', 'English Name': 'Saudi Industrial Development Company (SIDC)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '8313', 'English Name': 'Saudi Ceramic Company', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4001', 'English Name': 'Saudi Basic Industries Corporation (SABIC) Agri-Nutrients', 'Arabic Name': 'أسواق عبدالله العثيم', Market: 'Saudi Arabia' },
+  { Symbol: '1810', 'English Name': 'Saudi Arabian Oil Company (Aramco)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4003', 'English Name': 'Saudi Basic Industries Corporation (SABIC) Agri-Nutrients', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4163', 'English Name': 'Saudi Industrial Development Company (SIDC)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4084', 'English Name': 'Saudi Arabian Cooperative Insurance Company (SAICO)', 'Arabic Name': 'فواز عبدالعزيز الحكير', Market: 'Saudi Arabia' },
+  { Symbol: '6010', 'English Name': 'Saudi Research and Marketing Group', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '2060', 'English Name': 'Yanbu National Petrochemical Company (Yansab)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '3030', 'English Name': 'Saudi Arabian Mining Company (Ma\'aden)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '2230', 'English Name': 'Saudi Arabian Fertilizer Company (SAFCO)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4007', 'English Name': 'Saudi Basic Industries Corporation (SABIC) Agri-Nutrients', 'Arabic Name': 'الحمادي القابضة', Market: 'Saudi Arabia' },
+  { Symbol: '1322', 'English Name': 'United Wire Factories Company', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4071', 'English Name': 'Saudi Arabian Cooperative Insurance Company (SAICO)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '2080', 'English Name': 'ACWA Power Company', 'Arabic Name': 'الشرق الأوسط للورق (مبكو)', Market: 'Saudi Arabia' },
+  { Symbol: '6017', 'English Name': 'Saudi Research and Marketing Group', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '8200', 'English Name': 'Saudi Ceramic Company', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4260', 'English Name': 'Saudi Arabian Cooperative Insurance Company (SAICO)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '3040', 'English Name': 'Saudi Arabian Mining Company (Ma\'aden)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4009', 'English Name': 'Saudi Basic Industries Corporation (SABIC) Agri-Nutrients', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '2081', 'English Name': 'ACWA Power Company', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4310', 'English Name': 'Alinma Bank', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4162', 'English Name': 'Saudi Industrial Development Company (SIDC)', 'Arabic Name': 'ملاذ للتأمين التعاوني', Market: 'Saudi Arabia' },
+  { Symbol: '2084', 'English Name': 'ACWA Power Company', 'Arabic Name': 'إكسترا', Market: 'Saudi Arabia' },
+  { Symbol: '4083', 'English Name': 'Saudi Arabian Cooperative Insurance Company (SAICO)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '7200', 'English Name': 'Solutions by STC', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4050', 'English Name': 'Saudi Arabian Glass Company', 'Arabic Name': 'البنك الأهلي التجاري', Market: 'Saudi Arabia' },
+  { Symbol: '4193', 'English Name': 'Saudi Arabian Fertilizers Marketing Company (MA\'ADEN)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '1321', 'English Name': 'United Wire Factories Company', 'Arabic Name': 'الغاز والتصنيع الأهلية (غازكو)', Market: 'Saudi Arabia' },
+  { Symbol: '3050', 'English Name': 'Saudi Arabian Mining Company (Ma\'aden)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '3092', 'English Name': 'Saudi Arabian Mining Company (Ma\'aden)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4165', 'English Name': 'Saudi Industrial Development Company (SIDC)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4240', 'English Name': 'Saudi Arabian Packaging Industry Company (SAPIN)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '2320', 'English Name': 'Saudi International Petrochemical Company (Sipchem)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '4262', 'English Name': 'Saudi Arabian Cooperative Insurance Company (SAICO)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '7040', 'English Name': 'Mobily', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '1302', 'English Name': 'United Wire Factories Company', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '7204', 'English Name': 'Solutions by STC', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '2040', 'English Name': 'Yanbu National Petrochemical Company (Yansab)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '2283', 'English Name': 'Saudi Arabian Fertilizer Company (SAFCO)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '3060', 'English Name': 'Saudi Arabian Mining Company (Ma\'aden)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '2070', 'English Name': 'Yanbu National Petrochemical Company (Yansab)', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '1320', 'English Name': 'United Wire Factories Company', 'Arabic Name': '', Market: 'Saudi Arabia' },
+  { Symbol: '2190', 'English Name': 'Saudi International Petrochemical Company (Sipchem)', 'Arabic Name': 'التصنيع الوطنية (التصنيع)', Market: 'Saudi Arabia' },
+  { Symbol: '4261', 'English Name': 'Saudi Arabian Cooperative Insurance Company (SAICO)', 'Arabic Name': 'رعاية الوطنية للخدمات الطبية', Market: 'Saudi Arabia' },
+  { Symbol: '2240', 'English Name': 'Saudi Arabian Fertilizer Company (SAFCO)', 'Arabic Name': 'الشركة الوطنية السعودية للنقل البحري (البحري)', Market: 'Saudi Arabia' },
+  { Symbol: '9590', 'English Name': 'Saudi Arabian Cooperative Insurance Company (SAICO)', 'Arabic Name': 'أسمنت الشمالية', Market: 'Saudi Arabia' },
+  { Symbol: '2284', 'English Name': 'Saudi Arabian Fertilizer Company (SAFCO)', 'Arabic Name': 'رابغ للتكرير والبتروكيماويات (بترو رابغ)', Market: 'Saudi Arabia' },
+  { Symbol: '4292', 'English Name': 'Saudi Arabian Cooperative Insurance Company (SAICO)', 'Arabic Name': 'البحر الأحمر العالمية', Market: 'Saudi Arabia' },
+  { Symbol: '3080', 'English Name': 'Saudi Arabian Mining Company (Ma\'aden)', 'Arabic Name': 'بنك الرياض', Market: 'Saudi Arabia' },
+  { Symbol: '2170', 'English Name': 'Saudi International Petrochemical Company (Sipchem)', 'Arabic Name': 'سابك للمغذيات الزراعية', Market: 'Saudi Arabia' },
+  { Symbol: '9528', 'English Name': 'Saudi Arabian Cooperative Insurance Company (SAICO)', 'Arabic Name': 'الصحراء العالمية للبتروكيماويات (سبكيم)', Market: 'Saudi Arabia' },
+  { Symbol: '1202', 'English Name': 'Saudi Arabian Oil Company (Aramco)', 'Arabic Name': 'سلامة للتأمين التعاوني', Market: 'Saudi Arabia' },
+  { Symbol: '4192', 'English Name': 'Saudi Arabian Fertilizers Marketing Company (MA\'ADEN)', 'Arabic Name': 'أميانتيت العربية السعودية', Market: 'Saudi Arabia' },
+  { Symbol: '3003', 'English Name': 'Saudi Arabian Mining Company (Ma\'aden)', 'Arabic Name': 'شركة التعدين العربية السعودية (معادن)', Market: 'Saudi Arabia' },
+  { Symbol: '4016', 'English Name': 'Saudi Arabian Cooperative Insurance Company (SAICO)', 'Arabic Name': 'شركة الزيت العربية السعودية (أرامكو السعودية)', Market: 'Saudi Arabia' },
+  { Symbol: '2285', 'English Name': 'Saudi Arabian Fertilizer Company (SAFCO)', 'Arabic Name': 'الشركة السعودية للصناعات الأساسية (سابك)', Market: 'Saudi Arabia' },
+  { Symbol: '1834', 'English Name': 'Saudi Arabian Oil Company (Aramco)', 'Arabic Name': 'الخزف السعودي', Market: 'Saudi Arabia' },
+  { Symbol: '2300', 'English Name': 'Saudi International Petrochemical Company (Sipchem)', 'Arabic Name': 'الشركة السعودية للكيماويات', Market: 'Saudi Arabia' },
+  { Symbol: '3010', 'English Name': 'Saudi Arabian Mining Company (Ma\'aden)', 'Arabic Name': 'الشركة السعودية للكهرباء', Market: 'Saudi Arabia' },
+  { Symbol: '4340', 'English Name': 'Alinma Bank', 'Arabic Name': 'الشركة السعودية للتنمية الصناعية (سيدكو)', Market: 'Saudi Arabia' },
+  { Symbol: '1831', 'English Name': 'Saudi Arabian Oil Company (Aramco)', 'Arabic Name': 'كيان السعودية للبتروكيماويات', Market: 'Saudi Arabia' },
+  { Symbol: '2286', 'English Name': 'Saudi Arabian Fertilizer Company (SAFCO)', 'Arabic Name': 'الشركة السعودية لصناعة الورق', Market: 'Saudi Arabia' },
+  { Symbol: '4323', 'English Name': 'Alinma Bank', 'Arabic Name': 'المجموعة السعودية للأبحاث والتسويق', Market: 'Saudi Arabia' },
+  { Symbol: '8060', 'English Name': 'Saudi Ceramic Company', 'Arabic Name': 'شركة الاتصالات السعودية (STC)', Market: 'Saudi Arabia' },
+  { Symbol: '1833', 'English Name': 'Saudi Arabian Oil Company (Aramco)', 'Arabic Name': 'حلول إس تي سي', Market: 'Saudi Arabia' },
+  { Symbol: '8030', 'English Name': 'Saudi Ceramic Company', 'Arabic Name': 'أسمنت المنطقة الجنوبية', Market: 'Saudi Arabia' },
+  { Symbol: '4320', 'English Name': 'Alinma Bank', 'Arabic Name': 'سبيماكو', Market: 'Saudi Arabia' },
+  { Symbol: '1183', 'English Name': 'Saudi Awwal Bank', 'Arabic Name': 'البنك الأهلي السعودي (SNB)', Market: 'Saudi Arabia' },
+  { Symbol: '2281', 'English Name': 'Saudi Arabian Fertilizer Company (SAFCO)', 'Arabic Name': 'الشركة المتحدة لصناعة الأسلاك (أسلاك)', Market: 'Saudi Arabia' },
+  { Symbol: '9534', 'English Name': 'Saudi Arabian Cooperative Insurance Company (SAICO)', 'Arabic Name': 'ينبع الوطنية للبتروكيماويات (ينساب)', Market: 'Saudi Arabia' },
+  { Symbol: '4040', 'English Name': 'Saudi Arabian Glass Company', 'Arabic Name': 'أسمنت اليمامة', Market: 'Saudi Arabia' },
+  { Symbol: '9535', 'English Name': 'Saudi Arabian Cooperative Insurance Company (SAICO)', 'Arabic Name': 'الزامل للصناعة والاستثمار', Market: 'Saudi Arabia' },
+  { Symbol: '4143', 'English Name': 'Saudi Industrial Development Company (SIDC)', 'Arabic Name': 'الشركة السعودية للتأمين التعاوني (سايكو)', Market: 'Saudi Arabia' },
+  { Symbol: '1304', 'English Name': 'United Wire Factories Company', 'Arabic Name': 'الشركة المتحدة لصناعة الأسلاك', Market: 'Saudi Arabia' },
+  { Symbol: '1214', 'English Name': 'Saudi Arabian Oil Company (Aramco)', 'Arabic Name': 'شركة الزيت العربية السعودية (أرامكو)', Market: 'Saudi Arabia' },
+  { Symbol: '6002', 'English Name': 'Saudi Research and Marketing Group', 'Arabic Name': 'المجموعة السعودية للأبحاث والتسويق', Market: 'Saudi Arabia' },
+  { Symbol: '1835', 'English Name': 'Saudi Arabian Oil Company (Aramco)', 'Arabic Name': 'شركة الزيت العربية السعودية (أرامكو)', Market: 'Saudi Arabia' },
+  { Symbol: '4110', 'English Name': 'Saudi Industrial Development Company (SIDC)', 'Arabic Name': 'الشركة السعودية للتنمية الصناعية (سيدكو)', Market: 'Saudi Arabia' },
+  { Symbol: '2150', 'English Name': 'Saudi International Petrochemical Company (Sipchem)', 'Arabic Name': 'سبكيم العالمية للبتروكيماويات (سبكيم)', Market: 'Saudi Arabia' },
+  { Symbol: '4230', 'English Name': 'Saudi Arabian Packaging Industry Company (SAPIN)', 'Arabic Name': 'الشركة السعودية لصناعة التعبئة والتغليف (سابين)', Market: 'Saudi Arabia' },
+  { Symbol: '3004', 'English Name': 'Saudi Arabian Mining Company (Ma\'aden)', 'Arabic Name': 'شركة التعدين العربية السعودية (معادن)', Market: 'Saudi Arabia' },
+  { Symbol: '8250', 'English Name': 'Saudi Ceramic Company', 'Arabic Name': 'الخزف السعودي', Market: 'Saudi Arabia' },
+  { Symbol: '2287', 'English Name': 'Saudi Arabian Fertilizer Company (SAFCO)', 'Arabic Name': 'الشركة السعودية للأسمدة (سافكو)', Market: 'Saudi Arabia' },
+  { Symbol: '4344', 'English Name': 'Alinma Bank', 'Arabic Name': 'مصرف الإنماء', Market: 'Saudi Arabia' },
+  { Symbol: '1182', 'English Name': 'Saudi Awwal Bank', 'Arabic Name': 'البنك السعودي الأول', Market: 'Saudi Arabia' },
+  { Symbol: '4008', 'English Name': 'Saudi Basic Industries Corporation (SABIC) Agri-Nutrients', 'Arabic Name': 'سابك للمغذيات الزراعية', Market: 'Saudi Arabia' },
+  { Symbol: '3090', 'English Name': 'Saudi Arabian Mining Company (Ma\'aden)', 'Arabic Name': 'شركة التعدين العربية السعودية (معادن)', Market: 'Saudi Arabia' },
+  { Symbol: '4180', 'English Name': 'Saudi Industrial Development Company (SIDC)', 'Arabic Name': 'الشركة السعودية للتنمية الصناعية (سيدكو)', Market: 'Saudi Arabia' },
+  { Symbol: '2030', 'English Name': 'Yanbu National Petrochemical Company (Yansab)', 'Arabic Name': 'ينبع الوطنية للبتروكيماويات (ينساب)', Market: 'Saudi Arabia' },
+  { Symbol: '4191', 'English Name': 'Saudi Arabian Fertilizers Marketing Company (MA\'ADEN)', 'Arabic Name': 'الشركة السعودية لتسويق الأسمدة (معادن)', Market: 'Saudi Arabia' },
+  { Symbol: '3091', 'English Name': 'Saudi Arabian Mining Company (Ma\'aden)', 'Arabic Name': 'شركة التعدين العربية السعودية (معادن)', Market: 'Saudi Arabia' },
+  { Symbol: '1210', 'English Name': 'Saudi Arabian Oil Company (Aramco)', 'Arabic Name': 'شركة الزيت العربية السعودية (أرامكو)', Market: 'Saudi Arabia' },
+  { Symbol: '4130', 'English Name': 'Saudi Industrial Development Company (SIDC)', 'Arabic Name': 'الشركة السعودية للتنمية الصناعية (سيدكو)', Market: 'Saudi Arabia' },
+  { Symbol: '2090', 'English Name': 'Yanbu National Petrochemical Company (Yansab)', 'Arabic Name': 'ينبع الوطنية للبتروكيماويات (ينساب)', Market: 'Saudi Arabia' },
+  { Symbol: '1301', 'English Name': 'United Wire Factories Company', 'Arabic Name': 'الشركة المتحدة لصناعة الأسلاك', Market: 'Saudi Arabia' },
+  { Symbol: '6050', 'English Name': 'Saudi Research and Marketing Group', 'Arabic Name': 'المجموعة السعودية للأبحاث والتسويق', Market: 'Saudi Arabia' },
+  { Symbol: '4051', 'English Name': 'Saudi Arabian Glass Company', 'Arabic Name': 'الشركة السعودية للزجاج', Market: 'Saudi Arabia' },
+  { Symbol: '3007', 'English Name': 'Saudi Arabian Mining Company (Ma\'aden)', 'Arabic Name': 'شركة التعدين العربية السعودية (معادن)', Market: 'Saudi Arabia' },
+  { Symbol: '2220', 'English Name': 'Saudi Arabian Fertilizer Company (SAFCO)', 'Arabic Name': 'الشركة السعودية للأسمدة (سافكو)', Market: 'Saudi Arabia' },
+  { Symbol: '7201', 'English Name': 'Solutions by STC', 'Arabic Name': 'حلول إس تي سي', Market: 'Saudi Arabia' },
+  { Symbol: '6020', 'English Name': 'Saudi Research and Marketing Group', 'Arabic Name': 'المجموعة السعودية للأبحاث والتسويق', Market: 'Saudi Arabia' },
+  { Symbol: '4140', 'English Name': 'Saudi Industrial Development Company (SIDC)', 'Arabic Name': 'الشركة السعودية للتنمية الصناعية (سيدكو)', Market: 'Saudi Arabia' },
+  { Symbol: 'IHC', 'English Name': 'International Holding Company PJSC', 'Arabic Name': 'الشركة العالمية القابضة ش.م.ع', Market: 'UAE' },
+  { Symbol: 'TAQA', 'English Name': 'Abu Dhabi National Energy Company PJSC', 'Arabic Name': 'شركة أبوظبي الوطنية للطاقة (طاقة) ش.م.ع', Market: 'UAE' },
+  { Symbol: 'ADNOCGAS', 'English Name': 'ADNOC Gas PLC', 'Arabic Name': 'أدنوك للغاز', Market: 'UAE' },
+  { Symbol: 'FAB', 'English Name': 'First Abu Dhabi Bank P.J.S.C.', 'Arabic Name': 'بنك أبوظبي الأول ش.م.ع', Market: 'UAE' },
+  { Symbol: 'EAND', 'English Name': 'Emirates Telecommunications Group Company PJSC', 'Arabic Name': 'إي آند', Market: 'UAE' },
+  { Symbol: 'ALPHADHABI', 'English Name': 'Alpha Dhabi Holding PJSC', 'Arabic Name': 'ألفا ظبي القابضة ش.م.ع', Market: 'UAE' },
+  { Symbol: 'INVESTB', 'English Name': 'Invest bank P.S.C.', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'ADCB', 'English Name': 'Abu Dhabi Commercial Bank PJSC', 'Arabic Name': 'بنك أبوظبي التجاري', Market: 'UAE' },
+  { Symbol: 'ADNOCDRILL', 'English Name': 'ADNOC Drilling Company P.J.S.C.', 'Arabic Name': 'أدنوك للحفر', Market: 'UAE' },
+  { Symbol: 'ADIB', 'English Name': 'Abu Dhabi Islamic Bank PJSC', 'Arabic Name': 'مصرف أبوظبي الإسلامي', Market: 'UAE' },
+  { Symbol: 'BOROUGE', 'English Name': 'Borouge plc', 'Arabic Name': 'بروج بي ال سي', Market: 'UAE' },
+  { Symbol: 'ALDAR', 'English Name': 'Aldar Properties PJSC', 'Arabic Name': 'الدار العقارية ش.م.ع', Market: 'UAE' },
+  { Symbol: 'MODON', 'English Name': 'Modon Holding PSC', 'Arabic Name': 'مدن العقارية ش.م.ع', Market: 'UAE' },
+  { Symbol: 'ADNOCDIST', 'English Name': 'Abu Dhabi National Oil Company for Distribution PJSC', 'Arabic Name': 'أدنوك للتوزيع', Market: 'UAE' },
+  { Symbol: 'ORDS', 'English Name': 'Ooredoo Q.P.S.C.', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'ADNOCLS', 'English Name': 'ADNOC Logistics & Services plc', 'Arabic Name': 'أدنوك للخدمات اللوجستية', Market: 'UAE' },
+  { Symbol: 'PUREHEALTH', 'English Name': 'Pure Health Holding PJSC', 'Arabic Name': 'بيور هيلث القابضة ش.م.ع', Market: 'UAE' },
+  { Symbol: 'MBME', 'English Name': 'MBME GROUP Private Joint Stock Company', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'MULTIPLY', 'English Name': 'Multiply Group PJSC', 'Arabic Name': 'مجموعة ملتيبلاي ش.م.ع', Market: 'UAE' },
+  { Symbol: 'ADPORTS', 'English Name': 'Abu Dhabi Ports Company PJSC', 'Arabic Name': 'مجموعة موانئ أبوظبي', Market: 'UAE' },
+  { Symbol: 'RAKBANK', 'English Name': 'National Bank of Ras Al-Khaimah (RAKBANK)', 'Arabic Name': 'بنك رأس الخيمة الوطني (راك بنك) ش.م.ع', Market: 'UAE' },
+  { Symbol: 'DANA', 'English Name': 'Dana Gas PJSC', 'Arabic Name': 'دانة غاز ش.م.ع', Market: 'UAE' },
+  { Symbol: 'ADNH', 'English Name': 'Abu Dhabi National Hotels PJSC', 'Arabic Name': 'فنادق أبوظبي الوطنية', Market: 'UAE' },
+  { Symbol: 'AGTHIA', 'English Name': 'Agthia Group PJSC', 'Arabic Name': 'مجموعة أغذية ش.م.ع', Market: 'UAE' },
+  { Symbol: 'ARKAN', 'English Name': 'Arkan Building Materials Company PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'FSI', 'English Name': 'Fujairah Building Industries PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'RAKPROP', 'English Name': 'Ras Al Khaimah Properties PJSC', 'Arabic Name': 'رأس الخيمة العقارية ش.م.ع', Market: 'UAE' },
+  { Symbol: 'ADXSC', 'English Name': 'Abu Dhabi National Company for Building Materials PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'ADNAT', 'English Name': 'Abu Dhabi National Takaful Company PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'ADIBFS', 'English Name': 'Abu Dhabi Islamic Bank PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'ADNIC', 'English Name': 'Abu Dhabi National Insurance Company PJSC', 'Arabic Name': 'شركة أبوظبي الوطنية للتأمين', Market: 'UAE' },
+  { Symbol: 'ADPC', 'English Name': 'Abu Dhabi National Company for Paper Industries PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'ADSG', 'English Name': 'Abu Dhabi Ship Building PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'ADX', 'English Name': 'Abu Dhabi National Company for Energy PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'ALDARPRO', 'English Name': 'Aldar Properties PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'ALHL', 'English Name': 'Al Hilal Bank PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'ALINMA', 'English Name': 'Alinma Bank PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'ALPHAD', 'English Name': 'Alpha Dhabi Holding PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'ARABTEC', 'English Name': 'Arabtec Holding PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'ASMAK', 'English Name': 'International Fish Farming Holding Company PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'DFM', 'English Name': 'Dubai Financial Market PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'DIB', 'English Name': 'Dubai Islamic Bank PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'DXB', 'English Name': 'DXB Entertainments PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'EMAAR', 'English Name': 'Emaar Properties PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'ENBD', 'English Name': 'Emirates NBD Bank PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'ETISALAT', 'English Name': 'Emirates Telecommunications Group Company PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'GFH', 'English Name': 'GFH Financial Group BSC', 'Arabic Name': 'مجموعة جي إف إتش المالية ش.م.ب', Market: 'UAE' },
+  { Symbol: 'GULFNAV', 'English Name': 'Gulf Navigation Holding PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'INVESTBANK', 'English Name': 'Invest Bank PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'MASHREQ', 'English Name': 'Mashreqbank PSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'NBAD', 'English Name': 'National Bank of Abu Dhabi PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'NBQ', 'English Name': 'National Bank of Umm Al Qaiwain PSC', 'Arabic Name': 'بنك أم القيوين الوطني ش.م.ع', Market: 'UAE' },
+  { Symbol: 'OOREDOO', 'English Name': 'Ooredoo Q.P.S.C.', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'RAKCEMENT', 'English Name': 'Ras Al Khaimah Cement Company PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'RAKCERAM', 'English Name': 'Ras Al Khaimah Ceramics PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'SHUAA', 'English Name': 'Shuaa Capital PSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'UNIONPROP', 'English Name': 'Union Properties PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'WAHACAPITAL', 'English Name': 'Waha Capital PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'ZAD', 'English Name': 'National Food Products Company PJSC', 'Arabic Name': '', Market: 'UAE' },
+  { Symbol: 'QNBK', 'English Name': 'Qatar National Bank (Q.P.S.C.)', 'Arabic Name': 'بنك قطر الوطني', Market: 'Qatar' },
+  { Symbol: 'IQCD', 'English Name': 'Industries Qatar Q.P.S.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'QIBK', 'English Name': 'Qatar Islamic Bank (Q.P.S.C.)', 'Arabic Name': 'مصرف قطر الإسلامي', Market: 'Qatar' },
+  { Symbol: 'ERES', 'English Name': 'Ezdan Holding Group Q.P.S.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'QGTS', 'English Name': 'Qatar Gas Transport Company Limited (Nakilat) (QPSC)', 'Arabic Name': 'شركة قطر لنقل الغاز المحدودة (ناقلات)', Market: 'Qatar' },
+  { Symbol: 'MARK', 'English Name': 'AlRayan Bank Q.P.S.C.', 'Arabic Name': 'مصرف الريان', Market: 'Qatar' },
+  { Symbol: 'DUBK', 'English Name': 'Dukhan Bank Q.P.S.C.', 'Arabic Name': 'بنك دخان', Market: 'Qatar' },
+  { Symbol: 'CBQK', 'English Name': 'The Commercial Bank (P.S.Q.C.)', 'Arabic Name': 'البنك التجاري القطري', Market: 'Qatar' },
+  { Symbol: 'QEWS', 'English Name': 'Qatar Electricity & Water Company Q.P.S.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'MPHC', 'English Name': 'Mesaieed Petrochemical Holding Company Q.P.S.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'QIIK', 'English Name': 'Qatar International Islamic Bank (Q.P.S.C)', 'Arabic Name': 'بنك قطر الدولي الإسلامي', Market: 'Qatar' },
+  { Symbol: 'QFLS', 'English Name': 'Qatar Fuel Company Q.P.S.C. ("WOQOD")', 'Arabic Name': 'قطر للوقود (وقود)', Market: 'Qatar' },
+  { Symbol: 'QNNS', 'English Name': 'Qatar Navigation Q.P.S.C.', 'Arabic Name': 'الملاحة القطرية (ملاحة)', Market: 'Qatar' },
+  { Symbol: 'IGRD', 'English Name': 'Estithmar Holding Q.P.S.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'BRES', 'English Name': 'Barwa Real Estate Company Q.P.S.C.', 'Arabic Name': 'شركة بروة العقارية', Market: 'Qatar' },
+  { Symbol: 'VFQS', 'English Name': 'Vodafone Qatar P.Q.S.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'ABQK', 'English Name': 'Ahli Bank Q.P.S.C.', 'Arabic Name': 'البنك الأهلي', Market: 'Qatar' },
+  { Symbol: 'DHBK', 'English Name': 'Doha Bank Q.P.S.C.', 'Arabic Name': 'بنك الدوحة', Market: 'Qatar' },
+  { Symbol: 'QAMC', 'English Name': 'Qatar Aluminium Manufacturing Company Q.P.S.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'QATI', 'English Name': 'Qatar Insurance Company Q.S.P.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'GISS', 'English Name': 'Gulf International Services Q.P.S.C.', 'Arabic Name': 'الخليج الدولية للخدمات', Market: 'Qatar' },
+  { Symbol: 'AHCS', 'English Name': 'Aamal Company Q.P.S.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'ZHCD', 'English Name': 'Zad Holding Company Q.P.S.C.', 'Arabic Name': 'زاد القابضة', Market: 'Qatar' },
+  { Symbol: 'UDCD', 'English Name': 'United Development Company Q.P.S.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'MERS', 'English Name': 'Al Meera Consumer Goods Company Q.P.S.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'MCCS', 'English Name': 'Mannai Corporation Q.P.S.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'BLDN', 'English Name': 'Baladna Q.P.S.C.', 'Arabic Name': 'بلدنا', Market: 'Qatar' },
+  { Symbol: 'QNCD', 'English Name': 'Qatar National Cement Company (Q.P.S.C.)', 'Arabic Name': 'شركة أسمنت قطر الوطنية', Market: 'Qatar' },
+  { Symbol: 'QFBQ', 'English Name': 'Lesha Bank LLC', 'Arabic Name': 'بنك لشا (مركز قطر للمال)', Market: 'Qatar' },
+  { Symbol: 'MEZA', 'English Name': 'MEEZA QSTP LLC (Public)', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'QIGD', 'English Name': 'Qatari Investors Group Q.P.S.C.', 'Arabic Name': 'الشركة القطرية للصناعات التحويلية', Market: 'Qatar' },
+  { Symbol: 'GWCS', 'English Name': 'Gulf Warehousing Company Q.P.S.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'MCGS', 'English Name': 'Medicare Group Q.P.S.C.', 'Arabic Name': 'مجموعة الرعاية الطبية', Market: 'Qatar' },
+  { Symbol: 'QISI', 'English Name': 'Qatar Islamic Insurance Group Q.P.S.C.', 'Arabic Name': 'الشركة القطرية للتأمين الإسلامي', Market: 'Qatar' },
+  { Symbol: 'DOHI', 'English Name': 'Doha Insurance Group Q.P.S.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'QIMD', 'English Name': 'Qatar Industrial Manufacturing Company Q.P.S.C.', 'Arabic Name': 'الشركة القطرية للصناعات التحويلية', Market: 'Qatar' },
+  { Symbol: 'QGRI', 'English Name': 'Qatar General Insurance & Reinsurance Company Q.P.S.C.', 'Arabic Name': 'الشركة القطرية العامة للتأمين وإعادة التأمين', Market: 'Qatar' },
+  { Symbol: 'SIIS', 'English Name': 'Salam International Investment Limited Q.P.S.C.', 'Arabic Name': 'السلام العالمية للاستثمار المحدودة', Market: 'Qatar' },
+  { Symbol: 'BEMA', 'English Name': 'Damaan Islamic Insurance Company "Beema" (Q.P.S.C.)', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'QLMI', 'English Name': 'QLM Life & Medical Insurance Company Q.P.S.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'MRDS', 'English Name': 'Mazaya Real Estate Development Q.P.S.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'AKHI', 'English Name': 'Al Khaleej Takaful Insurance Company Q.P.S.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'MHAR', 'English Name': 'Al Mahhar Holding Company Q.P.S.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'MKDM', 'English Name': 'Mekdam Holding Group - Q.P.S.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'WDAM', 'English Name': 'Widam Food Company Q.P.S.C.', 'Arabic Name': 'ودام الغذائية', Market: 'Qatar' },
+  { Symbol: 'NLCS', 'English Name': 'Alijarah Holding (Q.P.S.C.)', 'Arabic Name': 'الإجارة القابضة', Market: 'Qatar' },
+  { Symbol: 'TQES', 'English Name': 'Qatar Electronic Systems Company (Techno Q) Q.P.S.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'QOIS', 'English Name': 'Qatar Oman Investment Company Q.S.C.', 'Arabic Name': 'شركة قطر وعمان للاستثمار', Market: 'Qatar' },
+  { Symbol: 'DBIS', 'English Name': 'Dlala Brokerage and Investment Holding Company Q.P.S.C.', 'Arabic Name': 'دلالة للوساطة والاستثمار القابضة', Market: 'Qatar' },
+  { Symbol: 'IHGS', 'English Name': 'INMA Holding Company Q.P.S.C.', 'Arabic Name': 'إنماء القابضة', Market: 'Qatar' },
+  { Symbol: 'FALH', 'English Name': 'Al Faleh Educational Holding Company Q.P.S.C.', 'Arabic Name': '', Market: 'Qatar' },
+  { Symbol: 'QGMD', 'English Name': 'Qatari German Company for Medical Devices (Q.P.S.C.)', 'Arabic Name': 'الشركة القطرية الألمانية للمستلزمات الطبية', Market: 'Qatar' },
+  { Symbol: 'QCFS', 'English Name': 'Qatar Cinema and Film Distribution Co. (Q.P.S.C)', 'Arabic Name': 'شركة قطر للسينما وتوزيع الأفلام', Market: 'Qatar' },
+];
+
+const uniqueAssets = new Map<string, typeof rawAssets[0]>();
+rawAssets.forEach(asset => {
+    // Prioritize entries with an Arabic name if duplicates exist
+    if (!uniqueAssets.has(asset.Symbol) || (asset['Arabic Name'] && !uniqueAssets.get(asset.Symbol)?.['Arabic Name'])) {
+        uniqueAssets.set(asset.Symbol, asset);
+    }
+});
+
+
+export const assets: Asset[] = Array.from(uniqueAssets.values()).map(asset => {
+    const country = getCountryCode(asset.Market);
+    const currency = getCurrency(country);
+    return {
+        ticker: asset.Symbol,
+        name: asset['English Name'],
+        name_ar: asset['Arabic Name'] || asset['English Name'], // Fallback to English name if Arabic is missing
+        country: country,
+        currency: currency,
+        price: 0, // Will be fetched live
+        change: '+0.00',
+        changePercent: '0.00%',
+        trend: 'stable',
+        category: 'Stocks',
+    }
+}).concat([
   // Gold Assets
   {
-    ticker: 'GOLD', name: 'Gold', price: 2330, change: '+1.25', changePercent: '+0.70%', trend: 'up', currency: 'USD', category: 'Gold', country: 'Global',
+    ticker: 'GOLD', name: 'Gold', name_ar: 'الذهب', price: 2330, change: '+1.25', changePercent: '+0.70%', trend: 'up', currency: 'USD', category: 'Gold', country: 'Global',
   },
-
   // Oil Assets
   {
-    ticker: 'BRENT', name: 'Brent Crude Oil', price: 85.3, change: '-0.50', changePercent: '-0.58%', trend: 'down', currency: 'USD', category: 'Oil', country: 'Global',
+    ticker: 'BRENT', name: 'Brent Crude Oil', name_ar: 'نفط برنت الخام', price: 85.3, change: '-0.50', changePercent: '-0.58%', trend: 'down', currency: 'USD', category: 'Oil', country: 'Global',
   },
-
   // Bonds & Savings
   {
-    ticker: 'SA-BOND-2030', name: 'Saudi Arabia Govt. Bond 2030', price: 102.5, change: '+0.05', changePercent: '+0.05%', trend: 'up', currency: 'USD', category: 'Bonds', country: 'Global',
+    ticker: 'SA-BOND-2030', name: 'Saudi Arabia Govt. Bond 2030', name_ar: 'سندات حكومة السعودية 2030', price: 102.5, change: '+0.05', changePercent: '+0.05%', trend: 'up', currency: 'USD', category: 'Bonds', country: 'Global',
   },
   {
-    ticker: 'SUKUK-ISDB', name: 'Islamic Development Bank Sukuk', price: 100.2, change: '+0.02', changePercent: '+0.02%', trend: 'up', currency: 'USD', category: 'Bonds', country: 'Global',
+    ticker: 'SUKUK-ISDB', name: 'Islamic Development Bank Sukuk', name_ar: 'صكوك بنك التنمية الإسلامي', price: 100.2, change: '+0.02', changePercent: '+0.02%', trend: 'up', currency: 'USD', category: 'Bonds', country: 'Global',
   },
   {
-    ticker: 'SAVINGS-CERT-SAR', name: 'SAR Savings Certificate', price: 1, change: '+0.00', changePercent: '5.00%', trend: 'stable', currency: 'SAR', category: 'Savings Certificates', country: 'Global', annualYield: 0.05,
+    ticker: 'SAVINGS-CERT-SAR', name: 'SAR Savings Certificate', name_ar: 'شهادة ادخار بالريال السعودي', price: 1, change: '+0.00', changePercent: '5.00%', trend: 'stable', currency: 'SAR', category: 'Savings Certificates', country: 'Global', annualYield: 0.05,
   },
-]
+]);
 
 export const newsArticles: Record<string, string[]> = {
   '2222': [ // ARAMCO
     'https://www.reuters.com/business/energy/saudi-aramco-hikes-july-crude-prices-asia-2023-06-05/',
     'https://www.bloomberg.com/news/articles/2023-06-05/oil-extends-gains-after-saudi-arabia-pledges-deeper-output-cuts',
   ],
-  '2010': [ // SABIC
+  '2010': [ // SABIC (Using the English Name for mapping)
     'https://www.arabianbusiness.com/industries/energy/sabic-launches-new-sustainable-polymers-at-leading-plastics-conference',
     'https://www.argaam.com/en/article/articledetail/id/1654321',
   ],
@@ -142,13 +410,15 @@ export const getStockPriceHistory = (
   ticker: string
 ): { date: string; price: number }[] => {
   const data = []
-  const basePrice = assets.find((s) => s.ticker === ticker)?.price || 100
+  const asset = assets.find((s) => s.ticker === ticker);
+  const basePrice = asset?.price || 100;
   const days = 90
-  let price = basePrice
+  let price = basePrice > 0 ? basePrice : 100; // Use a default if base price is 0
   for (let i = days; i > 0; i--) {
     const date = new Date()
     date.setDate(date.getDate() - i)
-    price = price + (Math.random() - 0.49) * (basePrice / 50)
+    // Fluctuation relative to base price to keep it somewhat realistic
+    price = price + (Math.random() - 0.49) * (price / 50)
     data.push({
       date: date.toISOString().split('T')[0],
       price: parseFloat(price.toFixed(2)),
