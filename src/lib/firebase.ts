@@ -4,7 +4,9 @@ import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAEExcIxQkQ9-nP3qSm02M8HH8E_4kXD_o",
+  // IMPORTANT: Replace this with your actual Firebase web app's API key
+  // You can find this in your Firebase project settings -> General
+  apiKey: "REPLACE_WITH_YOUR_FIREBASE_BROWSER_API_KEY", 
   authDomain: "tharawat99998.firebaseapp.com",
   projectId: "tharawat99998",
   storageBucket: "tharawat99998.appspot.com",
@@ -13,19 +15,19 @@ const firebaseConfig = {
   measurementId: "G-N60HHTHR21"
 };
 
-// Singleton pattern to ensure single instance
-const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-const auth: Auth = getAuth(app);
-const db: Firestore = getFirestore(app);
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
+
+if (getApps().length === 0) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApp();
+}
+
+auth = getAuth(app);
+db = getFirestore(app);
+
 
 // Export the initialized instances directly
 export { app, auth, db };
-
-// Kept for backward compatibility in case any file still uses them, but direct imports are preferred.
-export function getFirebaseAuth() {
-    return auth;
-}
-
-export function getFirestoreDb() {
-    return db;
-}
