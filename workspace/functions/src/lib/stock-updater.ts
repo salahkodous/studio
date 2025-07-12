@@ -21,8 +21,9 @@ declare global {
 
 
 interface ExtractedStock {
-    company: string; // This is the Arabic name from the website
-    last_price: string;
+    symbol: string;
+    name: string;
+    previous_price: string;
 }
 
 
@@ -44,20 +45,23 @@ async function getPricesFromMarketWatch(): Promise<ExtractedStock[] | null> {
     };
     
     const payload = {
-        "url": "https://www.saudiexchange.sa/wps/portal/saudiexchange/ourmarkets/main-market-watch?locale=ar",
+        // Use the precise English URL provided by the user for end-of-day prices
+        "url": "https://www.saudiexchange.sa/wps/portal/saudiexchange/ourmarkets/main-market-watch/theoritical-market-watch-today?locale=en",
         "extractorOptions": {
             "mode": "llm-extraction",
+            // Update the schema to match the requested columns: symbol, name, previous_price
             "extractionSchema": {
                 "type": "array",
                 "items": {
                     "type": "object",
                     "properties": {
-                        "company": { "type": "string" },
-                        "last_price": { "type": "string" }
+                        "symbol": { "type": "string" },
+                        "name": { "type": "string" },
+                        "previous_price": { "type": "string" }
                     }
                 }
             },
-            "extractionPrompt": "Extract all rows from the main market watch table. For each row, return 'company' (الشركة) and 'last_price' (السعر لآخر صفقة)."
+            "extractionPrompt": "Extract all rows from the main market watch table. For each row, return 'symbol', 'name', and 'previous_price'."
         }
     };
 
@@ -106,14 +110,15 @@ export async function updateAllMarketPrices() {
     const batch = db.batch();
     let successCount = 0;
     
-    const nameToTickerMap = new Map(staticAssets.map(asset => [asset.name_ar, asset.ticker]));
+    // No longer need to map by name, we can use the symbol directly.
 
     for (const extractedStock of extractedData) {
-        const ticker = nameToTickerMap.get(extractedStock.company.trim());
+        // Use the extracted symbol directly, which is more reliable.
+        const ticker = extractedStock.symbol.trim();
         const asset = staticAssets.find(a => a.ticker === ticker);
-        const price = parseFloat(extractedStock.last_price.replace(/,/g, ''));
+        const price = parseFloat(extractedStock.previous_price.replace(/,/g, ''));
         
-        if (ticker && asset && !isNaN(price)) {
+        if (asset && !isNaN(price)) {
             const stockDocRef = db.collection("stocks").doc(ticker);
             batch.set(stockDocRef, {
                 ticker: asset.ticker,
@@ -126,7 +131,7 @@ export async function updateAllMarketPrices() {
             successCount++;
             console.log(`[Updater] Staging update for ${ticker} (${asset.name_ar}) with price ${price}`);
         } else {
-            console.warn(`[Updater] Could not match or parse: ${extractedStock.company} - ${extractedStock.last_price}`);
+            console.warn(`[Updater] Could not match or parse: Symbol: ${extractedStock.symbol}, Name: ${extractedStock.name}, Price: ${extractedStock.previous_price}`);
         }
     }
 
