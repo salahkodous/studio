@@ -1,3 +1,4 @@
+
 // This is a new file for a simple admin panel.
 'use client';
 
