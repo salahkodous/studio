@@ -1,0 +1,67 @@
+
+[
+  {
+    "company": "أرامكو السعودية",
+    "last_price": "28.50"
+  },
+  {
+    "company": "مصرف الراجحي",
+    "last_price": "80.00"
+  },
+  {
+    "company": "البنك الأهلي السعودي",
+    "last_price": "45.20"
+  },
+  {
+    "company": "إس تي سي",
+    "last_price": "38.10"
+  },
+  {
+    "company": "سابك",
+    "last_price": "75.50"
+  },
+  {
+    "company": "بنك الرياض",
+    "last_price": "27.00"
+  },
+  {
+    "company": "الشركة العالمية القابضة",
+    "last_price": "400.0"
+  },
+  {
+    "company": "بنك أبوظبي الأول",
+    "last_price": "13.50"
+  },
+  {
+    "company": "إعمار العقارية",
+    "last_price": "7.80"
+  },
+  {
+    "company": "طاقة",
+    "last_price": "3.50"
+  },
+  {
+    "company": "بنك أبوظبي التجاري",
+    "last_price": "8.90"
+  },
+  {
+    "company": "بنك قطر الوطني",
+    "last_price": "14.00"
+  },
+  {
+    "company": "صناعات قطر",
+    "last_price": "12.50"
+  },
+  {
+    "company": "مصرف قطر الإسلامي",
+    "last_price": "17.20"
+  },
+  {
+    "company": "البنك التجاري",
+    "last_price": "5.50"
+  },
+  {
+    "company": "ناقلات",
+    "last_price": "4.10"
+  }
+]
