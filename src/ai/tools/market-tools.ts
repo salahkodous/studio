@@ -57,10 +57,8 @@ export const findCompanyNameTool = ai.defineTool(
             return asset.name_ar; // Return Arabic name
         }
 
-        // If not found, simulate a web search. In a real app, this would use the web scraper.
-        console.log(`[findCompanyNameTool] Simulating web search for company name of ticker: ${ticker}`);
-        // This is a simplified simulation. A real implementation would scrape a search results page.
-        // For this prototype, we'll return a formatted name based on the ticker.
+        // Fallback if not found in our master list
+        console.warn(`[findCompanyNameTool] Ticker ${ticker} not found in local data. Returning a default name.`);
         return `${ticker.charAt(0).toUpperCase() + ticker.slice(1).toLowerCase()} Corp`;
     }
 );
