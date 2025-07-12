@@ -3,6 +3,7 @@
  * @fileOverview Main Firebase Functions entry point for the stock tracker.
  */
 import {onSchedule} from "firebase-functions/v2/scheduler";
+import {onCall} from "firebase-functions/v2/https";
 import {updateAllMarketPrices} from "./lib/stock-updater";
 import {logError} from "./lib/error-logger";
 import {defineString} from "firebase-functions/params";
@@ -29,4 +30,31 @@ export const updateStockPrices = onSchedule("every 24 hours", async (event) => {
     // Throwing an error here can allow for automatic retries if configured.
     throw error;
   }
+});
+
+/**
+ * A manually callable function to trigger the price update process immediately.
+ * This is useful for one-off updates or testing.
+ */
+export const runPriceUpdateNow = onCall({enforceAppCheck: false}, async (request) => {
+    // Ensure the user is authenticated to prevent abuse.
+    if (!request.auth) {
+        throw new https.HttpsError("unauthenticated", "The function must be called while authenticated.");
+    }
+    
+    console.log(`Manual price update triggered by user: ${request.auth.uid}`);
+    try {
+        await updateAllMarketPrices();
+        const successMessage = "Manual stock price update completed successfully.";
+        console.log(successMessage);
+        return {status: "success", message: successMessage};
+    } catch (error) {
+        console.error("Critical error in manual stock price update:", error);
+        await logError(
+            "runPriceUpdateNow-critical",
+            error instanceof Error ? error : new Error(String(error)),
+        );
+        // Throw an HttpsError to send a structured error back to the client.
+        throw new https.HttpsError("internal", "An internal error occurred while updating prices.", error);
+    }
 });
