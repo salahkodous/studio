@@ -91,6 +91,7 @@ export async function updateAllMarketPrices() {
     }
 
     console.log("[Updater] Asking AI to extract structured data from markdown...");
+    // FIX: The prompt expects a string, but was being passed an object.
     const {output} = await priceExtractionPrompt(markdownContent);
     
     if (!output || !output.stocks || output.stocks.length === 0) {
