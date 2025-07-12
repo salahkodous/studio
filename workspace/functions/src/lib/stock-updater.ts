@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Core logic for fetching, translating, and storing stock data.
  */
@@ -5,6 +6,9 @@ import {initializeApp} from "firebase-admin/app";
 import {getFirestore, Timestamp} from "firebase-admin/firestore";
 import {ai} from "./genkit-config";
 import {z} from "zod";
+import {webScraperTool} from "./web-scraper-tool";
+import {assets as staticAssets} from "./static-data";
+import {logError} from "./error-logger";
 
 // Initialize Firebase Admin SDK.
 // The SDK is automatically configured by the Firebase Functions environment.
@@ -17,145 +21,88 @@ interface StockAsset {
     currency: string;
 }
 
-interface StockPrice {
-    price: string;
-}
+const priceExtractionPrompt = ai.definePrompt({
+    name: "priceExtractionPrompt",
+    model: "googleai/gemini-1.5-flash",
+    input: {schema: z.object({ context: z.string(), companyName: z.string() })},
+    output: {schema: z.object({ price: z.number() })},
+    prompt: `From the following financial data page content for {{{companyName}}}, extract the current stock price. The price is usually a large number near the company name or ticker symbol. Respond with only a JSON object containing the numeric price.
 
-const MARKETS = ["SA", "AE", "QA"];
+    Scraped Content:
+    {{{context}}}`,
+});
 
 /**
- * Fetches the list of all stocks for a given market from the Twelve Data API.
- * @param market The market identifier (e.g., 'SA', 'AE', 'QA').
- * @returns A promise that resolves to an array of stock assets.
+ * Scrapes a financial page for a stock and extracts its price using AI.
+ * @param asset The stock asset (ticker, name, currency).
+ * @returns A promise that resolves to the numeric price or null if not found.
  */
-async function fetchAssetsForMarket(market: string): Promise<StockAsset[]> {
-  const apiKey = process.env.TWELVE_DATA_API_KEY;
-  if (!apiKey) throw new Error("TWELVE_DATA_API_KEY is not configured.");
+async function getPriceByScraping(asset: StockAsset): Promise<number | null> {
+    const url = `https://www.google.com/finance/quote/${asset.ticker}:${asset.currency === 'SAR' ? 'TADAWUL' : (asset.currency === 'AED' ? 'DFM' : 'QSE')}`;
 
-  const exchangeMap = {SA: "Tadawul", AE: "DFM", QA: "QSE"};
-  const exchange = exchangeMap[market as keyof typeof exchangeMap];
-  const url = `https://api.twelvedata.com/stocks?exchange=${exchange}&country=${market}&type=stock`;
+    try {
+        console.log(`[Scraper] Scraping URL for ${asset.ticker}: ${url}`);
+        const scrapeResult = await webScraperTool({ url });
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch assets for ${market}: ${response.statusText}`);
-  }
-  const result = await response.json();
+        if (!scrapeResult?.content) {
+            throw new Error("Scraped content was empty.");
+        }
+        
+        console.log(`[Scraper] Extracting price for ${asset.ticker} with Genkit...`);
+        const { output } = await priceExtractionPrompt({
+            context: scrapeResult.content,
+            companyName: asset.name,
+        });
 
-  if (result?.data && Array.isArray(result.data)) {
-    return result.data.map((asset: any) => ({
-      ticker: asset.symbol,
-      name: asset.name,
-      currency: asset.currency,
-    }));
-  }
-  return [];
+        if (output?.price && typeof output.price === 'number') {
+            return output.price;
+        }
+        
+        console.warn(`[Scraper] AI could not extract a valid price for ${asset.ticker}.`);
+        return null;
+
+    } catch (error) {
+        await logError(`getPriceByScraping-${asset.ticker}`, error instanceof Error ? error : new Error(String(error)));
+        return null;
+    }
 }
 
-/**
- * Fetches the current price for a single stock ticker.
- * @param ticker The stock ticker symbol.
- * @returns A promise that resolves to the stock's price information.
- */
-async function fetchPriceForTicker(ticker: string): Promise<StockPrice | null> {
-  const apiKey = process.env.TWELVE_DATA_API_KEY;
-  if (!apiKey) throw new Error("TWELVE_DATA_API_KEY is not configured.");
-
-  const url = `https://api.twelvedata.com/price?symbol=${ticker}&apikey=${apiKey}`;
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    console.warn(`Could not fetch price for ${ticker}: ${response.statusText}`);
-    return null;
-  }
-  return response.json();
-}
 
 /**
- * Translates an English company name to Arabic using the Gemini API.
- * @param companyName The English name of the company.
- * @returns A promise that resolves to the Arabic name.
- */
-async function translateNameToArabic(companyName: string): Promise<string> {
-  const arabicNamePrompt = ai.definePrompt({
-    name: "arabicNamePrompt",
-    input: {schema: z.string()},
-    output: {schema: z.object({arabicName: z.string()})},
-    prompt: `Translate the following official company name to Arabic. Provide only the translated name in the response.
-
-    Company Name: "{{input}}"
-    `,
-  });
-
-  try {
-    const {output} = await arabicNamePrompt(companyName);
-    return output?.arabicName || companyName;
-  } catch (error) {
-    console.error(`Gemini translation failed for "${companyName}":`, error);
-    // Fallback to the original name if translation fails.
-    return companyName;
-  }
-}
-
-/**
- * Gets the Arabic name for a stock ticker.
- * It first checks the Firestore `/stock_map` collection for a cached name.
- * If not found, it uses Gemini to translate the name and then saves it to the map.
- * @param asset The stock asset containing the ticker and English name.
- * @returns A promise that resolves to the Arabic name.
- */
-async function getArabicName(asset: StockAsset): Promise<string> {
-  const mapRef = db.collection("stock_map").doc(asset.ticker);
-  const mapDoc = await mapRef.get();
-
-  if (mapDoc.exists && mapDoc.data()?.name_ar) {
-    return mapDoc.data()?.name_ar;
-  }
-
-  console.log(`No mapping for ${asset.ticker}. Translating "${asset.name}" with Gemini.`);
-  const arabicName = await translateNameToArabic(asset.name);
-
-  // Cache the new translation in Firestore for future use.
-  await mapRef.set({name_ar: arabicName, name_en: asset.name});
-
-  return arabicName;
-}
-
-/**
- * The main orchestrator function. Fetches assets for all markets,
- * gets their prices and Arabic names, and saves the data to Firestore.
+ * The main orchestrator function. Gets all trackable stocks from the static data,
+ * scrapes their current price, and saves the data to Firestore.
  */
 export async function updateAllMarketPrices() {
-  console.log("Starting stock update for markets:", MARKETS.join(", "));
-  const allAssets: StockAsset[] = [];
-
-  for (const market of MARKETS) {
-    const assets = await fetchAssetsForMarket(market);
-    allAssets.push(...assets);
-    console.log(`Fetched ${assets.length} assets for market: ${market}`);
-  }
-
+  const stocksToTrack = staticAssets.filter(a => a.category === 'Stocks');
+  console.log(`Starting stock update for ${stocksToTrack.length} assets.`);
+  
   const batch = db.batch();
+  let successCount = 0;
 
-  for (const asset of allAssets) {
-    const priceData = await fetchPriceForTicker(asset.ticker);
-    if (!priceData?.price) {
-      console.warn(`Skipping ${asset.ticker} due to missing price data.`);
-      continue;
+  for (const asset of stocksToTrack) {
+    const price = await getPriceByScraping(asset);
+    
+    if (price !== null) {
+        const stockDocRef = db.collection("stocks").doc(asset.ticker);
+        batch.set(stockDocRef, {
+            ticker: asset.ticker,
+            name_ar: asset.name_ar,
+            name_en: asset.name,
+            price: price,
+            currency: asset.currency,
+            lastUpdated: Timestamp.now(),
+        }, { merge: true });
+        successCount++;
+        console.log(`[Updater] Successfully processed ${asset.ticker} with price ${price}`);
+    } else {
+        console.warn(`[Updater] Skipping ${asset.ticker} due to scraping/extraction failure.`);
     }
-
-    const arabicName = await getArabicName(asset);
-
-    const stockDocRef = db.collection("stocks").doc(asset.ticker);
-    batch.set(stockDocRef, {
-      ticker: asset.ticker,
-      name_ar: arabicName,
-      price: parseFloat(priceData.price),
-      currency: asset.currency,
-      lastUpdated: Timestamp.now(),
-    });
   }
 
-  await batch.commit();
-  console.log(`Successfully updated ${allAssets.length} stock prices in Firestore.`);
+  if (successCount > 0) {
+      await batch.commit();
+      console.log(`Successfully updated ${successCount} of ${stocksToTrack.length} stock prices in Firestore.`);
+  } else {
+      console.warn("No stock prices were updated in this run.");
+  }
 }

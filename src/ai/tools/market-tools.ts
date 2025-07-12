@@ -13,40 +13,38 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { assets, newsArticles, type Asset } from '@/lib/data';
 import { webScraperTool } from './web-scraper-tool';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
-// Helper to format ticker based on country for Twelve Data API
-function getFormattedTicker(ticker: string, country: string): string {
-    switch (country) {
-        case 'SA':
-            return `${ticker}.SR`;
-        case 'AE':
-            // Most UAE stocks on DFM work without suffix, but ADX might need it.
-            return ticker; 
-        case 'QA':
-            return `${ticker}.QSE`;
-        default:
-            return ticker;
+
+/**
+ * Fetches the latest price for a stock from our Firestore database.
+ * This data is updated daily by a scheduled backend job.
+ * @param ticker The stock ticker symbol.
+ * @returns A promise that resolves to the stock's price information.
+ */
+async function getStockPriceFromFirestore(ticker: string): Promise<{ price: number; currency: string } | null> {
+    const stockRef = doc(db, "stocks", ticker);
+    const docSnap = await getDoc(stockRef);
+
+    if (docSnap.exists()) {
+        const data = docSnap.data();
+        return {
+            price: data.price,
+            currency: data.currency,
+        };
     }
-}
-
-async function fetchWithUrl(url: string, tickerForErrorMessage: string) {
-    const response = await fetch(url);
-    if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({ message: response.statusText }));
-        if (errorBody.message && errorBody.message.includes('Pro plan')) {
-            throw new Error(`This stock requires a paid Twelve Data plan to view live prices.`);
+    
+    // Fallback for assets not in the dynamic list, like Gold or Bonds
+    const staticAsset = assets.find(a => a.ticker === ticker);
+    if (staticAsset) {
+        return {
+            price: staticAsset.price,
+            currency: staticAsset.currency,
         }
-        throw new Error(`API returned status ${response.status} for ${tickerForErrorMessage}. Response: ${errorBody.message || JSON.stringify(errorBody)}`);
     }
-
-    const data = await response.json();
-    const price = parseFloat(data.price);
-
-    if (isNaN(price)) {
-        throw new Error(`Invalid or missing price data received from ${url} for ${tickerForErrorMessage}. Response: ${JSON.stringify(data)}`);
-    }
-
-    return { price, currency: data.currency || 'USD' };
+    
+    return null;
 }
 
 
@@ -106,7 +104,7 @@ export const findCompanyNameTool = ai.defineTool(
 export const getStockPrice = ai.defineTool(
   {
     name: 'getStockPrice',
-    description: 'Gets the current market price for a given stock ticker by querying the Twelve Data API.',
+    description: 'Gets the most recent end-of-day price for a given stock ticker from our internal database.',
     inputSchema: z.object({
       ticker: z.string().describe('The stock ticker symbol, e.g., "2222" or "QNBK".'),
     }),
@@ -117,52 +115,20 @@ export const getStockPrice = ai.defineTool(
     }),
   },
   async ({ ticker }) => {
-    console.log(`[getStockPriceTool] Fetching live price for ${ticker}`);
+    console.log(`[getStockPriceTool] Fetching price for ${ticker} from Firestore.`);
     
-    const assetDetails = assets.find(a => a.ticker.toUpperCase() === ticker.toUpperCase());
+    const priceData = await getStockPriceFromFirestore(ticker);
     
-    if (!assetDetails) {
-        throw new Error(`Ticker ${ticker} not found in our master asset list.`);
-    }
-
-    const apiKey = process.env.TWELVE_DATA_API_KEY;
-    if (!apiKey || apiKey === 'YOUR_API_KEY_HERE') {
-        throw new Error("Twelve Data API key is not configured in .env file.");
-    }
-
-    const plainUrl = `https://api.twelvedata.com/price?symbol=${ticker}&apikey=${apiKey}`;
-    try {
-        // Attempt 1: Fetch with the plain ticker first.
-        const { price, currency } = await fetchWithUrl(plainUrl, ticker);
+    if (priceData) {
         return {
-            price,
-            currency,
-            sourceUrl: `https://api.twelvedata.com`,
+            price: priceData.price,
+            currency: priceData.currency,
+            sourceUrl: 'https://tharawat-app.dev/firestore-db' // Placeholder source
         };
-    } catch (error: any) {
-        console.warn(`[getStockPrice] Plain ticker fetch for ${ticker} failed. Trying with formatted ticker. Error: ${error.message}`);
-        
-        // Attempt 2: If the first attempt fails, try with the formatted ticker.
-        const formattedTicker = getFormattedTicker(assetDetails.ticker, assetDetails.country);
-        if (formattedTicker === ticker) {
-            // If formatting doesn't change the ticker, no need to retry. Re-throw the original error.
-            throw new Error(`Failed to fetch live price for ${ticker}. Initial error: ${error.message}`);
-        }
-        
-        const formattedUrl = `https://api.twelvedata.com/price?symbol=${formattedTicker}&apikey=${apiKey}`;
-        try {
-            const { price, currency } = await fetchWithUrl(formattedUrl, formattedTicker);
-            return {
-                price,
-                currency,
-                sourceUrl: `https://api.twelvedata.com`,
-            };
-        } catch (retryError: any) {
-            console.error(`[getStockPrice] Final failure for ${ticker} (tried plain and formatted '${formattedTicker}'):`, retryError.message);
-            // Throw a combined error message for clarity.
-            throw new Error(`Failed to fetch live price for ${ticker}. Initial error: ${error.message}`);
-        }
     }
+
+    // If we reach here, the price wasn't in Firestore or the static list.
+    throw new Error(`Price for ticker ${ticker} not found in our database. The daily update may have failed or this ticker is not tracked.`);
   }
 );
 
