@@ -51,15 +51,15 @@ export const findCompanyNameTool = ai.defineTool(
         outputSchema: z.string().describe('The full official name of the company.'),
     },
     async ({ ticker }) => {
-        // First, check our local mock data for a quick answer
+        // First, check our local data for a quick answer
         const asset = assets.find(a => a.ticker.toUpperCase() === ticker.toUpperCase());
         if (asset) {
-            return asset.name_ar; // Return Arabic name
+            return asset.name_ar; // Return Arabic name from our master list
         }
 
-        // Fallback if not found in our master list
+        // Fallback if not found in our master list, which shouldn't happen often
         console.warn(`[findCompanyNameTool] Ticker ${ticker} not found in local data. Returning a default name.`);
-        return `${ticker.charAt(0).toUpperCase() + ticker.slice(1).toLowerCase()} Corp`;
+        return ticker; // Return ticker itself as a fallback
     }
 );
 
@@ -79,41 +79,35 @@ export const getStockPrice = ai.defineTool(
     }),
   },
   async ({ ticker }) => {
-    console.log(`[getStockPriceTool] Looking up price for ${ticker}`);
+    console.log(`[getStockPriceTool] Attempting to fetch live price for ${ticker}`);
     
-    // Correctly find the asset details using the ticker.
     const assetDetails = assets.find(a => a.ticker.toUpperCase() === ticker.toUpperCase());
-    
-    // The fallback price now correctly uses the details found by the ticker.
-    const fallbackPrice = {
-        price: assetDetails?.price || 0,
-        currency: assetDetails?.currency || 'USD',
-        sourceUrl: 'https://twelvedata.com/'
-    };
-
     const apiKey = process.env.TWELVE_DATA_API_KEY;
+    
     if (!apiKey || apiKey === 'YOUR_API_KEY_HERE') {
-        console.warn(`[getStockPriceTool] Twelve Data API key not configured. Using static data for ${ticker}.`);
-        return fallbackPrice;
+        throw new Error("Twelve Data API key is not configured in .env file.");
     }
     
     if (!assetDetails) {
-        console.warn(`[getStockPriceTool] Ticker ${ticker} not found in local data. Cannot determine exchange. Using static data.`);
-        return fallbackPrice;
+        throw new Error(`Ticker ${ticker} not found in our master asset list.`);
     }
 
     try {
         const exchangeMap = {SA: "Tadawul", AE: "DFM", QA: "QSE", Global: "NASDAQ"};
-        const exchange = exchangeMap[assetDetails.country as keyof typeof exchangeMap];
+        const exchange = exchangeMap[assetDetails.country as keyof typeof exchangeMap] || 'Tadawul';
         const url = `https://api.twelvedata.com/price?symbol=${ticker}&exchange=${exchange}&apikey=${apiKey}`;
         
         const response = await fetch(url);
+
         if (!response.ok) {
+            const errorBody = await response.text();
+            console.error(`[getStockPriceTool] Twelve Data API call failed for ${ticker}. Status: ${response.status}. Body: ${errorBody}`);
             throw new Error(`API call failed with status ${response.status}`);
         }
+
         const data = await response.json();
-        
         const price = parseFloat(data.price);
+        
         if (data && !isNaN(price)) {
             console.log(`[getStockPriceTool] Live price for ${ticker}: ${price}`);
             return {
@@ -122,11 +116,14 @@ export const getStockPrice = ai.defineTool(
                 sourceUrl: `https://twelvedata.com/symbol/${ticker}/${exchange}`,
             };
         } else {
-            throw new Error(`Twelve Data API did not return a valid price for ${ticker}. Response: ${JSON.stringify(data)}`);
+            console.error(`[getStockPriceTool] Twelve Data API did not return a valid price for ${ticker}. Response: ${JSON.stringify(data)}`);
+            throw new Error(`Invalid price data received from API for ${ticker}.`);
         }
     } catch (error) {
-        console.error(`[getStockPriceTool] Error fetching from Twelve Data API for ${ticker}, falling back to static data:`, error);
-        return fallbackPrice;
+        console.error(`[getStockPriceTool] CRITICAL ERROR fetching price for ${ticker}:`, error);
+        // Re-throw the error to be handled by the calling function.
+        // This ensures that we do not fall back to static data.
+        throw new Error(`Failed to fetch live price for ${ticker}. Please check API key and network status.`);
     }
   }
 );

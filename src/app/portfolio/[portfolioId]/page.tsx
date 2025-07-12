@@ -49,6 +49,7 @@ const stockCountries = [
 
 type AvailableAsset = Asset | RealEstateCity | { name: string; ticker: string; name_ar: string };
 
+type LivePrice = { price: number; currency: string } | { error: string };
 
 export default function PortfolioDetailPage() {
     const { user, loading: authLoading } = useAuth()
@@ -59,7 +60,7 @@ export default function PortfolioDetailPage() {
 
     const [portfolioDetails, setPortfolioDetails] = useState<PortfolioDetails | null>(null)
     const [portfolioAssets, setPortfolioAssets] = useState<PortfolioAsset[]>([])
-    const [livePrices, setLivePrices] = useState<Record<string, { price: number; currency: string }>>({});
+    const [livePrices, setLivePrices] = useState<Record<string, LivePrice>>({});
     const [loading, setLoading] = useState(true)
     const [isAddAssetOpen, setAddAssetOpen] = useState(false)
     
@@ -115,33 +116,42 @@ export default function PortfolioDetailPage() {
         if (stockAssets.length === 0) return;
         
         console.log(`Fetching live prices for ${stockAssets.length} stock(s)`);
-    
+        
+        let hasFailed = false;
         const pricePromises = stockAssets.map(asset => 
             getStockPrice({ ticker: asset.ticker!, companyName: asset.name_ar })
+                .catch(error => {
+                    console.error(`[Portfolio Page] Failed to fetch price for ${asset.ticker}:`, error.message);
+                    hasFailed = true;
+                    return { error: error.message }; // Return an error object for this specific ticker
+                })
         );
     
-        const results = await Promise.allSettled(pricePromises);
+        const results = await Promise.all(pricePromises);
         
-        const newLivePrices: Record<string, { price: number; currency: string }> = {};
+        const newLivePrices: Record<string, LivePrice> = {};
         results.forEach((result, index) => {
             const stockAsset = stockAssets[index];
-            if (result.status === 'fulfilled' && stockAsset.ticker) {
-                console.log(`Live price for ${stockAsset.ticker}:`, result.value.price);
-                newLivePrices[stockAsset.ticker] = {
-                    price: result.value.price,
-                    currency: result.value.currency,
-                };
-            } else if (result.status === 'rejected') {
-                console.error(`Failed to fetch price for ${stockAsset.ticker}:`, result.reason);
+            if (stockAsset.ticker) {
+                newLivePrices[stockAsset.ticker] = result;
             }
         });
         setLivePrices(newLivePrices);
-    }, [portfolioAssets]);
+        
+        if (hasFailed) {
+            toast({
+                title: "فشل في جلب بعض الأسعار الحية",
+                description: "قد تكون واجهة برمجة تطبيقات Twelve Data معطلة أو أن مفتاح API غير صالح.",
+                variant: "destructive"
+            });
+        }
+    }, [portfolioAssets, toast]);
     
     useEffect(() => {
-        // Fetch prices when the component mounts and when assets change
-        fetchAllLivePrices();
-    }, [fetchAllLivePrices]);
+        if (portfolioAssets.length > 0) {
+            fetchAllLivePrices();
+        }
+    }, [portfolioAssets, fetchAllLivePrices]);
 
 
     const resetAddAssetFlow = () => {
@@ -253,25 +263,19 @@ export default function PortfolioDetailPage() {
     const enrichedAssets = useMemo(() => {
         return portfolioAssets.map(pa => {
             const purchaseValue = pa.purchasePrice * (pa.quantity || 1);
-            
-            const staticAssetDetails = assets.find(a => a.ticker === pa.ticker);
             const livePriceData = pa.ticker ? livePrices[pa.ticker] : undefined;
-            
-            let currentValue: number;
-            let currency = staticAssetDetails?.currency || 'USD';
+            const staticAssetDetails = assets.find(a => a.ticker === pa.ticker);
+            const currency = staticAssetDetails?.currency || 'USD';
 
-            if (livePriceData?.price && livePriceData.price > 0 && pa.quantity) {
-                currency = livePriceData.currency as any;
+            let currentValue: number | null = null;
+            if (livePriceData && 'price' in livePriceData && pa.quantity) {
                 currentValue = pa.quantity * livePriceData.price;
-            } else if (staticAssetDetails?.price && pa.quantity) {
-                 currency = staticAssetDetails.currency;
-                 currentValue = pa.quantity * staticAssetDetails.price;
             } else {
-                currentValue = purchaseValue; // Fallback to purchase value if no quantity or live/static price
+                currentValue = null; // Set to null if live price failed or not available
             }
             
-            const change = currentValue - purchaseValue;
-            const changePercent = purchaseValue > 0 ? (change / purchaseValue) * 100 : 0;
+            const change = currentValue !== null ? currentValue - purchaseValue : null;
+            const changePercent = (currentValue !== null && purchaseValue > 0) ? (change! / purchaseValue) * 100 : null;
             
             return { ...pa, currentValue, purchaseValue, currency, change, changePercent };
         });
@@ -280,13 +284,16 @@ export default function PortfolioDetailPage() {
     const totals = useMemo(() => {
         return enrichedAssets.reduce((acc, asset) => {
             acc.totalPurchaseValue += asset.purchaseValue;
-            acc.totalCurrentValue += asset.currentValue;
+            if (asset.currentValue !== null) {
+                acc.totalCurrentValue += asset.currentValue;
+                acc.hasLiveData = true;
+            }
             return acc;
-        }, { totalPurchaseValue: 0, totalCurrentValue: 0 });
+        }, { totalPurchaseValue: 0, totalCurrentValue: 0, hasLiveData: false });
     }, [enrichedAssets]);
     
-    const totalChange = totals.totalCurrentValue - totals.totalPurchaseValue;
-    const totalChangePercent = totals.totalPurchaseValue > 0 ? (totalChange / totals.totalPurchaseValue) * 100 : 0;
+    const totalChange = totals.hasLiveData ? totals.totalCurrentValue - totals.totalPurchaseValue : null;
+    const totalChangePercent = (totalChange !== null && totals.totalPurchaseValue > 0) ? (totalChange / totals.totalPurchaseValue) * 100 : null;
 
     if (loading) return <PageSkeleton />;
 
@@ -422,7 +429,11 @@ export default function PortfolioDetailPage() {
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{totals.totalCurrentValue.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR', minimumFractionDigits: 2 })}</div>
+                        <div className="text-2xl font-bold">
+                            {totals.hasLiveData 
+                                ? totals.totalCurrentValue.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR', minimumFractionDigits: 2 })
+                                : 'جاري الحساب...'}
+                        </div>
                         <p className="text-xs text-muted-foreground">إجمالي تقديري. قد يتم تطبيق تحويل العملات.</p>
                     </CardContent>
                 </Card>
@@ -432,12 +443,18 @@ export default function PortfolioDetailPage() {
                         <TrendingUp className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className={`text-2xl font-bold ${totalChange >= 0 ? 'text-success' : 'text-destructive'}`}>
-                            {totalChange.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR' })}
-                        </div>
-                         <p className={`text-xs ${totalChange >= 0 ? 'text-success' : 'text-destructive'}`}>
-                            {totalChange >= 0 ? '+' : ''}{totalChangePercent.toFixed(2)}% منذ الشراء
-                        </p>
+                        {totalChange !== null ? (
+                            <>
+                                <div className={`text-2xl font-bold ${totalChange >= 0 ? 'text-success' : 'text-destructive'}`}>
+                                    {totalChange.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR' })}
+                                </div>
+                                <p className={`text-xs ${totalChange >= 0 ? 'text-success' : 'text-destructive'}`}>
+                                    {totalChange >= 0 ? '+' : ''}{totalChangePercent!.toFixed(2)}% منذ الشراء
+                                </p>
+                            </>
+                        ) : (
+                            <div className="text-2xl font-bold">N/A</div>
+                        )}
                     </CardContent>
                 </Card>
                 <Card>
@@ -480,10 +497,18 @@ export default function PortfolioDetailPage() {
                                             {asset.quantity ? `${asset.quantity?.toLocaleString()}` : '-'}
                                         </TableCell>
                                         <TableCell className="text-center">{asset.purchaseValue.toLocaleString('ar-SA', { style: 'currency', currency: asset.currency, minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell className="text-center">{asset.currentValue.toLocaleString('ar-SA', { style: 'currency', currency: asset.currency, minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell className={`text-center font-medium ${asset.change >= 0 ? 'text-success' : 'text-destructive'}`}>
-                                            <div>{asset.change.toLocaleString('ar-SA', { style: 'currency', currency: asset.currency, minimumFractionDigits: 2 })}</div>
-                                            <div className="text-xs">({asset.changePercent.toFixed(2)}%)</div>
+                                        <TableCell className="text-center">
+                                            {asset.currentValue !== null ? asset.currentValue.toLocaleString('ar-SA', { style: 'currency', currency: asset.currency, minimumFractionDigits: 2 }) : <span className="text-muted-foreground">N/A</span>}
+                                        </TableCell>
+                                        <TableCell className={`text-center font-medium`}>
+                                            {asset.change !== null ? (
+                                                <div className={asset.change >= 0 ? 'text-success' : 'text-destructive'}>
+                                                    <div>{asset.change.toLocaleString('ar-SA', { style: 'currency', currency: asset.currency, minimumFractionDigits: 2 })}</div>
+                                                    <div className="text-xs">({asset.changePercent!.toFixed(2)}%)</div>
+                                                </div>
+                                            ) : (
+                                                 <span className="text-muted-foreground">N/A</span>
+                                            )}
                                         </TableCell>
                                         <TableCell>
                                             <Button variant="ghost" size="icon" onClick={() => handleRemoveAsset(asset.id)}>
@@ -497,9 +522,15 @@ export default function PortfolioDetailPage() {
                                 <TableRow>
                                     <TableCell colSpan={2} className="font-bold">الإجمالي (تقديري)</TableCell>
                                     <TableCell className="text-center font-bold">{totals.totalPurchaseValue.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR' })}</TableCell>
-                                    <TableCell className="text-center font-bold">{totals.totalCurrentValue.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR' })}</TableCell>
-                                    <TableCell colSpan={2} className={`text-center font-bold ${totalChange >= 0 ? 'text-success' : 'text-destructive'}`}>
-                                        {totalChange.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR' })} ({totalChangePercent.toFixed(2)}%)
+                                    <TableCell className="text-center font-bold">
+                                        {totals.hasLiveData ? totals.totalCurrentValue.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR' }) : 'N/A'}
+                                    </TableCell>
+                                    <TableCell colSpan={2} className={`text-center font-bold`}>
+                                        {totalChange !== null ? (
+                                            <span className={totalChange >= 0 ? 'text-success' : 'text-destructive'}>
+                                                {totalChange.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR' })} ({totalChangePercent!.toFixed(2)}%)
+                                            </span>
+                                        ) : 'N/A'}
                                     </TableCell>
                                 </TableRow>
                             </TableFooter>
