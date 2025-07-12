@@ -73,7 +73,6 @@ export const getStockPrice = ai.defineTool(
     description: 'Gets the current market price for a given stock ticker symbol using the Twelve Data API.',
     inputSchema: z.object({
       ticker: z.string().describe('The stock ticker symbol, e.g., "2222" or "QNBK".'),
-      companyName: z.string().optional().describe('The name of the company (optional).'),
     }),
     outputSchema: z.object({
         price: z.number(),
@@ -103,6 +102,15 @@ export const getStockPrice = ai.defineTool(
         const response = await fetch(url);
         if (!response.ok) {
             const errorBody = await response.text();
+            try {
+                const parsedError = JSON.parse(errorBody);
+                if (parsedError.message && parsedError.message.includes('Pro plan')) {
+                    throw new Error(`This stock requires a paid Twelve Data plan to view live prices.`);
+                }
+            } catch (e) {
+                // Ignore parsing error, just throw the original text
+            }
+
             throw new Error(`API call failed with status ${response.status}. Body: ${errorBody}`);
         }
         const data = await response.json();
@@ -142,7 +150,7 @@ export const getStockPrice = ai.defineTool(
             }
         }
         
-        // 3. If it failed for a different reason (e.g., network error, invalid key) or no exchange is available, throw the original error.
+        // 3. If it failed for a different reason (e.g., network error, invalid key, or paid plan required), re-throw the specific error.
         throw new Error(`Failed to fetch live price for ${ticker}. Initial error: ${error.message}`);
     }
   }

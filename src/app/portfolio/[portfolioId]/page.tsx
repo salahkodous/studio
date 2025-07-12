@@ -119,11 +119,15 @@ export default function PortfolioDetailPage() {
         console.log(`Fetching live prices for ${stockAssets.length} stock(s)`);
         
         let hasFailed = false;
+        let hasApiLimitError = false;
         const pricePromises = stockAssets.map(asset => 
-            getStockPrice({ ticker: asset.ticker!, companyName: asset.name_ar })
+            getStockPrice({ ticker: asset.ticker! })
                 .catch(error => {
                     console.error(`[Portfolio Page] Failed to fetch price for ${asset.ticker}:`, error.message);
                     hasFailed = true;
+                    if (error.message.includes('paid Twelve Data plan')) {
+                        hasApiLimitError = true;
+                    }
                     return { error: error.message }; // Return an error object for this specific ticker
                 })
         );
@@ -142,8 +146,11 @@ export default function PortfolioDetailPage() {
         if (hasFailed) {
             toast({
                 title: "فشل في جلب بعض الأسعار الحية",
-                description: "قد تكون واجهة برمجة تطبيقات Twelve Data معطلة أو أن مفتاح API غير صالح في ملف .env.",
-                variant: "destructive"
+                description: hasApiLimitError
+                    ? "تتطلب بعض الأسهم خطة مدفوعة في Twelve Data لعرضها. الأسهم الأخرى قد تفشل بسبب مشاكل في الشبكة أو مفتاح API غير صالح."
+                    : "قد تكون واجهة برمجة تطبيقات Twelve Data معطلة أو أن مفتاح API غير صالح في ملف .env.",
+                variant: "destructive",
+                duration: 9000,
             });
         }
     }, [portfolioAssets, toast]);
