@@ -3,7 +3,7 @@
  * @fileOverview Main Firebase Functions entry point for the stock tracker.
  */
 import {onSchedule} from "firebase-functions/v2/scheduler";
-import {onCall} from "firebase-functions/v2/https";
+import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {updateAllMarketPrices} from "./lib/stock-updater";
 import {logError} from "./lib/error-logger";
 import {defineString} from "firebase-functions/params";
@@ -39,7 +39,7 @@ export const updateStockPrices = onSchedule("every 24 hours", async (event) => {
 export const runPriceUpdateNow = onCall({enforceAppCheck: false}, async (request) => {
     // Ensure the user is authenticated to prevent abuse.
     if (!request.auth) {
-        throw new https.HttpsError("unauthenticated", "The function must be called while authenticated.");
+        throw new HttpsError("unauthenticated", "The function must be called while authenticated.");
     }
     
     console.log(`Manual price update triggered by user: ${request.auth.uid}`);
@@ -55,6 +55,6 @@ export const runPriceUpdateNow = onCall({enforceAppCheck: false}, async (request
             error instanceof Error ? error : new Error(String(error)),
         );
         // Throw an HttpsError to send a structured error back to the client.
-        throw new https.HttpsError("internal", "An internal error occurred while updating prices.", error);
+        throw new HttpsError("internal", "An internal error occurred while updating prices.", error);
     }
 });
