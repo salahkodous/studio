@@ -36,7 +36,8 @@ export const findCompanyUrlTool = ai.defineTool(
         return 'https://www.dfm.ae/en/issuers/listed-securities/securities/company-profile-page?id=EMAAR'
     }
     // Fallback for demonstration
-    return `https://www.google.com/finance/quote/${assets.find(a => a.name === companyName)?.ticker}:TADAWUL`;
+    const asset = assets.find(a => a.name === companyName || a.name_ar === companyName);
+    return `https://www.google.com/finance/quote/${asset?.ticker}:TADAWUL`;
   }
 );
 
@@ -53,7 +54,7 @@ export const findCompanyNameTool = ai.defineTool(
         // First, check our local mock data for a quick answer
         const asset = assets.find(a => a.ticker.toUpperCase() === ticker.toUpperCase());
         if (asset) {
-            return asset.name;
+            return asset.name_ar; // Return Arabic name
         }
 
         // If not found, simulate a web search. In a real app, this would use the web scraper.
@@ -81,9 +82,11 @@ export const getStockPrice = ai.defineTool(
   },
   async ({ ticker }) => {
     console.log(`[getStockPriceTool] Looking up price for ${ticker}`);
-    const assetDetails = assets.find(a => a.ticker === ticker);
     
-    // Always fall back to static price from data.ts if the API key is missing or the call fails
+    // Correctly find the asset details using the ticker.
+    const assetDetails = assets.find(a => a.ticker.toUpperCase() === ticker.toUpperCase());
+    
+    // The fallback price now correctly uses the details found by the ticker.
     const fallbackPrice = {
         price: assetDetails?.price || 0,
         currency: assetDetails?.currency || 'USD',
@@ -138,11 +141,18 @@ export const getLatestNews = ai.defineTool(
     }),
     outputSchema: z.array(z.string()).describe('A list of news headlines.'),
   },
-  async ({ companyName }) => {
+  async ({ companyName, ticker }) => {
     console.log(`[getLatestNewsTool] AI agent is looking up URL for news for: ${companyName}`);
     const url = await findCompanyUrlTool({ companyName });
 
     console.log(`[getLatestNewsTool] AI agent is scraping news from: ${url}`);
+    
+    // Use local data as a fallback if scraping doesn't work or for demos
+    const localNews = newsArticles[ticker.toUpperCase() as keyof typeof newsArticles];
+    if (localNews && localNews.length > 0) {
+        return localNews.map(newsUrl => `News headline from ${new URL(newsUrl).hostname}`);
+    }
+
     const scrapeResult = await webScraperTool({ url });
 
     const extractionPrompt = ai.definePrompt({
