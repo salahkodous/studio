@@ -28,7 +28,6 @@ const PriceExtractionOutputSchema = z.object({
  * @returns A promise that resolves to the markdown string or null.
  */
 async function getMarkdownFromLocalFile(): Promise<string | null> {
-    // This path correctly navigates from the compiled code in 'lib' up to the project root and then down to the 'prices' folder.
     const filePath = path.resolve(__dirname, "../../../prices/12-7.json");
     console.log(`[LocalFile] Attempting to read raw data from: ${filePath}`);
     
@@ -39,7 +38,6 @@ async function getMarkdownFromLocalFile(): Promise<string | null> {
         const fileContent = fs.readFileSync(filePath, "utf8");
         const rawData = JSON.parse(fileContent);
 
-        // The provided JSON is an array with one object containing the markdown
         if (Array.isArray(rawData) && rawData.length > 0 && rawData[0].markdown) {
             console.log(`[LocalFile] Successfully extracted markdown content.`);
             return rawData[0].markdown;
@@ -106,8 +104,12 @@ export async function updateAllMarketPrices() {
     let successCount = 0;
     
     for (const extractedStock of output.stocks) {
-        // Find the corresponding asset from our master list by Arabic name
-        const asset = staticAssets.find(a => a.name_ar.trim() === extractedStock.companyName.trim());
+        // Find the corresponding asset from our master list by Arabic name OR by ticker-like name
+        const asset = staticAssets.find(a => 
+            a.name_ar.trim() === extractedStock.companyName.trim() ||
+            a.ticker.trim().toUpperCase() === extractedStock.companyName.trim().toUpperCase() ||
+            a.name.trim().toUpperCase() === extractedStock.companyName.trim().toUpperCase()
+        );
         const price = parseFloat(extractedStock.lastPrice.replace(/,/g, ''));
         
         if (asset && !isNaN(price)) {
