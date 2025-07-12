@@ -21,7 +21,6 @@ function getFormattedTicker(ticker: string, country: string): string {
             return `${ticker}.SR`;
         case 'AE':
             // Most UAE stocks on DFM work without suffix, but ADX might need it.
-            // Let's keep it flexible, but this could be a point of enhancement.
             return ticker; 
         case 'QA':
             return `${ticker}.QSE`;
@@ -37,7 +36,7 @@ async function fetchWithUrl(url: string, tickerForErrorMessage: string) {
         if (errorBody.message && errorBody.message.includes('Pro plan')) {
             throw new Error(`This stock requires a paid Twelve Data plan to view live prices.`);
         }
-        throw new Error(`API returned status ${response.status} for ${tickerForErrorMessage}. Response: ${errorBody.message}`);
+        throw new Error(`API returned status ${response.status} for ${tickerForErrorMessage}. Response: ${errorBody.message || JSON.stringify(errorBody)}`);
     }
 
     const data = await response.json();
@@ -131,19 +130,38 @@ export const getStockPrice = ai.defineTool(
         throw new Error("Twelve Data API key is not configured in .env file.");
     }
 
-    const formattedTicker = getFormattedTicker(assetDetails.ticker, assetDetails.country);
-    const url = `https://api.twelvedata.com/price?symbol=${formattedTicker}&apikey=${apiKey}`;
-
+    const plainUrl = `https://api.twelvedata.com/price?symbol=${ticker}&apikey=${apiKey}`;
     try {
-        const { price, currency } = await fetchWithUrl(url, formattedTicker);
+        // Attempt 1: Fetch with the plain ticker first.
+        const { price, currency } = await fetchWithUrl(plainUrl, ticker);
         return {
             price,
             currency,
             sourceUrl: `https://api.twelvedata.com`,
         };
     } catch (error: any) {
-        console.error(`[getStockPrice] Final failure for ${ticker} (${formattedTicker}):`, error.message);
-        throw new Error(`Failed to fetch live price for ${ticker}. Initial error: ${error.message}`);
+        console.warn(`[getStockPrice] Plain ticker fetch for ${ticker} failed. Trying with formatted ticker. Error: ${error.message}`);
+        
+        // Attempt 2: If the first attempt fails, try with the formatted ticker.
+        const formattedTicker = getFormattedTicker(assetDetails.ticker, assetDetails.country);
+        if (formattedTicker === ticker) {
+            // If formatting doesn't change the ticker, no need to retry. Re-throw the original error.
+            throw new Error(`Failed to fetch live price for ${ticker}. Initial error: ${error.message}`);
+        }
+        
+        const formattedUrl = `https://api.twelvedata.com/price?symbol=${formattedTicker}&apikey=${apiKey}`;
+        try {
+            const { price, currency } = await fetchWithUrl(formattedUrl, formattedTicker);
+            return {
+                price,
+                currency,
+                sourceUrl: `https://api.twelvedata.com`,
+            };
+        } catch (retryError: any) {
+            console.error(`[getStockPrice] Final failure for ${ticker} (tried plain and formatted '${formattedTicker}'):`, retryError.message);
+            // Throw a combined error message for clarity.
+            throw new Error(`Failed to fetch live price for ${ticker}. Initial error: ${error.message}`);
+        }
     }
   }
 );
