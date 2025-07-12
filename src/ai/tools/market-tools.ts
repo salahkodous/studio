@@ -21,27 +21,33 @@ import { db } from '@/lib/firebase';
  * Fetches the latest price for a stock from our Firestore database.
  * This data is updated daily by a scheduled backend job.
  * @param ticker The stock ticker symbol.
- * @returns A promise that resolves to the stock's price information.
+ * @returns A promise that resolves to the stock's price information or null.
  */
-async function getStockPriceFromFirestore(ticker: string): Promise<{ price: number; currency: string } | null> {
-    const stockRef = doc(db, "stocks", ticker);
-    const docSnap = await getDoc(stockRef);
+export async function getStockPriceFromFirestore(ticker: string): Promise<{ price: number; currency: string } | null> {
+    if (!ticker) return null;
 
-    if (docSnap.exists()) {
-        const data = docSnap.data();
-        return {
-            price: data.price,
-            currency: data.currency,
-        };
-    }
-    
-    // Fallback for assets not in the dynamic list, like Gold or Bonds
-    const staticAsset = assets.find(a => a.ticker === ticker);
-    if (staticAsset) {
-        return {
-            price: staticAsset.price,
-            currency: staticAsset.currency,
+    try {
+        const stockRef = doc(db, "stocks", ticker);
+        const docSnap = await getDoc(stockRef);
+
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            return {
+                price: data.price,
+                currency: data.currency,
+            };
         }
+        
+        // Fallback for assets not in the dynamic list, like Gold or Bonds
+        const staticAsset = assets.find(a => a.ticker === ticker);
+        if (staticAsset) {
+            return {
+                price: staticAsset.price,
+                currency: staticAsset.currency,
+            }
+        }
+    } catch (error) {
+        console.error(`[getStockPriceFromFirestore] Error fetching price for ${ticker}:`, error);
     }
     
     return null;
@@ -107,6 +113,7 @@ export const getStockPrice = ai.defineTool(
     description: 'Gets the most recent end-of-day price for a given stock ticker from our internal database.',
     inputSchema: z.object({
       ticker: z.string().describe('The stock ticker symbol, e.g., "2222" or "QNBK".'),
+      companyName: z.string().describe('The name of the company.'),
     }),
     outputSchema: z.object({
         price: z.number(),

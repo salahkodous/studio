@@ -22,7 +22,7 @@ import { PlusCircle, Trash2, DollarSign, TrendingUp, AlertCircle, PackageOpen, B
 import { getCurrencySymbol } from '@/lib/utils'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { findMarketAssetsTool, getStockPrice } from '@/ai/tools/market-tools'
+import { findMarketAssetsTool, getStockPriceFromFirestore } from '@/ai/tools/market-tools'
 
 
 const addAssetSchema = z.object({
@@ -50,7 +50,7 @@ const stockCountries = [
 type AvailableAsset = (Asset | RealEstateCity | { name: string; ticker: string; name_ar: string });
 
 
-type LivePrice = { price: number; currency: string } | { error: string };
+type LivePrice = { price: number; currency: string } | null;
 
 export default function PortfolioDetailPage() {
     const { user, loading: authLoading } = useAuth()
@@ -112,17 +112,17 @@ export default function PortfolioDetailPage() {
 
     const fetchAllLivePrices = useCallback(async () => {
         if (portfolioAssets.length === 0) return;
-    
-        const stockAssets = portfolioAssets.filter(asset => asset.ticker && asset.category === 'Stocks');
+        
+        const stockAssets = portfolioAssets.filter(asset => asset.ticker);
         if (stockAssets.length === 0) return;
         
-        console.log(`Fetching prices for ${stockAssets.length} stock(s)...`);
+        console.log(`Fetching prices for ${stockAssets.length} asset(s)...`);
 
         const pricePromises = stockAssets.map(asset => 
-            getStockPrice({ ticker: asset.ticker! })
+            getStockPriceFromFirestore(asset.ticker!)
                 .catch(error => {
                     console.error(`[Portfolio Page] Failed to fetch price for ${asset.ticker}:`, error.message);
-                    return { error: error.message }; // Return an error object for this specific ticker
+                    return null; // Return null on error for this specific ticker
                 })
         );
     
@@ -130,9 +130,9 @@ export default function PortfolioDetailPage() {
         
         const newLivePrices: Record<string, LivePrice> = {};
         results.forEach((result, index) => {
-            const stockAsset = stockAssets[index];
-            if (stockAsset.ticker) {
-                newLivePrices[stockAsset.ticker] = result;
+            const asset = stockAssets[index];
+            if (asset.ticker) {
+                newLivePrices[asset.ticker] = result;
             }
         });
         setLivePrices(newLivePrices);
@@ -264,10 +264,10 @@ export default function PortfolioDetailPage() {
             const purchaseValue = pa.purchasePrice * (pa.quantity || 1);
             const livePriceData = pa.ticker ? livePrices[pa.ticker] : undefined;
             const staticAssetDetails = assets.find(a => a.ticker === pa.ticker);
-            const currency = staticAssetDetails?.currency || 'USD';
+            const currency = livePriceData?.currency || staticAssetDetails?.currency || 'USD';
 
             let currentValue: number | null = null;
-            if (livePriceData && 'price' in livePriceData && pa.quantity) {
+            if (livePriceData && pa.quantity) {
                 currentValue = pa.quantity * livePriceData.price;
             } else {
                 currentValue = null; // Set to null if live price failed or not available
