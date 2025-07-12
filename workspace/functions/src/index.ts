@@ -2,11 +2,16 @@
 /**
  * @fileOverview Main Firebase Functions entry point for the stock tracker.
  */
+import {initializeApp} from "firebase-admin/app";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {updateAllMarketPrices} from "./lib/stock-updater";
 import {logError} from "./lib/error-logger";
 import {defineString} from "firebase-functions/params";
+
+// Initialize the Firebase Admin SDK.
+// This is required for backend functions to interact with Firebase services.
+initializeApp();
 
 // Define environment variables for the function.
 // These will be populated from .env.yaml when deploying.
