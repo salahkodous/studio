@@ -10,7 +10,7 @@
 import { z } from 'genkit';
 
 export const MarketAnalysisInputSchema = z.object({
-  ticker: z.string().describe('The ticker symbol of the stock to be analyzed.'),
+  query: z.string().describe('The ticker symbol or the name of the stock to be analyzed.'),
 });
 
 const RecommendationSchema = z.object({

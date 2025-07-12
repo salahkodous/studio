@@ -95,21 +95,41 @@ export const findFinancialData = ai.defineTool(
 export const findCompanyNameTool = ai.defineTool(
     {
         name: 'findCompanyNameTool',
-        description: 'Finds the full company name for a given stock ticker by searching our master data list.',
+        description: 'Finds the full company name and ticker for a given query (which can be a name or ticker) by searching our master data list.',
         inputSchema: z.object({
-            ticker: z.string().describe('The stock ticker symbol.'),
+            query: z.string().describe('The user query, which can be a stock ticker symbol or a company name.'),
         }),
-        outputSchema: z.string().describe('The full official name of the company.'),
+        outputSchema: z.object({
+            ticker: z.string().describe('The resolved official ticker symbol.'),
+            name: z.string().describe('The resolved official English name of the company.'),
+            name_ar: z.string().describe('The resolved official Arabic name of the company.'),
+        }),
     },
-    async ({ ticker }) => {
-        // Find the asset from our reliable local data.
-        const asset = assets.find(a => a.ticker.toUpperCase() === ticker.toUpperCase());
+    async ({ query }) => {
+        const normalizedQuery = query.trim().toUpperCase();
+
+        // 1. Exact ticker match
+        let asset = assets.find(a => a.ticker.toUpperCase() === normalizedQuery);
         if (asset) {
-            return asset.name_ar; // Return Arabic name from our master list
+            return { ticker: asset.ticker, name: asset.name, name_ar: asset.name_ar };
         }
 
-        console.warn(`[findCompanyNameTool] Ticker ${ticker} not found in local data. Returning ticker as name.`);
-        return ticker; // Return ticker itself as a fallback
+        // 2. Exact name match (Arabic or English)
+        asset = assets.find(a => a.name.toUpperCase() === normalizedQuery || a.name_ar.toUpperCase() === normalizedQuery);
+        if (asset) {
+            return { ticker: asset.ticker, name: asset.name, name_ar: asset.name_ar };
+        }
+
+        // 3. Partial name match (more fuzzy)
+        asset = assets.find(a => 
+            a.name.toUpperCase().includes(normalizedQuery) || 
+            a.name_ar.includes(query.trim()) // case-sensitive for Arabic partial match
+        );
+        if (asset) {
+            return { ticker: asset.ticker, name: asset.name, name_ar: asset.name_ar };
+        }
+
+        throw new Error(`Could not find a matching company for query: "${query}". Please try a more specific name or the exact ticker symbol.`);
     }
 );
 

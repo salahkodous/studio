@@ -17,7 +17,7 @@ import type { MarketAnalysis } from '@/ai/schemas/market-analysis-schema';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const formSchema = z.object({
-  ticker: z.string().min(2, 'الرجاء إدخال رمز سهم صالح.').max(20, 'رمز السهم طويل جدًا.'),
+  query: z.string().min(2, 'الرجاء إدخال اسم شركة أو رمز سهم صالح.').max(50, 'المدخل طويل جدًا.'),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -40,13 +40,13 @@ export default function AnalysisPage() {
     setIsGenerating(true);
 
     try {
-      const finalResult = await analyzeMarketForTicker({ ticker: data.ticker.toUpperCase() });
+      const finalResult = await analyzeMarketForTicker({ query: data.query });
       setResult(finalResult);
     } catch (error) {
       console.error('Error generating analysis:', error);
       toast({
         title: 'حدث خطأ',
-        description: 'لم نتمكن من إنشاء التحليل. قد يكون رمز السهم غير صالح أو أن الخدمة تواجه ضغطًا. الرجاء المحاولة مرة أخرى.',
+        description: 'لم نتمكن من إنشاء التحليل. قد يكون اسم الشركة أو الرمز غير صالح أو أن الخدمة تواجه ضغطًا. الرجاء المحاولة مرة أخرى.',
         variant: 'destructive',
       });
     } finally {
@@ -72,14 +72,14 @@ export default function AnalysisPage() {
       <Card>
         <CardHeader>
           <CardTitle>تحليل سهم</CardTitle>
-          <CardDescription>أدخل رمز السهم (Ticker) للحصول على تحليل شامل ومباشر.</CardDescription>
+          <CardDescription>أدخل اسم الشركة أو رمز السهم (Ticker) للحصول على تحليل شامل ومباشر.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="ticker">رمز السهم</Label>
-              <Input id="ticker" {...register('ticker')} placeholder="مثال: ARAMCO, QNB, EMAAR" />
-              {errors.ticker && <p className="text-sm text-destructive">{errors.ticker.message}</p>}
+              <Label htmlFor="query">اسم الشركة أو رمز السهم</Label>
+              <Input id="query" {...register('query')} placeholder="مثال: أرامكو, QNB, EMAAR, 2222" />
+              {errors.query && <p className="text-sm text-destructive">{errors.query.message}</p>}
             </div>
 
             <Button type="submit" disabled={isGenerating} className="w-full">
@@ -91,7 +91,7 @@ export default function AnalysisPage() {
               ) : (
                 <>
                   <Wand2 className="mr-2 h-4 w-4" />
-                  حلل السهم
+                  حلل الآن
                 </>
               )}
             </Button>

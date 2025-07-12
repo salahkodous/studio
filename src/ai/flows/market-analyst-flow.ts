@@ -55,24 +55,24 @@ const marketAnalystFlow = ai.defineFlow(
     name: 'marketAnalystFlow',
     inputSchema: MarketAnalysisInputSchema,
     outputSchema: MarketAnalysisSchema,
-    tools: [findFinancialData], // Provide the tool to the flow
+    tools: [findFinancialData, findCompanyNameTool], // Provide the tools to the flow
   },
-  async ({ ticker }) => {
-    // Let the AI find the company name from the ticker using our reliable internal data.
-    const companyName = await findCompanyNameTool({ ticker });
+  async ({ query }) => {
+    // Let the AI find the company name and ticker from the user's query.
+    const companyInfo = await findCompanyNameTool({ query });
 
-    console.log(`[marketAnalystFlow] Starting analysis for ${companyName} (${ticker})`);
+    console.log(`[marketAnalystFlow] Starting analysis for ${companyInfo.name_ar} (${companyInfo.ticker})`);
 
     // The AI will use this tool to gather live data. The prompt will guide it.
     // The tool finds the right URL and scrapes it.
-    const financialData = await findFinancialData({ ticker, companyName });
+    const financialData = await findFinancialData({ ticker: companyInfo.ticker, companyName: companyInfo.name });
     
     console.log('[marketAnalystFlow] Data gathered, generating analysis...');
     
     try {
         const { output } = await analystPrompt({ 
-            ticker, 
-            companyName,
+            ticker: companyInfo.ticker, 
+            companyName: companyInfo.name_ar,
             scrapedFinancialData: financialData.content, // Pass the raw scraped content to the prompt
         });
 
@@ -90,8 +90,8 @@ const marketAnalystFlow = ai.defineFlow(
         // Ensure the output from the AI has the ticker and name we used, overriding any hallucinations.
         return {
             ...parsedOutput.data,
-            ticker,
-            companyName,
+            ticker: companyInfo.ticker,
+            companyName: companyInfo.name_ar,
         };
 
     } catch(error) {
