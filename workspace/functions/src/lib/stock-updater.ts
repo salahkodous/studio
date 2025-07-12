@@ -28,15 +28,13 @@ const PriceExtractionOutputSchema = z.object({
  * @returns A promise that resolves to the markdown string or null.
  */
 async function getMarkdownFromLocalFile(): Promise<string | null> {
-    // Correctly resolve the path from the function's root directory.
-    // __dirname will point to `workspace/functions/lib` when deployed.
-    // The prices file is at `workspace/prices/12-7.json`.
+    // This path correctly navigates from the compiled code in 'lib' up to the project root and then down to the 'prices' folder.
     const filePath = path.resolve(__dirname, "../../../prices/12-7.json");
-    console.log(`[LocalFile] Reading raw data from: ${filePath}`);
+    console.log(`[LocalFile] Attempting to read raw data from: ${filePath}`);
     
     try {
         if (!fs.existsSync(filePath)) {
-            throw new Error(`File not found at ${filePath}`);
+            throw new Error(`File not found at ${filePath}. Make sure the 'prices' directory is at the root of the 'workspace' folder.`);
         }
         const fileContent = fs.readFileSync(filePath, "utf8");
         const rawData = JSON.parse(fileContent);
