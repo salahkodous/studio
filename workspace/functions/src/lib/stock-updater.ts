@@ -2,7 +2,6 @@
 /**
  * @fileOverview Core logic for fetching, translating, and storing stock data.
  */
-import {initializeApp} from "firebase-admin/app";
 import {getFirestore, Timestamp} from "firebase-admin/firestore";
 import {assets as staticAssets} from "./static-data";
 import {logError} from "./error-logger";
@@ -11,21 +10,16 @@ import * as path from "path";
 import {ai} from "./genkit-config";
 import {z} from "zod";
 
-// Initialize Firebase Admin SDK if not already done.
-// The SDK is automatically configured by the Firebase Functions environment.
-if (!(global as any)._firebaseApp) {
-    (global as any)._firebaseApp = initializeApp();
-}
 const db = getFirestore();
 
 // Define Zod schemas for the AI extraction prompt
 const ExtractedStockSchema = z.object({
     companyName: z.string().describe("The full name of the company in Arabic, exactly as it appears in the text."),
-    lastPrice: z.string().describe("The last transaction price, as a string."),
+    lastPrice: z.string().describe("The 'Previous Close' price, as a string from the table."),
 });
 
 const PriceExtractionOutputSchema = z.object({
-    stocks: z.array(ExtractedStockSchema),
+    stocks: z.array(ExtractedStockSchema).describe("An array of all stocks found in the table."),
 });
 
 
@@ -34,7 +28,7 @@ const PriceExtractionOutputSchema = z.object({
  * @returns A promise that resolves to the markdown string or null.
  */
 async function getMarkdownFromLocalFile(): Promise<string | null> {
-    const filePath = path.join(__dirname, "../../../prices/12-7.json");
+    const filePath = path.join(__dirname, "../../prices/12-7.json");
     console.log(`[LocalFile] Reading raw data from: ${filePath}`);
     
     try {
@@ -71,8 +65,8 @@ const priceExtractionPrompt = ai.definePrompt({
     prompt: `You are a data extraction expert. Your task is to extract stock information from the provided markdown text, which comes from the Saudi Exchange website.
 
     Focus on the main table that lists companies. For each row in that table, extract the following:
-    1. The full "Company Name" (in Arabic).
-    2. The "Previous Close" price.
+    1.  The full "Company Name" (in Arabic).
+    2.  The "Previous Close" price.
 
     Return the data as a JSON object that adheres to the output schema. Ignore everything else in the text.
 
@@ -111,7 +105,7 @@ export async function updateAllMarketPrices() {
     
     for (const extractedStock of output.stocks) {
         // Find the corresponding asset from our master list by Arabic name
-        const asset = staticAssets.find(a => a.name_ar === extractedStock.companyName.trim());
+        const asset = staticAssets.find(a => a.name_ar.trim() === extractedStock.companyName.trim());
         const price = parseFloat(extractedStock.lastPrice.replace(/,/g, ''));
         
         if (asset && !isNaN(price)) {
@@ -126,7 +120,7 @@ export async function updateAllMarketPrices() {
             }, { merge: true });
             successCount++;
         } else {
-            console.warn(`[Updater] Could not match or parse: Company: ${extractedStock.companyName}, Price: ${extractedStock.lastPrice}`);
+            console.warn(`[Updater] Could not match or parse: Company: "${extractedStock.companyName}", Price: "${extractedStock.lastPrice}"`);
         }
     }
 
