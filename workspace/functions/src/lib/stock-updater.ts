@@ -25,11 +25,13 @@ const PriceExtractionOutputSchema = z.object({
 
 /**
  * Reads and extracts the raw markdown content from the local JSON file.
+ * This function is now more robust in locating the file.
  * @returns A promise that resolves to the markdown string or null.
  */
 async function getMarkdownFromLocalFile(): Promise<string | null> {
-    const filePath = path.resolve(__dirname, "../../../prices/12-7.json");
-    console.log(`[LocalFile] Attempting to read raw data from: ${filePath}`);
+    // process.cwd() in Cloud Functions points to the root of the function's directory, which is /workspace/functions
+    const filePath = path.resolve(process.cwd(), "../prices/12-7.json");
+    console.log(`[LocalFile] Attempting to read raw data from absolute path: ${filePath}`);
     
     try {
         if (!fs.existsSync(filePath)) {
@@ -46,8 +48,9 @@ async function getMarkdownFromLocalFile(): Promise<string | null> {
         throw new Error("Invalid data structure in JSON file. Expected an array with an object containing a 'markdown' property.");
         
     } catch (error) {
-        await logError(`getMarkdownFromLocalFile`, error instanceof Error ? error : new Error(String(error)));
-        return null;
+        await logError(`getMarkdownFromLocalFile-critical`, error instanceof Error ? error : new Error(String(error)));
+        // Re-throw the error to ensure the calling function knows it failed.
+        throw error;
     }
 }
 
