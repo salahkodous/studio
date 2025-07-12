@@ -44,20 +44,19 @@ export const findCompanyUrlTool = ai.defineTool(
 export const findCompanyNameTool = ai.defineTool(
     {
         name: 'findCompanyNameTool',
-        description: 'Finds the full company name for a given stock ticker by searching financial data sources.',
+        description: 'Finds the full company name for a given stock ticker by searching our master data list.',
         inputSchema: z.object({
             ticker: z.string().describe('The stock ticker symbol.'),
         }),
         outputSchema: z.string().describe('The full official name of the company.'),
     },
     async ({ ticker }) => {
-        // First, check our local data for a quick answer
+        // Find the asset from our reliable local data.
         const asset = assets.find(a => a.ticker.toUpperCase() === ticker.toUpperCase());
         if (asset) {
             return asset.name_ar; // Return Arabic name from our master list
         }
 
-        // Fallback if not found in our master list, which shouldn't happen often
         console.warn(`[findCompanyNameTool] Ticker ${ticker} not found in local data. Returning a default name.`);
         return ticker; // Return ticker itself as a fallback
     }
@@ -101,8 +100,8 @@ export const getStockPrice = ai.defineTool(
 
         if (!response.ok) {
             const errorBody = await response.text();
-            console.error(`[getStockPriceTool] Twelve Data API call failed for ${ticker}. Status: ${response.status}. Body: ${errorBody}`);
-            throw new Error(`API call failed with status ${response.status}`);
+            console.error(`[getStockPriceTool] Twelve Data API call failed for ${ticker} on exchange ${exchange}. Status: ${response.status}. Body: ${errorBody}`);
+            throw new Error(`API call failed with status ${response.status}. Check if the symbol is correct for the exchange.`);
         }
 
         const data = await response.json();

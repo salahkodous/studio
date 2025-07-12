@@ -141,7 +141,7 @@ export default function PortfolioDetailPage() {
         if (hasFailed) {
             toast({
                 title: "فشل في جلب بعض الأسعار الحية",
-                description: "قد تكون واجهة برمجة تطبيقات Twelve Data معطلة أو أن مفتاح API غير صالح.",
+                description: "قد تكون واجهة برمجة تطبيقات Twelve Data معطلة أو أن مفتاح API غير صالح في ملف .env.",
                 variant: "destructive"
             });
         }
