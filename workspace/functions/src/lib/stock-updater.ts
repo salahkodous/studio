@@ -7,21 +7,8 @@ import {assets as staticAssets} from "./static-data";
 import {logError} from "./error-logger";
 import * as fs from "fs";
 import * as path from "path";
-import {ai} from "./genkit-config";
-import {z} from "zod";
 
 const db = getFirestore();
-
-// Define Zod schemas for the AI extraction prompt
-const ExtractedStockSchema = z.object({
-    companyName: z.string().describe("The full name of the company in Arabic, exactly as it appears in the text."),
-    lastPrice: z.string().describe("The 'Previous Close' price, as a string from the table."),
-});
-
-const PriceExtractionOutputSchema = z.object({
-    stocks: z.array(ExtractedStockSchema).describe("An array of all stocks found in the table."),
-});
-
 
 /**
  * Reads and extracts the raw markdown content from the local JSON file.
@@ -56,31 +43,6 @@ async function getMarkdownFromLocalFile(): Promise<string | null> {
 
 
 /**
- * Uses an AI prompt to extract structured stock data from raw markdown text.
- * @param markdown The raw markdown content from the scraped page.
- * @returns A promise that resolves to the structured stock data.
- */
-const priceExtractionPrompt = ai.definePrompt({
-    name: "priceExtractionPrompt",
-    input: {schema: z.string()},
-    output: {schema: PriceExtractionOutputSchema},
-    prompt: `You are a data extraction expert. Your task is to extract stock information from the provided markdown text, which comes from the Saudi Exchange website.
-
-    Focus on the main table that lists companies. For each row in that table, extract the following:
-    1.  The full "Company Name" (in Arabic).
-    2.  The "Previous Close" price.
-
-    Return the data as a JSON object that adheres to the output schema. Ignore everything else in the text.
-
-    Markdown Content:
-    ---
-    {{{input}}}
-    ---
-    `,
-});
-
-
-/**
  * The main orchestrator function. Gets all stock prices from the local JSON file
  * by using an AI prompt to parse the content and then saves the data to Firestore.
  */
@@ -92,21 +54,31 @@ export async function updateAllMarketPrices() {
         return;
     }
 
-    console.log("[Updater] Asking AI to extract structured data from markdown...");
-    
-    const {output} = await priceExtractionPrompt(markdownContent);
-    
-    if (!output || !output.stocks || output.stocks.length === 0) {
-        console.error("Aborting update, AI failed to extract any stock data.");
-        throw new Error("AI extraction failed to return any stocks.");
+    // Direct parsing of the markdown content instead of using AI
+    const lines = markdownContent.split('\n');
+    const stockDataRegex = /\| \d{4} \| \[([^\]]+)\]\(.+\) \| ([\d,.]+) \|/;
+
+    const extractedStocks = [];
+    for (const line of lines) {
+        const match = line.match(stockDataRegex);
+        if (match) {
+            const companyName = match[1].trim();
+            const lastPrice = match[2].trim();
+            extractedStocks.push({ companyName, lastPrice });
+        }
     }
     
-    console.log(`[Updater] AI successfully extracted ${output.stocks.length} stock entries.`);
+    if (!extractedStocks || extractedStocks.length === 0) {
+        console.error("Aborting update, failed to extract any stock data from markdown.");
+        throw new Error("Markdown parsing failed to return any stocks.");
+    }
+    
+    console.log(`[Updater] Successfully extracted ${extractedStocks.length} stock entries from markdown.`);
 
     const batch = db.batch();
     let successCount = 0;
     
-    for (const extractedStock of output.stocks) {
+    for (const extractedStock of extractedStocks) {
         // Find the corresponding asset from our master list by Arabic name OR by ticker-like name
         const asset = staticAssets.find(a => 
             a.name_ar.trim() === extractedStock.companyName.trim() ||
