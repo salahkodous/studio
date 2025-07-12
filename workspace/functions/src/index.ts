@@ -2,6 +2,9 @@
 /**
  * @fileOverview Main Firebase Functions entry point for the stock tracker.
  */
+import { config } from "dotenv";
+config(); // Load environment variables from .env file
+
 import {initializeApp} from "firebase-admin/app";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
@@ -14,7 +17,7 @@ import {defineString} from "firebase-functions/params";
 initializeApp();
 
 // Define environment variables for the function.
-// These will be populated from .env.yaml when deploying.
+// These will be populated from .env.yaml when deploying or loaded from .env locally.
 defineString("GEMINI_API_KEY");
 defineString("FIRECRAWL_API_KEY");
 
