@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/use-auth'
@@ -108,39 +108,41 @@ export default function PortfolioDetailPage() {
         }
     }, [user, portfolioId, router, toast])
 
-    useEffect(() => {
-        const fetchAllLivePrices = async () => {
-            if (portfolioAssets.length === 0) return;
-
-            const stockAssets = portfolioAssets.filter(asset => asset.ticker && asset.category === 'Stocks');
-            if (stockAssets.length === 0) return;
-            
-            console.log(`Fetching live prices for ${stockAssets.length} stock(s)`);
-
-            const pricePromises = stockAssets.map(asset => 
-                getStockPrice({ ticker: asset.ticker!, companyName: asset.name_ar })
-            );
-
-            const results = await Promise.allSettled(pricePromises);
-            
-            const newLivePrices: Record<string, { price: number; currency: string }> = {};
-            results.forEach((result, index) => {
-                const stockAsset = stockAssets[index];
-                if (result.status === 'fulfilled' && stockAsset.ticker) {
-                    console.log(`Live price for ${stockAsset.ticker}:`, result.value.price);
-                    newLivePrices[stockAsset.ticker] = {
-                        price: result.value.price,
-                        currency: result.value.currency,
-                    };
-                } else if (result.status === 'rejected') {
-                    console.error(`Failed to fetch price for ${stockAsset.ticker}:`, result.reason);
-                }
-            });
-            setLivePrices(newLivePrices);
-        };
-
-        fetchAllLivePrices();
+    const fetchAllLivePrices = useCallback(async () => {
+        if (portfolioAssets.length === 0) return;
+    
+        const stockAssets = portfolioAssets.filter(asset => asset.ticker && asset.category === 'Stocks');
+        if (stockAssets.length === 0) return;
+        
+        console.log(`Fetching live prices for ${stockAssets.length} stock(s)`);
+    
+        const pricePromises = stockAssets.map(asset => 
+            getStockPrice({ ticker: asset.ticker!, companyName: asset.name_ar })
+        );
+    
+        const results = await Promise.allSettled(pricePromises);
+        
+        const newLivePrices: Record<string, { price: number; currency: string }> = {};
+        results.forEach((result, index) => {
+            const stockAsset = stockAssets[index];
+            if (result.status === 'fulfilled' && stockAsset.ticker) {
+                console.log(`Live price for ${stockAsset.ticker}:`, result.value.price);
+                newLivePrices[stockAsset.ticker] = {
+                    price: result.value.price,
+                    currency: result.value.currency,
+                };
+            } else if (result.status === 'rejected') {
+                console.error(`Failed to fetch price for ${stockAsset.ticker}:`, result.reason);
+            }
+        });
+        setLivePrices(newLivePrices);
     }, [portfolioAssets]);
+    
+    useEffect(() => {
+        // Fetch prices when the component mounts and when assets change
+        fetchAllLivePrices();
+    }, [fetchAllLivePrices]);
+
 
     const resetAddAssetFlow = () => {
         setStep(1);
