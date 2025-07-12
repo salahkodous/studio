@@ -14,6 +14,43 @@ import { z } from 'genkit';
 import { assets, newsArticles, type Asset } from '@/lib/data';
 import { webScraperTool } from './web-scraper-tool';
 
+// Helper to format ticker based on country for Twelve Data API
+function getFormattedTicker(ticker: string, country: string): string {
+    switch (country) {
+        case 'SA':
+            return `${ticker}.SR`;
+        case 'AE':
+            // Most UAE stocks on DFM work without suffix, but ADX might need it.
+            // Let's keep it flexible, but this could be a point of enhancement.
+            return ticker; 
+        case 'QA':
+            return `${ticker}.QSE`;
+        default:
+            return ticker;
+    }
+}
+
+async function fetchWithUrl(url: string, tickerForErrorMessage: string) {
+    const response = await fetch(url);
+    if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({ message: response.statusText }));
+        if (errorBody.message && errorBody.message.includes('Pro plan')) {
+            throw new Error(`This stock requires a paid Twelve Data plan to view live prices.`);
+        }
+        throw new Error(`API returned status ${response.status} for ${tickerForErrorMessage}. Response: ${errorBody.message}`);
+    }
+
+    const data = await response.json();
+    const price = parseFloat(data.price);
+
+    if (isNaN(price)) {
+        throw new Error(`Invalid or missing price data received from ${url} for ${tickerForErrorMessage}. Response: ${JSON.stringify(data)}`);
+    }
+
+    return { price, currency: data.currency || 'USD' };
+}
+
+
 export const findCompanyUrlTool = ai.defineTool(
   {
     name: 'findCompanyUrlTool',
@@ -70,7 +107,7 @@ export const findCompanyNameTool = ai.defineTool(
 export const getStockPrice = ai.defineTool(
   {
     name: 'getStockPrice',
-    description: 'Gets the current market price for a given stock ticker by looking it up in the local data file.',
+    description: 'Gets the current market price for a given stock ticker by querying the Twelve Data API.',
     inputSchema: z.object({
       ticker: z.string().describe('The stock ticker symbol, e.g., "2222" or "QNBK".'),
     }),
@@ -81,7 +118,7 @@ export const getStockPrice = ai.defineTool(
     }),
   },
   async ({ ticker }) => {
-    console.log(`[getStockPriceTool] Looking up static price for ${ticker}`);
+    console.log(`[getStockPriceTool] Fetching live price for ${ticker}`);
     
     const assetDetails = assets.find(a => a.ticker.toUpperCase() === ticker.toUpperCase());
     
@@ -89,12 +126,25 @@ export const getStockPrice = ai.defineTool(
         throw new Error(`Ticker ${ticker} not found in our master asset list.`);
     }
 
-    // Return static data from data.ts, bypassing the live API call.
-    return {
-        price: assetDetails.price,
-        currency: assetDetails.currency,
-        sourceUrl: `https://www.google.com/finance/quote/${ticker}`, // Generic URL
-    };
+    const apiKey = process.env.TWELVE_DATA_API_KEY;
+    if (!apiKey || apiKey === 'YOUR_API_KEY_HERE') {
+        throw new Error("Twelve Data API key is not configured in .env file.");
+    }
+
+    const formattedTicker = getFormattedTicker(assetDetails.ticker, assetDetails.country);
+    const url = `https://api.twelvedata.com/price?symbol=${formattedTicker}&apikey=${apiKey}`;
+
+    try {
+        const { price, currency } = await fetchWithUrl(url, formattedTicker);
+        return {
+            price,
+            currency,
+            sourceUrl: `https://api.twelvedata.com`,
+        };
+    } catch (error: any) {
+        console.error(`[getStockPrice] Final failure for ${ticker} (${formattedTicker}):`, error.message);
+        throw new Error(`Failed to fetch live price for ${ticker}. Initial error: ${error.message}`);
+    }
   }
 );
 

@@ -116,14 +116,20 @@ export default function PortfolioDetailPage() {
         const stockAssets = portfolioAssets.filter(asset => asset.ticker && asset.category === 'Stocks');
         if (stockAssets.length === 0) return;
         
-        console.log(`Fetching prices for ${stockAssets.length} stock(s) from static data.`);
+        console.log(`Fetching prices for ${stockAssets.length} stock(s)...`);
         
+        let hasFailed = false;
+        let hasApiLimitError = false;
+
         const pricePromises = stockAssets.map(asset => 
             getStockPrice({ ticker: asset.ticker! })
                 .catch(error => {
-                    // This block should theoretically not be reached now, but is kept for safety.
                     console.error(`[Portfolio Page] Failed to fetch price for ${asset.ticker}:`, error.message);
-                    return { error: error.message };
+                    hasFailed = true;
+                    if (error.message.includes('paid Twelve Data plan')) {
+                        hasApiLimitError = true;
+                    }
+                    return { error: error.message }; // Return an error object for this specific ticker
                 })
         );
     
@@ -138,7 +144,16 @@ export default function PortfolioDetailPage() {
         });
         setLivePrices(newLivePrices);
         
-    }, [portfolioAssets]);
+        if (hasFailed) {
+            toast({
+                title: "خطأ في جلب بعض الأسعار",
+                description: hasApiLimitError 
+                    ? "بعض الأسهم تتطلب خطة مدفوعة في Twelve Data لعرض أسعارها المباشرة."
+                    : "فشل جلب بعض الأسعار المباشرة. قد تكون واجهة برمجة التطبيقات معطلة أو أن مفتاح API غير صحيح. يرجى التحقق من ملف .env.",
+                variant: "destructive"
+            });
+        }
+    }, [portfolioAssets, toast]);
     
     useEffect(() => {
         if (portfolioAssets.length > 0) {
