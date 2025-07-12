@@ -26,17 +26,21 @@ export const findCompanyUrlTool = ai.defineTool(
   async ({ companyName }) => {
     // In a real app, this could use a search API. For now, we simulate.
     console.log(`[findCompanyUrlTool] Searching for URL for: ${companyName}`);
-    if (companyName.toLowerCase().includes('aramco')) {
+    
+    // Find asset from our master data list for better reliability
+    const asset = assets.find(a => a.name === companyName || a.name_ar === companyName);
+
+    if (asset?.ticker === '2222') { // ARAMCO
         return 'https://www.tadawul.com.sa/wps/portal/tadawul/markets/equities/company-details/!ut/p/z1/04_Sj9CPykssy0xPLMnMz0vMAfIjo8zi_Tx8nD0MLIy83V1DjA0czV2cPSd8rYwMvE30I4EKzBEKzC3dnB2dXX393Q08LP0C_N2I0otPNs_d3_b2N6AgDLB3-lH-mA_qA4ZA10Q_f_5w!/dz/d5/L2dBISEvZ0FBIS9nQSEh/?symbol=2222';
     }
-    if (companyName.toLowerCase().includes('qnb')) {
+    if (asset?.ticker === 'QNBK') {
         return 'https://www.qe.com.qa/company-details-page/qnbk'
     }
-     if (companyName.toLowerCase().includes('emaar')) {
+     if (asset?.ticker === 'EMAAR') {
         return 'https://www.dfm.ae/en/issuers/listed-securities/securities/company-profile-page?id=EMAAR'
     }
+
     // Fallback for demonstration
-    const asset = assets.find(a => a.name === companyName || a.name_ar === companyName);
     return `https://www.google.com/finance/quote/${asset?.ticker}:TADAWUL`;
   }
 );
@@ -57,7 +61,7 @@ export const findCompanyNameTool = ai.defineTool(
             return asset.name_ar; // Return Arabic name from our master list
         }
 
-        console.warn(`[findCompanyNameTool] Ticker ${ticker} not found in local data. Returning a default name.`);
+        console.warn(`[findCompanyNameTool] Ticker ${ticker} not found in local data. Returning ticker as name.`);
         return ticker; // Return ticker itself as a fallback
     }
 );
@@ -102,6 +106,8 @@ export const getStockPrice = ai.defineTool(
             throw new Error(`API call to ${url} failed with status ${response.status}. Body: ${errorBody}`);
         }
         const data = await response.json();
+        
+        // Twelve Data returns price as a string, so we need to parse it.
         const price = parseFloat(data.price);
 
         if (data && !isNaN(price)) {
@@ -112,7 +118,7 @@ export const getStockPrice = ai.defineTool(
                 sourceUrl: `https://twelvedata.com/symbol/${ticker}`, // Generic URL
             };
         }
-        throw new Error(`Invalid price data received from ${url} for ${ticker}. Response: ${JSON.stringify(data)}`);
+        throw new Error(`Invalid or missing price data received from ${url} for ${ticker}. Response: ${JSON.stringify(data)}`);
     }
 
     // --- STRATEGY ---
