@@ -47,7 +47,8 @@ const stockCountries = [
     { id: 'QA', label: 'قطر' },
 ];
 
-type AvailableAsset = Asset | RealEstateCity | { name: string; ticker: string; name_ar: string };
+type AvailableAsset = (Asset | RealEstateCity | { name: string; ticker: string; name_ar: string });
+
 
 type LivePrice = { price: number; currency: string } | { error: string };
 
@@ -213,7 +214,7 @@ export default function PortfolioDetailPage() {
     }
 
     const handleAssetSelect = (assetIdentifier: string) => {
-        const foundAsset = availableAssets.find(a => ('ticker' in a ? a.ticker : a.cityKey) === assetIdentifier);
+        const foundAsset = availableAssets.find(a => ('ticker' in a ? a.ticker : 'cityKey' in a ? a.cityKey : a.name) === assetIdentifier);
         if (foundAsset) {
             setSelectedAsset(foundAsset);
             setFormValue('name', 'name_ar' in foundAsset ? foundAsset.name_ar : foundAsset.name);
@@ -224,20 +225,28 @@ export default function PortfolioDetailPage() {
     const handleAddAsset = async (data: AddAssetFormValues) => {
         if (!user) return;
 
-        const assetTicker = selectedAsset && 'ticker' in selectedAsset 
-            ? selectedAsset.ticker 
-            : selectedAsset && 'cityKey' in selectedAsset 
-            ? selectedAsset.cityKey
-            : null;
+        let assetPayload: Omit<PortfolioAsset, 'id'>;
 
-        const assetPayload: Omit<PortfolioAsset, 'id'> = {
-            name: selectedAsset ? selectedAsset.name : data.name,
-            name_ar: selectedAsset ? ('name_ar' in selectedAsset ? selectedAsset.name_ar : selectedAsset.name) : data.name,
-            ticker: assetTicker,
-            category: selectedCategory!,
-            purchasePrice: data.purchasePrice,
-            quantity: data.quantity ?? null,
-        };
+        if (selectedAsset) {
+             const assetTicker = 'ticker' in selectedAsset ? selectedAsset.ticker : ('cityKey' in selectedAsset ? selectedAsset.cityKey : null);
+             assetPayload = {
+                name: 'name' in selectedAsset ? selectedAsset.name : data.name,
+                name_ar: 'name_ar' in selectedAsset ? selectedAsset.name_ar : data.name,
+                ticker: assetTicker,
+                category: selectedCategory!,
+                purchasePrice: data.purchasePrice,
+                quantity: data.quantity ?? null,
+            };
+        } else {
+            assetPayload = {
+                name: data.name,
+                name_ar: data.name,
+                ticker: null,
+                category: selectedCategory!,
+                purchasePrice: data.purchasePrice,
+                quantity: data.quantity,
+            };
+        }
         
         try {
             await addAssetToPortfolio(user.uid, portfolioId, assetPayload);
@@ -380,11 +389,16 @@ export default function PortfolioDetailPage() {
                                             <SelectValue placeholder="اختر أصلاً..." />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {availableAssets.map(asset => (
-                                                <SelectItem key={'ticker' in asset ? asset.ticker : ('cityKey' in asset ? asset.cityKey : asset.name)} value={'ticker' in asset ? asset.ticker : ('cityKey' in asset ? asset.cityKey : asset.name)}>
-                                                    {'name_ar' in asset ? asset.name_ar : asset.name}{'ticker' in asset && ` (${asset.ticker})`}
-                                                </SelectItem>
-                                            ))}
+                                            {availableAssets.map(asset => {
+                                                const key = 'ticker' in asset ? asset.ticker : 'cityKey' in asset ? asset.cityKey : asset.name;
+                                                const name = 'name_ar' in asset ? asset.name_ar : asset.name;
+                                                const ticker = 'ticker' in asset ? ` (${asset.ticker})` : '';
+                                                return (
+                                                    <SelectItem key={key} value={key}>
+                                                        {name}{ticker}
+                                                    </SelectItem>
+                                                )
+                                            })}
                                         </SelectContent>
                                     </Select>
                                 )}

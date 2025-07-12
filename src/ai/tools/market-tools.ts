@@ -183,13 +183,14 @@ export const getLatestNews = ai.defineTool(
 export const findMarketAssetsTool = ai.defineTool(
     {
         name: 'findMarketAssetsTool',
-        description: 'Finds a list of publicly traded stocks for a given market by querying the Twelve Data API.',
+        description: 'Finds a list of publicly traded stocks for a given market by querying our local master data file.',
         inputSchema: z.object({
             market: z.enum(['SA', 'AE', 'QA']).describe('The stock market to search (SA: Saudi Arabia, AE: UAE, QA: Qatar).'),
         }),
         outputSchema: z.array(z.object({
             ticker: z.string().describe('The official ticker symbol.'),
             name: z.string().describe('The full official name of the company.'),
+            name_ar: z.string().describe('The full official Arabic name of the company.'),
         })),
     },
     async ({ market }) => {
@@ -197,6 +198,6 @@ export const findMarketAssetsTool = ai.defineTool(
         console.log(`[findMarketAssetsTool] Fetching assets for ${market} from local master data.`);
         return assets
             .filter(a => a.country === market && a.category === 'Stocks')
-            .map(a => ({ ticker: a.ticker, name: a.name_ar })); // Return Arabic name for display
+            .map(a => ({ ticker: a.ticker, name: a.name, name_ar: a.name_ar }));
     }
 );
