@@ -70,7 +70,7 @@ export const findCompanyNameTool = ai.defineTool(
 export const getStockPrice = ai.defineTool(
   {
     name: 'getStockPrice',
-    description: 'Gets the current market price for a given stock ticker symbol using the Twelve Data API.',
+    description: 'Gets the current market price for a given stock ticker by looking it up in the local data file.',
     inputSchema: z.object({
       ticker: z.string().describe('The stock ticker symbol, e.g., "2222" or "QNBK".'),
     }),
@@ -81,78 +81,20 @@ export const getStockPrice = ai.defineTool(
     }),
   },
   async ({ ticker }) => {
-    console.log(`[getStockPriceTool] Attempting to fetch live price for ${ticker}`);
+    console.log(`[getStockPriceTool] Looking up static price for ${ticker}`);
     
     const assetDetails = assets.find(a => a.ticker.toUpperCase() === ticker.toUpperCase());
-    const apiKey = process.env.TWELVE_DATA_API_KEY;
-    
-    if (!apiKey || apiKey === 'YOUR_API_KEY_HERE') {
-        throw new Error("Twelve Data API key is not configured in .env file.");
-    }
     
     if (!assetDetails) {
         throw new Error(`Ticker ${ticker} not found in our master asset list.`);
     }
 
-    const exchangeMap = {SA: "Tadawul", AE: "DFM", QA: "QSE", Global: "NASDAQ"};
-    const exchange = exchangeMap[assetDetails.country as keyof typeof exchangeMap] || undefined;
-
-    // Flexible fetch function
-    const fetchWithUrl = async (url: string) => {
-        const response = await fetch(url);
-        if (!response.ok) {
-            const errorBody = await response.text();
-            try {
-                const parsedError = JSON.parse(errorBody);
-                if (parsedError.message && parsedError.message.includes('Pro plan')) {
-                    throw new Error(`This stock requires a paid Twelve Data plan to view live prices.`);
-                }
-            } catch (e) {
-                // Ignore parsing error, just throw the original text
-            }
-
-            throw new Error(`API call failed with status ${response.status}. Body: ${errorBody}`);
-        }
-        const data = await response.json();
-        
-        // Twelve Data returns price as a string, so we need to parse it.
-        const price = parseFloat(data.price);
-
-        if (data && !isNaN(price)) {
-            console.log(`[getStockPriceTool] Live price for ${ticker} from ${url}: ${price}`);
-            return {
-                price: price,
-                currency: assetDetails.currency,
-                sourceUrl: `https://twelvedata.com/symbol/${ticker}`, // Generic URL
-            };
-        }
-        throw new Error(`Invalid or missing price data received from ${url} for ${ticker}. Response: ${JSON.stringify(data)}`);
-    }
-
-    // --- INTELLIGENT FETCH STRATEGY ---
-    // 1. Try fetching with just the symbol (often works for major stocks like US ones)
-    const urlWithoutExchange = `https://api.twelvedata.com/price?symbol=${ticker}&apikey=${apiKey}`;
-    try {
-        return await fetchWithUrl(urlWithoutExchange);
-    } catch (error: any) {
-        console.warn(`[getStockPriceTool] Fetching ${ticker} without exchange failed. Error: ${error.message}`);
-        
-        // 2. If it fails, check if an exchange is available and if the error indicates "symbol not found"
-        //    This suggests the ticker needs an explicit exchange to be identified.
-        if (exchange && error.message.includes('not_found')) {
-            console.log(`[getStockPriceTool] Retrying with exchange: ${exchange}`);
-            try {
-                const urlWithExchange = `https://api.twelvedata.com/price?symbol=${ticker}&exchange=${exchange}&apikey=${apiKey}`;
-                return await fetchWithUrl(urlWithExchange);
-            } catch (finalError: any) {
-                 console.error(`[getStockPriceTool] CRITICAL: Fetching failed for ${ticker} even with exchange ${exchange}. Error:`, finalError.message);
-                 throw new Error(`Failed to fetch live price for ${ticker} on exchange ${exchange}. The symbol may be incorrect or delisted.`);
-            }
-        }
-        
-        // 3. If it failed for a different reason (e.g., network error, invalid key, or paid plan required), re-throw the specific error.
-        throw new Error(`Failed to fetch live price for ${ticker}. Initial error: ${error.message}`);
-    }
+    // Return static data from data.ts, bypassing the live API call.
+    return {
+        price: assetDetails.price,
+        currency: assetDetails.currency,
+        sourceUrl: `https://www.google.com/finance/quote/${ticker}`, // Generic URL
+    };
   }
 );
 
