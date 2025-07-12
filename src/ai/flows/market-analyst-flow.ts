@@ -8,7 +8,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { getStockPrice, getLatestNews, findCompanyNameTool } from '../tools/market-tools';
+import { findFinancialData, findCompanyNameTool } from '../tools/market-tools';
 import { MarketAnalysisInputSchema, MarketAnalysisSchema, type MarketAnalysis } from '../schemas/market-analysis-schema';
 
 export async function analyzeMarketForTicker(input: z.infer<typeof MarketAnalysisInputSchema>): Promise<MarketAnalysis> {
@@ -20,31 +20,31 @@ const analystPrompt = ai.definePrompt({
     input: { schema: z.object({ 
         ticker: z.string(), 
         companyName: z.string(),
-        scrapedPriceData: z.any(),
-        scrapedNewsData: z.any()
+        scrapedFinancialData: z.string(), // The AI will now work with the raw scraped text
     }) },
     output: { schema: MarketAnalysisSchema },
     model: 'googleai/gemini-1.5-flash',
-    prompt: `You are "Tharawat", a sophisticated AI financial analyst for the Gulf markets. Your task is to provide a clear, concise, and insightful analysis of a specific stock based on the provided data. The entire output MUST be in Arabic.
+    prompt: `You are "Tharawat", a sophisticated AI financial analyst for the Gulf markets. Your task is to provide a clear, concise, and insightful analysis of a specific stock based on the provided scraped data from its financial page. The entire output MUST be in Arabic.
 
     Stock to Analyze:
     - Ticker: {{{ticker}}}
     - Company Name: {{{companyName}}}
 
-    Here is the live data you have gathered:
-    - Current Price: {{scrapedPriceData.price}} {{scrapedPriceData.currency}} (Source: {{scrapedPriceData.sourceUrl}})
-    - Recent News: {{#each scrapedNewsData}} - {{{this}}} {{/each}}
+    Here is the raw text content scraped from their financial data page:
+    ---
+    {{{scrapedFinancialData}}}
+    ---
 
-    Based on ALL the information you have gathered, perform the following analysis:
+    Based on the content provided above, perform the following analysis:
 
-    1.  **Financial Analysis**: Write a brief paragraph summarizing the company's financial standing based on its latest stock price. Is it performing well? Is it volatile? What is its general position in the market? Refer to the live price you found.
+    1.  **Financial Analysis**: Find the most recent stock price in the text. Write a brief paragraph summarizing the company's financial standing based on this price and any other relevant financial metrics you can find (like market cap, P/E ratio, etc.). Is it performing well? Is it volatile? What is its general position in the market?
 
-    2.  **News Summary**: Write a brief paragraph summarizing the key takeaways from the recent news headlines you found. What are the key events or sentiments affecting the company?
+    2.  **News Summary**: Identify and extract the key news headlines from the text. Write a brief paragraph summarizing the key takeaways from these headlines. What are the key events or sentiments affecting the company?
 
     3.  **Recommendation**: Based on the price and news, provide a clear recommendation.
         -   **Decision**: Your final verdict MUST be one of three options: "Buy", "Sell", or "Hold".
         -   **Confidence Score**: Provide a confidence score from 1 to 10 for your recommendation.
-        -   **Justification**: Write a short, clear sentence explaining WHY you made that decision.
+        -   **Justification**: Write a short, clear sentence explaining WHY you made that decision based on the scraped data.
 
     Your final output must be ONLY the JSON object, without any extra text, explanations, or markdown formatting. Ensure all fields in the JSON are populated and in Arabic.
     `,
@@ -55,16 +55,17 @@ const marketAnalystFlow = ai.defineFlow(
     name: 'marketAnalystFlow',
     inputSchema: MarketAnalysisInputSchema,
     outputSchema: MarketAnalysisSchema,
+    tools: [findFinancialData], // Provide the tool to the flow
   },
   async ({ ticker }) => {
-    // Let the AI find the company name from the ticker.
+    // Let the AI find the company name from the ticker using our reliable internal data.
     const companyName = await findCompanyNameTool({ ticker });
 
     console.log(`[marketAnalystFlow] Starting analysis for ${companyName} (${ticker})`);
 
-    // The AI will use these tools to gather live data.
-    const scrapedPriceData = await getStockPrice({ ticker, companyName });
-    const scrapedNewsData = await getLatestNews({ ticker, companyName });
+    // The AI will use this tool to gather live data. The prompt will guide it.
+    // The tool finds the right URL and scrapes it.
+    const financialData = await findFinancialData({ ticker, companyName });
     
     console.log('[marketAnalystFlow] Data gathered, generating analysis...');
     
@@ -72,8 +73,7 @@ const marketAnalystFlow = ai.defineFlow(
         const { output } = await analystPrompt({ 
             ticker, 
             companyName,
-            scrapedPriceData,
-            scrapedNewsData
+            scrapedFinancialData: financialData.content, // Pass the raw scraped content to the prompt
         });
 
         if (!output) {
@@ -100,5 +100,3 @@ const marketAnalystFlow = ai.defineFlow(
     }
   }
 );
-
-    
