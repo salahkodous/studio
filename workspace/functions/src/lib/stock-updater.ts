@@ -4,105 +4,136 @@
  */
 import {initializeApp} from "firebase-admin/app";
 import {getFirestore, Timestamp} from "firebase-admin/firestore";
-import {ai} from "./genkit-config";
-import {z} from "zod";
-import {webScraperTool} from "./web-scraper-tool";
 import {assets as staticAssets} from "./static-data";
 import {logError} from "./error-logger";
+import fetch from 'node-fetch'; // Using node-fetch for direct API calls
 
-// Initialize Firebase Admin SDK.
+// Initialize Firebase Admin SDK if not already done.
 // The SDK is automatically configured by the Firebase Functions environment.
-initializeApp();
+if (!global._firebaseApp) {
+    global._firebaseApp = initializeApp();
+}
 const db = getFirestore();
 
-interface StockAsset {
-    ticker: string;
-    name: string;
-    currency: string;
+declare global {
+  var _firebaseApp: any;
 }
 
-const priceExtractionPrompt = ai.definePrompt({
-    name: "priceExtractionPrompt",
-    model: "googleai/gemini-1.5-flash",
-    input: {schema: z.object({ context: z.string(), companyName: z.string() })},
-    output: {schema: z.object({ price: z.number() })},
-    prompt: `From the following financial data page content for {{{companyName}}}, extract the current stock price. The price is usually a large number near the company name or ticker symbol. Respond with only a JSON object containing the numeric price.
 
-    Scraped Content:
-    {{{context}}}`,
-});
+interface ExtractedStock {
+    company: string; // This is the Arabic name from the website
+    last_price: string;
+}
+
 
 /**
- * Scrapes a financial page for a stock and extracts its price using AI.
- * @param asset The stock asset (ticker, name, currency).
- * @returns A promise that resolves to the numeric price or null if not found.
+ * Fetches all stock prices from the Saudi Exchange market watch page using Firecrawl's extract feature.
+ * @returns A promise that resolves to an array of extracted stock data.
  */
-async function getPriceByScraping(asset: StockAsset): Promise<number | null> {
-    const url = `https://www.google.com/finance/quote/${asset.ticker}:${asset.currency === 'SAR' ? 'TADAWUL' : (asset.currency === 'AED' ? 'DFM' : 'QSE')}`;
-
-    try {
-        console.log(`[Scraper] Scraping URL for ${asset.ticker}: ${url}`);
-        const scrapeResult = await webScraperTool({ url });
-
-        if (!scrapeResult?.content) {
-            throw new Error("Scraped content was empty.");
+async function getPricesFromMarketWatch(): Promise<ExtractedStock[] | null> {
+    const apiKey = process.env.FIRECRAWL_API_KEY;
+    if (!apiKey) {
+        console.error("[Firecrawl] API key is missing.");
+        throw new Error("Firecrawl API key not configured.");
+    }
+    
+    const url = "https://api.firecrawl.dev/v1/extract";
+    const headers = {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+    };
+    
+    const payload = {
+        "url": "https://www.saudiexchange.sa/wps/portal/saudiexchange/ourmarkets/main-market-watch?locale=ar",
+        "extractorOptions": {
+            "mode": "llm-extraction",
+            "extractionSchema": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "company": { "type": "string" },
+                        "last_price": { "type": "string" }
+                    }
+                }
+            },
+            "extractionPrompt": "Extract all rows from the main market watch table. For each row, return 'company' (الشركة) and 'last_price' (السعر لآخر صفقة)."
         }
-        
-        console.log(`[Scraper] Extracting price for ${asset.ticker} with Genkit...`);
-        const { output } = await priceExtractionPrompt({
-            context: scrapeResult.content,
-            companyName: asset.name,
+    };
+
+    console.log("[MarketWatch] Sending extraction request to Firecrawl...");
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload)
         });
 
-        if (output?.price && typeof output.price === 'number') {
-            return output.price;
+        if (!response.ok) {
+            const errorBody = await response.text();
+            throw new Error(`Firecrawl API request failed with status ${response.status}: ${errorBody}`);
         }
         
-        console.warn(`[Scraper] AI could not extract a valid price for ${asset.ticker}.`);
-        return null;
+        const result = await response.json() as { data: { data: ExtractedStock[] } };
 
+        if (!result.data || !result.data.data || !Array.isArray(result.data.data)) {
+            console.error("Firecrawl response format is invalid:", result);
+            throw new Error("Invalid data structure received from Firecrawl.");
+        }
+        
+        console.log(`[MarketWatch] Successfully extracted ${result.data.data.length} stock entries.`);
+        return result.data.data;
+        
     } catch (error) {
-        await logError(`getPriceByScraping-${asset.ticker}`, error instanceof Error ? error : new Error(String(error)));
+        await logError(`getPricesFromMarketWatch`, error instanceof Error ? error : new Error(String(error)));
         return null;
     }
 }
 
 
 /**
- * The main orchestrator function. Gets all trackable stocks from the static data,
- * scrapes their current price, and saves the data to Firestore.
+ * The main orchestrator function. Gets all stock prices from the market watch page
+ * and saves the data to Firestore.
  */
 export async function updateAllMarketPrices() {
-  const stocksToTrack = staticAssets.filter(a => a.category === 'Stocks');
-  console.log(`Starting stock update for ${stocksToTrack.length} assets.`);
-  
-  const batch = db.batch();
-  let successCount = 0;
+    const extractedData = await getPricesFromMarketWatch();
 
-  for (const asset of stocksToTrack) {
-    const price = await getPriceByScraping(asset);
-    
-    if (price !== null) {
-        const stockDocRef = db.collection("stocks").doc(asset.ticker);
-        batch.set(stockDocRef, {
-            ticker: asset.ticker,
-            name_ar: asset.name_ar,
-            name_en: asset.name,
-            price: price,
-            currency: asset.currency,
-            lastUpdated: Timestamp.now(),
-        }, { merge: true });
-        successCount++;
-        console.log(`[Updater] Successfully processed ${asset.ticker} with price ${price}`);
-    } else {
-        console.warn(`[Updater] Skipping ${asset.ticker} due to scraping/extraction failure.`);
+    if (!extractedData) {
+        console.error("Aborting update, failed to extract data from Firecrawl.");
+        return;
     }
-  }
 
-  if (successCount > 0) {
+    const batch = db.batch();
+    let successCount = 0;
+    
+    const nameToTickerMap = new Map(staticAssets.map(asset => [asset.name_ar, asset.ticker]));
+
+    for (const extractedStock of extractedData) {
+        const ticker = nameToTickerMap.get(extractedStock.company.trim());
+        const asset = staticAssets.find(a => a.ticker === ticker);
+        const price = parseFloat(extractedStock.last_price.replace(/,/g, ''));
+        
+        if (ticker && asset && !isNaN(price)) {
+            const stockDocRef = db.collection("stocks").doc(ticker);
+            batch.set(stockDocRef, {
+                ticker: asset.ticker,
+                name_ar: asset.name_ar,
+                name_en: asset.name,
+                price: price,
+                currency: asset.currency,
+                lastUpdated: Timestamp.now(),
+            }, { merge: true });
+            successCount++;
+            console.log(`[Updater] Staging update for ${ticker} (${asset.name_ar}) with price ${price}`);
+        } else {
+            console.warn(`[Updater] Could not match or parse: ${extractedStock.company} - ${extractedStock.last_price}`);
+        }
+    }
+
+    if (successCount > 0) {
       await batch.commit();
-      console.log(`Successfully updated ${successCount} of ${stocksToTrack.length} stock prices in Firestore.`);
-  } else {
+      console.log(`Successfully updated ${successCount} stock prices in Firestore.`);
+    } else {
       console.warn("No stock prices were updated in this run.");
-  }
+    }
 }
