@@ -2,7 +2,7 @@
 // This is a new file for a simple admin panel.
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -19,10 +19,11 @@ export default function AdminPage() {
   const router = useRouter();
 
 
-  if (!authLoading && !user) {
-    router.push('/login');
-    return null;
-  }
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [authLoading, user, router]);
   
   const handleUpdatePrices = async () => {
     setLoading(true);
@@ -49,6 +50,15 @@ export default function AdminPage() {
       setLoading(false);
     }
   };
+  
+  if (authLoading || !user) {
+    // Render a loading state or null while checking auth
+    return (
+        <div className="container mx-auto flex h-screen items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+    );
+  }
 
   return (
     <div className="container mx-auto max-w-2xl p-4 md:p-8">
@@ -62,7 +72,7 @@ export default function AdminPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={handleUpdatePrices} disabled={loading || authLoading} size="lg" className="w-full">
+          <Button onClick={handleUpdatePrices} disabled={loading} size="lg" className="w-full">
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
