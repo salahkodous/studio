@@ -26,7 +26,7 @@ export async function getStockPriceFromFirestore(ticker: string): Promise<{ pric
     if (!ticker) return null;
 
     try {
-        const stockRef = doc(db, "stocks", ticker);
+        const stockRef = doc(db, "saudi stock prices", ticker);
         const docSnap = await getDoc(stockRef);
 
         if (docSnap.exists()) {

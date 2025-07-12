@@ -1,20 +1,18 @@
-
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can only read and write their own data
+
+    // Protect user data: Only the authenticated user can read or write their own documents.
     match /users/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Any authenticated user can read from the public stocks collection
-    match /stocks/{stockId} {
+    // Public stock data: Allow any authenticated user to read from the main stock price collection.
+    // Writes are only performed by the backend service account.
+    match /saudi stock prices/{stockId} {
         allow read: if request.auth != null;
-    }
-
-     // Errors can only be created by backend functions (no client access)
-    match /errors/{errorId} {
-        allow read, write: if false;
+        allow write: if false; // Disallow client-side writes
     }
   }
 }

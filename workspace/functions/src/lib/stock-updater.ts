@@ -109,7 +109,7 @@ export async function updateAllMarketPrices() {
         const price = parseFloat(extractedStock.lastPrice.replace(/,/g, ''));
         
         if (asset && !isNaN(price)) {
-            const stockDocRef = db.collection("stocks").doc(asset.ticker);
+            const stockDocRef = db.collection("saudi stock prices").doc(asset.ticker);
             batch.set(stockDocRef, {
                 ticker: asset.ticker,
                 name_ar: asset.name_ar,
