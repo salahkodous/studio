@@ -1,9 +1,6 @@
 /**
  * @fileOverview Main Firebase Functions entry point for the stock tracker.
  */
-import {config} from "dotenv";
-config(); // Load environment variables from .env file for local development
-
 import {initializeApp} from "firebase-admin/app";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
