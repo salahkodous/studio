@@ -90,19 +90,26 @@ export async function removeFromWatchlist(userId: string, ticker: string) {
 
 /**
  * Creates a new, empty portfolio for the user.
+ * It also ensures the parent user document exists before creating the portfolio.
  * @param userId - The ID of the user.
  * @param name - The name of the new portfolio.
  */
 export async function createPortfolio(userId: string, name: string) {
     if (!firestoreDb) throw new Error("Firestore is not initialized.");
 
-    const portfoliosColRef = collection(firestoreDb, "users", userId, "portfolios");
+    // Ensure the parent user document exists. This is crucial.
+    // Using set with merge:true is a safe way to create if it doesn't exist, or do nothing if it does.
+    const userDocRef = doc(firestoreDb, "users", userId);
+    await setDoc(userDocRef, {}, { merge: true });
+
+    const portfoliosColRef = collection(userDocRef, "portfolios");
     await addDoc(portfoliosColRef, {
         name: name,
         createdAt: Date.now(),
         updatedAt: Date.now(),
     });
 }
+
 
 /**
  * Deletes a portfolio and all its assets.
