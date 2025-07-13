@@ -1,9 +1,12 @@
+
 /**
  * @fileOverview Core logic for fetching and storing stock data using Firecrawl.
  */
 import {getFirestore, Timestamp} from "firebase-admin/firestore";
 import {logError} from "./error-logger";
 import FirecrawlApp from "@mendable/firecrawl-js";
+import { assets as staticAssets } from "./static-data";
+
 
 const db = getFirestore();
 
@@ -49,10 +52,12 @@ async function scrapeStockData(): Promise<ScrapedStock[]> {
         },
         extractionPrompt: "Extract the stock information from the table. The company name is in the 'Company Name' column. The symbol is the ticker.",
       },
+       pageOptions: {
+          onlyMainContent: true
+       }
     });
 
-    // @ts-ignore
-    const data = scrapeResult.data as ScrapedStock[];
+    const data = (scrapeResult?.data ?? []) as ScrapedStock[];
 
     if (data && Array.isArray(data) && data.length > 0) {
       console.log(`[Scraper] Successfully extracted ${data.length} stock entries.`);
@@ -75,7 +80,7 @@ export async function updateAllMarketPrices() {
   const extractedStocks = await scrapeStockData();
 
   if (!extractedStocks || extractedStocks.length === 0) {
-    console.error("Aborting update, failed to scrape any stock data.");
+    console.warn("Aborting update, failed to scrape any stock data.");
     return;
   }
 
@@ -86,20 +91,27 @@ export async function updateAllMarketPrices() {
   let successCount = 0;
 
   for (const stock of extractedStocks) {
+    // Clean the price string and parse it as a float
     const price = parseFloat(stock.price.replace(/,/g, ""));
+    const ticker = stock.ticker.trim();
 
-    if (stock.ticker && !isNaN(price)) {
-      const stockDocRef = db.collection(collectionName).doc(stock.ticker);
+    if (ticker && !isNaN(price)) {
+       // Find the corresponding static asset to get the correct Arabic name
+      const staticAsset = staticAssets.find(a => a.ticker === ticker);
+      
+      const stockDocRef = db.collection(collectionName).doc(ticker);
+      
       batch.set(stockDocRef, {
         name_en: stock.name,
-        ticker: stock.ticker,
+        name_ar: staticAsset ? staticAsset.name_ar : stock.name, // Fallback to English name
+        ticker: ticker,
         price: price,
         currency: "SAR", // Assuming SAR for all stocks from this source
         lastUpdated: Timestamp.now(),
       });
       successCount++;
     } else {
-      console.warn(`[Updater] Skipping invalid entry: Name: "${stock.name}", Ticker: "${stock.ticker}", Price: "${stock.price}"`);
+      console.warn(`[Updater] Skipping invalid entry: Name: "${stock.name}", Ticker: "${ticker}", Price: "${stock.price}"`);
     }
   }
 
