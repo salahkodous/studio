@@ -5,17 +5,15 @@ service cloud.firestore {
 
     // Allow authenticated users to read and write ONLY their own documents.
     // This secures user data like watchlists, portfolios, and strategies.
-    // The {document=**} wildcard applies this rule to all subcollections.
     match /users/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
     // Allow any authenticated user to READ from the public stock prices collection.
-    // Writes are disabled for clients; they should only come from your backend function.
-    // The quotes are required because the collection name contains spaces.
+    // Writes should only come from the backend, so they are disabled for clients.
     match /"saudi stock prices"/{stockId} {
       allow read: if request.auth != null;
-      allow write: if false;
+      allow write: if false; // Deny client-side writes
     }
   }
 }
