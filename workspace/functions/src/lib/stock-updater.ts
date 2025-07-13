@@ -1,22 +1,27 @@
 /**
- * @fileOverview Core logic for fetching, translating, and storing stock data.
+ * @fileOverview Core logic for fetching and storing stock data using Firecrawl.
  */
 import {getFirestore, Timestamp} from "firebase-admin/firestore";
-import {assets as staticAssets} from "./static-data";
 import {logError} from "./error-logger";
 import FirecrawlApp from "@mendable/firecrawl-js";
 
 const db = getFirestore();
 
+interface ScrapedStock {
+  name: string;
+  ticker: string;
+  price: string;
+}
+
 /**
  * Scrapes the Saudi Exchange website for the latest stock prices using Firecrawl's
- * structured extraction feature and returns a clean array of stock data.
+ * structured extraction feature.
  * @returns A promise that resolves to an array of scraped stock objects.
  */
-async function scrapeStockData(): Promise<{ name: string; price: string; ticker: string; }[]> {
+async function scrapeStockData(): Promise<ScrapedStock[]> {
   const apiKey = process.env.FIRECRAWL_API_KEY;
   if (!apiKey || apiKey.length < 5) {
-    const errorMsg = "Firecrawl API key not configured. Please add your FIRECRAWL_API_KEY to the functions/.env file.";
+    const errorMsg = "Firecrawl API key not configured. Please add it to functions/.env";
     console.error(`[Firecrawl] ${errorMsg}`);
     throw new Error(errorMsg);
   }
@@ -24,46 +29,42 @@ async function scrapeStockData(): Promise<{ name: string; price: string; ticker:
   const firecrawl = new FirecrawlApp({apiKey});
   const url = "https://www.saudiexchange.sa/wps/portal/saudiexchange/ourmarkets/main-market-watch/theoritical-market-watch-today?locale=en";
 
-  console.log(`[Scraper] Starting scrape for URL: ${url}`);
+  console.log(`[Scraper] Starting structured scrape for URL: ${url}`);
 
   try {
     const scrapeResult = await firecrawl.scrapeUrl(url, {
       extractorOptions: {
-        mode: 'llm-extraction',
+        mode: "llm-extraction",
         extractionSchema: {
-          type: 'array',
+          type: "array",
           items: {
-            type: 'object',
+            type: "object",
             properties: {
-              companyName: {
-                type: 'string',
-                description: 'The full name of the company in Arabic.'
-              },
-              ticker: {
-                type: 'string',
-                description: 'The stock ticker symbol, which is a number.'
-              },
-              price: {
-                type: 'string',
-                description: 'The previous closing price of the stock.'
-              }
-            }
-          }
+              name: {type: "string", description: "The full name of the company in English."},
+              ticker: {type: "string", description: "The stock ticker symbol, which is a number."},
+              price: {type: "string", description: "The previous closing price of the stock."},
+            },
+            required: ["name", "ticker", "price"],
+          },
         },
-        extractionPrompt: 'Extract the stock information from the provided context. Make sure to only extract from the main market watch table.'
-      }
+        extractionPrompt: "Extract the stock information from the table. The company name is in the 'Company Name' column. The symbol is the ticker.",
+      },
     });
 
-    if (scrapeResult.data && Array.isArray(scrapeResult.data) && scrapeResult.data.length > 0) {
-      console.log(`[Scraper] Successfully extracted ${scrapeResult.data.length} stock entries.`);
-      // @ts-ignore
-      return scrapeResult.data;
+    // @ts-ignore
+    const data = scrapeResult.data as ScrapedStock[];
+
+    if (data && Array.isArray(data) && data.length > 0) {
+      console.log(`[Scraper] Successfully extracted ${data.length} stock entries.`);
+      return data.filter(s => s.ticker && s.price); // Filter out any incomplete entries
     } else {
-      throw new Error("Firecrawl returned no data or data in an unexpected format.");
+      console.error("[Scraper] Firecrawl returned no data or data in an unexpected format.", scrapeResult);
+      throw new Error("Firecrawl returned no data or it was in an unexpected format.");
     }
   } catch (error) {
-    await logError('scrapeStockData-critical', error instanceof Error ? error : new Error(String(error)));
-    throw error;
+    const err = error instanceof Error ? error : new Error(String(error));
+    await logError("scrapeStockData-critical", err);
+    throw err;
   }
 }
 
@@ -75,40 +76,37 @@ export async function updateAllMarketPrices() {
 
   if (!extractedStocks || extractedStocks.length === 0) {
     console.error("Aborting update, failed to scrape any stock data.");
-    throw new Error("Scraping failed to return any stocks.");
+    return;
   }
 
-  console.log(`[Updater] Preparing to update ${extractedStocks.length} stock entries in Firestore.`);
-
+  const collectionName = "saudi_stocks";
+  console.log(`[Updater] Preparing to write ${extractedStocks.length} documents to the '${collectionName}' collection.`);
+  
   const batch = db.batch();
   let successCount = 0;
 
-  for (const extractedStock of extractedStocks) {
-    // Find the corresponding asset from our master list by ticker symbol
-    // This is more reliable than matching by name.
-    const asset = staticAssets.find(a => a.ticker === extractedStock.ticker);
-    const price = parseFloat(extractedStock.price.replace(/,/g, ''));
+  for (const stock of extractedStocks) {
+    const price = parseFloat(stock.price.replace(/,/g, ""));
 
-    if (asset && !isNaN(price)) {
-      const stockDocRef = db.collection("saudi stock prices").doc(asset.ticker);
+    if (stock.ticker && !isNaN(price)) {
+      const stockDocRef = db.collection(collectionName).doc(stock.ticker);
       batch.set(stockDocRef, {
-        ticker: asset.ticker,
-        name_ar: asset.name_ar,
-        name_en: asset.name,
+        name_en: stock.name,
+        ticker: stock.ticker,
         price: price,
-        currency: asset.currency,
+        currency: "SAR", // Assuming SAR for all stocks from this source
         lastUpdated: Timestamp.now(),
-      }, {merge: true});
+      });
       successCount++;
     } else {
-      console.warn(`[Updater] Could not match or parse: Ticker: "${extractedStock.ticker}", Name: "${extractedStock.name}", Price: "${extractedStock.price}"`);
+      console.warn(`[Updater] Skipping invalid entry: Name: "${stock.name}", Ticker: "${stock.ticker}", Price: "${stock.price}"`);
     }
   }
 
   if (successCount > 0) {
     await batch.commit();
-    console.log(`[Updater] Successfully updated ${successCount} stock prices in Firestore.`);
+    console.log(`[Updater] Successfully wrote ${successCount} stock prices to Firestore.`);
   } else {
-    console.warn("[Updater] No stock prices were updated in this run.");
+    console.warn("[Updater] No valid stock data was written in this run.");
   }
 }
