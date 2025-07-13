@@ -1,5 +1,6 @@
 /**
  * @fileOverview Genkit configuration for Firebase Functions.
+ * This file is not currently used by the stock-updater but is kept for other potential AI features.
  */
 import {genkit} from "genkit";
 import {googleAI} from "@genkit-ai/googleai";

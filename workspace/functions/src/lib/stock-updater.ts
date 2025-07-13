@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview Core logic for fetching and storing stock data using Firecrawl.
  */
@@ -6,6 +5,7 @@ import {getFirestore, Timestamp} from "firebase-admin/firestore";
 import FirecrawlApp from "@mendable/firecrawl-js";
 import { assets as staticAssets } from "./static-data";
 
+// Get the Firestore instance from the initialized Firebase Admin SDK.
 const db = getFirestore();
 
 interface ScrapedStock {
@@ -16,12 +16,13 @@ interface ScrapedStock {
 
 /**
  * The main orchestrator function. Scrapes live stock prices and saves them to Firestore.
+ * @returns A promise that resolves with the count of successfully updated stocks.
  */
-export async function updateAllMarketPrices() {
+export async function updateAllMarketPrices(): Promise<{ successCount: number }> {
   const apiKey = process.env.FIRECRAWL_API_KEY;
   if (!apiKey || apiKey.length < 5) {
-    const errorMsg = "Firecrawl API key not configured. Please add it to functions/.env";
-    console.error(`[Firecrawl] ${errorMsg}`);
+    const errorMsg = "Firecrawl API key not configured. Ensure the FIRECRAWL_API_KEY secret is set for this function.";
+    console.error(`[Firecrawl Error] ${errorMsg}`);
     throw new Error(errorMsg);
   }
   
@@ -38,25 +39,30 @@ export async function updateAllMarketPrices() {
         items: {
           type: "object",
           properties: {
-            name: {type: "string", description: "The full name of the company in English."},
-            ticker: {type: "string", description: "The stock ticker symbol, which is a number."},
-            price: {type: "string", description: "The previous closing price of the stock."},
+            name: {type: "string", description: "The full English name of the company, for example 'Saudi Arabian Oil Company'."},
+            ticker: {type: "string", description: "The stock ticker symbol, which is a number like '2222'."},
+            price: {type: "string", description: "The previous closing price of the stock, for example '24.88'."},
           },
           required: ["name", "ticker", "price"],
         },
       },
-      extractionPrompt: "Extract the stock information from the table. The company name is in the 'Company Name' column. The symbol is the ticker.",
+      extractionPrompt: "Extract the stock information from the main content. The company name is in the 'Company Name' column and the symbol is the ticker. The price is in the 'Previous Close' column.",
     },
-      pageOptions: {
-        onlyMainContent: true
-      }
+    pageOptions: {
+      onlyMainContent: true
+    }
   });
 
-  const extractedStocks = (scrapeResult?.data ?? []) as ScrapedStock[];
+  if (scrapeResult.success === false || !scrapeResult.data) {
+    console.error("Firecrawl scrape failed or returned no data.", scrapeResult);
+    throw new Error("Failed to scrape stock data from the source.");
+  }
+
+  const extractedStocks = (scrapeResult.data as unknown) as ScrapedStock[];
   
   if (!extractedStocks || extractedStocks.length === 0) {
-    console.warn("Aborting update, failed to scrape any stock data.");
-    return;
+    console.warn("Scraping was successful but returned no stock data. Aborting Firestore update.");
+    return { successCount: 0 };
   }
   
   const collectionName = "saudi_stocks";
@@ -83,7 +89,7 @@ export async function updateAllMarketPrices() {
       });
       successCount++;
     } else {
-      console.warn(`[Updater] Skipping invalid entry: Ticker: "${ticker}", Price: "${stock.price}"`);
+      console.warn(`[Updater] Skipping invalid entry: Name: "${stock.name}", Ticker: "${ticker}", Price: "${stock.price}"`);
     }
   }
 
@@ -93,4 +99,6 @@ export async function updateAllMarketPrices() {
   } else {
     console.warn("[Updater] No valid stock data was written in this run.");
   }
+
+  return { successCount };
 }

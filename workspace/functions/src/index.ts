@@ -1,9 +1,8 @@
-
 /**
  * @fileOverview Main Firebase Functions entry point for the stock tracker.
  */
-import { config } from "dotenv";
-config(); // Load environment variables from .env file
+import {config} from "dotenv";
+config(); // Load environment variables from .env file for local development
 
 import {initializeApp} from "firebase-admin/app";
 import {onSchedule} from "firebase-functions/v2/scheduler";
@@ -11,36 +10,24 @@ import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {updateAllMarketPrices} from "./lib/stock-updater";
 import {logError} from "./lib/error-logger";
 import {defineString} from "firebase-functions/params";
-import { init } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
-import { firebase } from "@genkit-ai/firebase";
 
-
-// Initialize the Firebase Admin SDK.
+// Initialize the Firebase Admin SDK. Must be done once.
 initializeApp();
 
-// Initialize Genkit with Firebase and Google AI plugins
-init({
-  plugins: [
-    firebase(),
-    googleAI({apiKey: process.env.GEMINI_API_KEY}),
-  ],
-  logSinks: [],
-  enableTracing: false,
-});
-
-
-// Define environment variables for the function.
-defineString("GEMINI_API_KEY");
+// Define environment variables that must be set for the function to deploy.
+// Use `firebase functions:secrets:set YOUR_SECRET_NAME` to set them.
 defineString("FIRECRAWL_API_KEY");
+defineString("GEMINI_API_KEY");
 
 
-// Define a scheduled function that runs every 24 hours.
+/**
+ * A scheduled function that runs every 24 hours to update stock prices.
+ */
 export const updateStockPrices = onSchedule("every 24 hours", async (event) => {
   console.log("Scheduled stock price update function triggered.");
   try {
-    await updateAllMarketPrices();
-    console.log("Stock price update completed successfully.");
+    const result = await updateAllMarketPrices();
+    console.log(`Stock price update completed successfully. ${result.successCount} stocks updated.`);
     return null;
   } catch (error) {
     console.error("Critical error in scheduled stock price update:", error);
@@ -48,6 +35,7 @@ export const updateStockPrices = onSchedule("every 24 hours", async (event) => {
         "updateStockPrices-critical",
         error instanceof Error ? error : new Error(String(error)),
     );
+    // Re-throwing the error is important for function monitoring
     throw error;
   }
 });
@@ -57,19 +45,23 @@ export const updateStockPrices = onSchedule("every 24 hours", async (event) => {
  * This is useful for one-off updates or testing.
  */
 export const runPriceUpdateNow = onCall({enforceAppCheck: false}, async (request) => {
+    // Check for authentication
     if (!request.auth) {
         throw new HttpsError("unauthenticated", "The function must be called while authenticated.");
     }
     
     console.log(`Manual price update triggered by user: ${request.auth.uid}`);
+
     try {
-        await updateAllMarketPrices();
-        const successMessage = "Manual stock price update completed successfully.";
+        const result = await updateAllMarketPrices();
+        const successMessage = `Manual stock price update completed successfully. ${result.successCount} stocks written.`;
         console.log(successMessage);
         return {status: "success", message: successMessage};
     } catch (error) {
         console.error("Critical error in manual stock price update:", error);
         // Throw an HttpsError to send a structured error back to the client.
-        throw new HttpsError("internal", "An internal error occurred while updating prices.", error);
+        throw new HttpsError("internal", "An internal error occurred while updating prices.", {
+            errorMessage: error instanceof Error ? error.message : String(error)
+        });
     }
 });
