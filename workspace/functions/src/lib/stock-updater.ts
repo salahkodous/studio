@@ -122,3 +122,4 @@ export async function updateAllMarketPrices() {
     console.warn("[Updater] No valid stock data was written in this run.");
   }
 }
+
