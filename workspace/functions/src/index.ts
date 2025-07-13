@@ -11,13 +11,26 @@ import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {updateAllMarketPrices} from "./lib/stock-updater";
 import {logError} from "./lib/error-logger";
 import {defineString} from "firebase-functions/params";
+import { init } from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
+import { firebase } from "@genkit-ai/firebase";
+
 
 // Initialize the Firebase Admin SDK.
-// This is required for backend functions to interact with Firebase services.
 initializeApp();
 
+// Initialize Genkit with Firebase and Google AI plugins
+init({
+  plugins: [
+    firebase(),
+    googleAI({apiKey: process.env.GEMINI_API_KEY}),
+  ],
+  logSinks: [],
+  enableTracing: false,
+});
+
+
 // Define environment variables for the function.
-// These will be populated from .env.yaml when deploying or loaded from .env locally.
 defineString("GEMINI_API_KEY");
 defineString("FIRECRAWL_API_KEY");
 
@@ -35,7 +48,6 @@ export const updateStockPrices = onSchedule("every 24 hours", async (event) => {
         "updateStockPrices-critical",
         error instanceof Error ? error : new Error(String(error)),
     );
-    // Throwing an error here can allow for automatic retries if configured.
     throw error;
   }
 });
@@ -45,7 +57,6 @@ export const updateStockPrices = onSchedule("every 24 hours", async (event) => {
  * This is useful for one-off updates or testing.
  */
 export const runPriceUpdateNow = onCall({enforceAppCheck: false}, async (request) => {
-    // Ensure the user is authenticated to prevent abuse.
     if (!request.auth) {
         throw new HttpsError("unauthenticated", "The function must be called while authenticated.");
     }
@@ -58,10 +69,6 @@ export const runPriceUpdateNow = onCall({enforceAppCheck: false}, async (request
         return {status: "success", message: successMessage};
     } catch (error) {
         console.error("Critical error in manual stock price update:", error);
-        await logError(
-            "runPriceUpdateNow-critical",
-            error instanceof Error ? error : new Error(String(error)),
-        );
         // Throw an HttpsError to send a structured error back to the client.
         throw new HttpsError("internal", "An internal error occurred while updating prices.", error);
     }
