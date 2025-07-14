@@ -146,10 +146,6 @@ export function Header() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                    <Link href="/admin">لوحة التحكم</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut}>
                   تسجيل الخروج
                 </DropdownMenuItem>
