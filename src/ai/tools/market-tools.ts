@@ -4,7 +4,6 @@
  * @fileOverview A set of AI tools for market analysis.
  * - getStockPriceFromFirestore: Fetches the current price of a stock from our database.
  * - findCompanyNameTool: Finds the full official name for a given stock ticker.
- * - findMarketAssetsTool: Finds a comprehensive list of assets for a given market.
  */
 
 import { ai } from '@/ai/genkit';
@@ -106,27 +105,5 @@ export const findCompanyNameTool = ai.defineTool(
         }
 
         throw new Error(`Could not find a matching company for query: "${query}". Please try a more specific name or the exact ticker symbol.`);
-    }
-);
-
-
-export const findMarketAssetsTool = ai.defineTool(
-    {
-        name: 'findMarketAssetsTool',
-        description: 'Finds a list of publicly traded stocks for a given market by querying our Firestore database.',
-        inputSchema: z.object({
-            market: z.enum(['SA', 'AE', 'EG']).describe('The stock market to search (SA: Saudi Arabia, AE: UAE, EG: Egypt).'),
-        }),
-        outputSchema: z.array(z.object({
-            ticker: z.string().describe('The official ticker symbol.'),
-            name: z.string().describe('The full official name of the company.'),
-            name_ar: z.string().describe('The full official Arabic name of the company.'),
-        })),
-    },
-    async ({ market }) => {
-        console.log(`[findMarketAssetsTool] Fetching assets for ${market} from Firestore.`);
-        const allStocks = await findAllStocks({ country: market });
-        return allStocks
-            .map(a => ({ ticker: a.ticker, name: a.name, name_ar: a.name_ar }));
     }
 );
