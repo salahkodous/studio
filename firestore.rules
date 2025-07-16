@@ -1,45 +1,29 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is authenticated
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    // Helper function to check if the user is the owner of the document
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    // /users/{userId}
-    // Users can read/write their own document.
-    // They can create their own document.
-    match /users/{userId} {
-      allow read, update, delete: if isAuthenticated() && isOwner(userId);
-      allow create: if isAuthenticated();
-    }
-
-    // /users/{userId}/** (portfolios, strategies, etc.)
-    // Users can manage all documents within their own user document.
-    match /users/{userId}/{document=**} {
-        allow read, write, delete: if isAuthenticated() && isOwner(userId);
-    }
-    
-    // /saudi_stocks/{stockId}
-    // Allow any authenticated user to read the stock prices.
-    // Writes are disallowed from the client to protect the data.
+    // Allow public read-only access to the list of stocks.
+    // This allows any user (authenticated or not) to view stock data.
     match /saudi_stocks/{stockId} {
-      allow read: if isAuthenticated();
-      allow write: if false; 
+      allow read: if true;
+      allow write: if false; // No one can write directly from the client.
     }
 
-    // /errors/{errorId}
-    // Disallow all client-side access. Only backend functions can write here.
-    match /errors/{errorId} {
-        allow read, write: if false;
+    // Secure user-specific data.
+    // A user can only access their own document and subcollections.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Rules for user subcollections (portfolios, strategies)
+      match /{subcollection}/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+
+         // Rules for assets within a portfolio
+        match /assets/{assetId} {
+           allow read, write: if request.auth != null && request.auth.uid == userId;
+        }
+      }
     }
   }
 }
