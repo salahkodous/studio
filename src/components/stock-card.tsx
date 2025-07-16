@@ -2,9 +2,9 @@ import Link from 'next/link'
 import React, { memo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowUpRight, ArrowDownRight, Minus, X } from 'lucide-react'
-import type { Asset } from '@/lib/data'
 import { Button } from './ui/button'
 import { getCurrencySymbol } from '@/lib/utils'
+import type { Asset } from '@/lib/stocks'
 
 interface AssetCardProps {
   asset: Asset
@@ -42,7 +42,7 @@ export const AssetCard = memo(function AssetCard({ asset, onRemove }: AssetCardP
           size="icon"
           className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity z-10"
           onClick={handleRemove}
-          aria-label={`إزالة ${asset.name} من قائمة المتابعة`}
+          aria-label={`إزالة ${asset.name_ar} من قائمة المتابعة`}
         >
           <X className="h-4 w-4" />
         </Button>
@@ -52,7 +52,7 @@ export const AssetCard = memo(function AssetCard({ asset, onRemove }: AssetCardP
         className="block h-full cursor-pointer"
       >
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium">{asset.name}</CardTitle>
+          <CardTitle className="text-sm font-medium">{asset.name_ar}</CardTitle>
           <div className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded-md">
             {asset.ticker}
           </div>

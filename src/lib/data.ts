@@ -8,7 +8,7 @@ export interface Asset {
   changePercent: string
   trend: 'up' | 'down' | 'stable'
   currency: 'SAR' | 'AED' | 'EGP' | 'USD'
-  category: 'Stocks' | 'Gold' | 'Oil' | 'Bonds' | 'Savings Certificates' | 'Other'
+  category: 'Stocks' | 'Gold' | 'Oil' | 'Bonds' | 'Savings Certificates' | 'Other' | 'Real Estate'
   country: 'SA' | 'AE' | 'EG' | 'Global'
   annualYield?: number
 }
@@ -20,39 +20,20 @@ export interface RealEstateCity {
     country: 'SA' | 'AE' | 'EG';
     pricePerSqM: number;
     currency: 'SAR' | 'AED' | 'EGP';
+    category: 'Real Estate'
 }
 
 export const realEstateData: RealEstateCity[] = [
-    { cityKey: 'RIYADH', name: 'Riyadh', name_ar: 'الرياض', country: 'SA', pricePerSqM: 4500, currency: 'SAR'},
-    { cityKey: 'JEDDAH', name: 'Jeddah', name_ar: 'جدة', country: 'SA', pricePerSqM: 3800, currency: 'SAR'},
-    { cityKey: 'DUBAI', name: 'Dubai', name_ar: 'دبي', country: 'AE', pricePerSqM: 12000, currency: 'AED'},
-    { cityKey: 'ABUDHABI', name: 'Abu Dhabi', name_ar: 'أبو ظبي', country: 'AE', pricePerSqM: 10500, currency: 'AED'},
-    { cityKey: 'CAIRO', name: 'Cairo', name_ar: 'القاهرة', country: 'EG', pricePerSqM: 25000, currency: 'EGP'},
+    { cityKey: 'RIYADH', name: 'Riyadh', name_ar: 'الرياض', country: 'SA', pricePerSqM: 4500, currency: 'SAR', category: 'Real Estate'},
+    { cityKey: 'JEDDAH', name: 'Jeddah', name_ar: 'جدة', country: 'SA', pricePerSqM: 3800, currency: 'SAR', category: 'Real Estate'},
+    { cityKey: 'DUBAI', name: 'Dubai', name_ar: 'دبي', country: 'AE', pricePerSqM: 12000, currency: 'AED', category: 'Real Estate'},
+    { cityKey: 'ABUDHABI', name: 'Abu Dhabi', name_ar: 'أبو ظبي', country: 'AE', pricePerSqM: 10500, currency: 'AED', category: 'Real Estate'},
+    { cityKey: 'CAIRO', name: 'Cairo', name_ar: 'القاهرة', country: 'EG', pricePerSqM: 25000, currency: 'EGP', category: 'Real Estate'},
 ];
 
-// This is the master list of assets. It contains the correct tickers and names.
-export const assets: Asset[] = [
-    // Saudi Arabia (SA)
-    { ticker: '2222', name: 'Saudi Arabian Oil Company', name_ar: 'أرامكو السعودية', country: 'SA', currency: 'SAR', price: 28.50, change: "+0.15", changePercent: "+0.53%", trend: 'up', category: 'Stocks' },
-    { ticker: '1120', name: 'Al Rajhi Banking and Investment Corporation', name_ar: 'مصرف الراجحي', country: 'SA', currency: 'SAR', price: 80.00, change: "-0.50", changePercent: "-0.62%", trend: 'down', category: 'Stocks' },
-    { ticker: '1180', name: 'The Saudi National Bank', name_ar: 'البنك الأهلي السعودي', country: 'SA', currency: 'SAR', price: 45.20, change: "+0.20", changePercent: "+0.44%", trend: 'up', category: 'Stocks' },
-    { ticker: '7010', name: 'Saudi Telecom Company', name_ar: 'إس تي سي', country: 'SA', currency: 'SAR', price: 38.10, change: "-0.10", changePercent: "-0.26%", trend: 'down', category: 'Stocks' },
-    { ticker: '2010', name: 'Saudi Basic Industries Corporation', name_ar: 'سابك', country: 'SA', currency: 'SAR', price: 75.50, change: "+0.25", changePercent: "+0.33%", trend: 'up', category: 'Stocks' },
-    { ticker: '1010', name: 'Riyad Bank', name_ar: 'بنك الرياض', country: 'SA', currency: 'SAR', price: 27.00, change: "+0.05", changePercent: "+0.19%", trend: 'up', category: 'Stocks' },
-
-    // UAE (AE)
-    { ticker: 'IHC', name: 'International Holding Company', name_ar: 'الشركة العالمية القابضة', country: 'AE', currency: 'AED', price: 400.0, change: "-1.00", changePercent: "-0.25%", trend: 'down', category: 'Stocks'},
-    { ticker: 'FAB', name: 'First Abu Dhabi Bank P.J.S.C.', name_ar: 'بنك أبوظبي الأول', country: 'AE', currency: 'AED', price: 13.50, change: "0.00", changePercent: "0.00%", trend: 'stable', category: 'Stocks' },
-    { ticker: 'EMAAR', name: 'Emaar Properties PJSC', name_ar: 'إعمار العقارية', country: 'AE', currency: 'AED', price: 7.80, change: "-0.05", changePercent: "-0.64%", trend: 'down', category: 'Stocks' },
-    { ticker: 'TAQA', name: 'Abu Dhabi National Energy Company PJSC', name_ar: 'طاقة', country: 'AE', currency: 'AED', price: 3.50, change: "+0.01", changePercent: "+0.29%", trend: 'up', category: 'Stocks' },
-    { ticker: 'ADCB', name: 'Abu Dhabi Commercial Bank PJSC', name_ar: 'بنك أبوظبي التجاري', country: 'AE', currency: 'AED', price: 8.90, change: "+0.10", changePercent: "+1.14%", trend: 'up', category: 'Stocks' },
-
-    // Egypt (EG)
-    { ticker: 'COMI', name: 'Commercial International Bank (Egypt)', name_ar: 'البنك التجاري الدولي', country: 'EG', currency: 'EGP', price: 75.50, change: '+1.20', changePercent: '+1.61%', trend: 'up', category: 'Stocks' },
-    { ticker: 'EAST', name: 'Eastern Company', name_ar: 'الشرقية للدخان', country: 'EG', currency: 'EGP', price: 18.20, change: '-0.30', changePercent: '-1.62%', trend: 'down', category: 'Stocks' },
-    { ticker: 'TMGH', name: 'Talaat Moustafa Group Holding', name_ar: 'مجموعة طلعت مصطفى القابضة', country: 'EG', currency: 'EGP', price: 58.00, change: '+2.50', changePercent: '+4.50%', trend: 'up', category: 'Stocks' },
-    { ticker: 'SWDY', name: 'Elsewedy Electric', name_ar: 'السويدي إليكتريك', country: 'EG', currency: 'EGP', price: 35.10, change: '+0.50', changePercent: '+1.45%', trend: 'up', category: 'Stocks' },
-
+// This is the master list of NON-STOCK assets.
+// Stock data is now fetched dynamically from Firestore.
+export const staticAssets: Asset[] = [
     // Global Commodities & Bonds
     { ticker: 'GOLD', name: 'Gold', name_ar: 'الذهب', price: 2330, change: '+1.25', changePercent: '+0.70%', trend: 'up', currency: 'USD', category: 'Gold', country: 'Global' },
     { ticker: 'BRENT', name: 'Brent Crude Oil', name_ar: 'نفط برنت الخام', price: 85.3, change: '-0.50', changePercent: '-0.58%', trend: 'down', currency: 'USD', category: 'Oil', country: 'Global' },
@@ -86,11 +67,10 @@ export const newsArticles: Record<string, string[]> = {
 }
 
 export const getStockPriceHistory = (
-  ticker: string
+  ticker: string,
+  basePrice: number = 100
 ): { date: string; price: number }[] => {
   const data = []
-  const asset = assets.find((s) => s.ticker === ticker);
-  const basePrice = asset?.price || 100;
   const days = 90
   let price = basePrice > 0 ? basePrice : 100; // Use a default if base price is 0
   for (let i = days; i > 0; i--) {

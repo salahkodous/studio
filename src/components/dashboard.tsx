@@ -1,22 +1,23 @@
+
 'use client'
 
 import { useState, useEffect } from 'react'
 import type { User } from 'firebase/auth'
 import Link from 'next/link'
 import { onWatchlistUpdate, onStrategiesUpdate, onPortfoliosUpdate, type SavedStrategy, type PortfolioDetails } from '@/lib/firestore'
-import { assets } from '@/lib/data'
-import type { Asset } from '@/lib/data'
 import { AssetCard } from '@/components/stock-card'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { ArrowLeft, LayoutDashboard, Lightbulb, Newspaper, Briefcase, PlusCircle, FolderKanban, Wand2 } from 'lucide-react'
 import { Skeleton } from './ui/skeleton'
+import { type Asset, getAllStocks } from '@/lib/stocks'
 
 interface DashboardProps {
   user: User
 }
 
 export function Dashboard({ user }: DashboardProps) {
+  const [watchlistTickers, setWatchlistTickers] = useState<string[]>([]);
   const [watchlist, setWatchlist] = useState<Asset[]>([])
   const [portfolios, setPortfolios] = useState<PortfolioDetails[]>([])
   const [strategies, setStrategies] = useState<SavedStrategy[]>([])
@@ -29,39 +30,42 @@ export function Dashboard({ user }: DashboardProps) {
     };
 
     let active = true;
-    let unsubWatchlist: (() => void) | undefined;
-    let unsubPortfolios: (() => void) | undefined;
-    let unsubStrategies: (() => void) | undefined;
+    
+    // Fetch all stocks once and build a lookup map
+    const stockMap = new Map<string, Asset>();
+    getAllStocks().then(allStocks => {
+        if (!active) return;
+        allStocks.forEach(stock => stockMap.set(stock.ticker, stock));
 
-    const setupListeners = async () => {
-        unsubWatchlist = onWatchlistUpdate(user.uid, (tickers) => {
-          const assetsInList = assets.filter(asset => tickers.includes(asset.ticker));
-          if (active) setWatchlist(assetsInList);
+        // Now setup listeners
+        const unsubWatchlist = onWatchlistUpdate(user.uid, (tickers) => {
+            if (!active) return;
+            setWatchlistTickers(tickers);
+            const assetsInList = tickers.map(ticker => stockMap.get(ticker)).filter(Boolean) as Asset[];
+            setWatchlist(assetsInList);
         });
 
-        unsubPortfolios = onPortfoliosUpdate(user.uid, (portfolios) => {
+        const unsubPortfolios = onPortfoliosUpdate(user.uid, (portfolios) => {
             if (active) setPortfolios(portfolios);
         });
         
-        unsubStrategies = onStrategiesUpdate(user.uid, (strategies) => {
+        const unsubStrategies = onStrategiesUpdate(user.uid, (strategies) => {
           if (active) setStrategies(strategies);
         });
+        
+        // Initial data loaded
+        if(active) setLoading(false);
 
-        // This is a simple way to wait for the initial data load.
-        // For a more robust solution, you might check if each array has been populated.
-        setTimeout(() => {
-            if(active) setLoading(false);
-        }, 1500); // Wait 1.5s for initial data to populate
-    }
+        // Cleanup function
+        return () => {
+          active = false;
+          unsubWatchlist?.();
+          unsubPortfolios?.();
+          unsubStrategies?.();
+        };
+    });
 
-    setupListeners();
-
-    return () => {
-      active = false;
-      unsubWatchlist?.();
-      unsubPortfolios?.();
-      unsubStrategies?.();
-    };
+    return () => { active = false }; // Cleanup for the outer effect
   }, [user?.uid]);
   
   const latestPortfolio = portfolios.length > 0 ? portfolios[0] : null;
@@ -270,5 +274,3 @@ function DashboardSkeleton() {
     </div>
   )
 }
-
-    

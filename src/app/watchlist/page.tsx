@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AssetCard } from '@/components/stock-card'
-import { assets, type Asset } from '@/lib/data'
+import { staticAssets } from '@/lib/data'
 import { Button } from '@/components/ui/button'
 import { PlusCircle } from 'lucide-react'
 import {
@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
 import { Skeleton } from '@/components/ui/skeleton'
 import { onWatchlistUpdate, addToWatchlist, removeFromWatchlist } from '@/lib/firestore'
+import { type Asset, getAllStocks } from '@/lib/stocks'
 
 type Category = 'Stocks' | 'Gold' | 'Oil' | 'Bonds'
 const categories: { id: Category; name: string }[] = [
@@ -40,6 +41,7 @@ export default function WatchlistPage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [allAssets, setAllAssets] = useState<Asset[]>([]);
   const [watchlist, setWatchlist] = useState<string[]>([])
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [selectedAsset, setSelectedAsset] = useState('')
@@ -47,6 +49,14 @@ export default function WatchlistPage() {
 
   const activeCategory = (searchParams.get('category') as Category) || 'Stocks'
   const activeCountry = (searchParams.get('country') as Country) || 'All'
+  
+  useEffect(() => {
+    async function loadAssets() {
+        const stocks = await getAllStocks();
+        setAllAssets([...stocks, ...staticAssets]);
+    }
+    loadAssets();
+  }, []);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -55,7 +65,7 @@ export default function WatchlistPage() {
   }, [user, authLoading, router])
 
   useEffect(() => {
-    if (user) {
+    if (user && allAssets.length > 0) {
       const unsubscribe = onWatchlistUpdate(user.uid, (userWatchlist) => {
         setWatchlist(userWatchlist)
         if (isInitialLoad) setIsInitialLoad(false)
@@ -64,15 +74,15 @@ export default function WatchlistPage() {
     } else if (!authLoading) {
       setIsInitialLoad(false)
     }
-  }, [user, authLoading, isInitialLoad])
+  }, [user, authLoading, isInitialLoad, allAssets])
 
   const watchlistAssets = useMemo(() => {
-    return assets.filter((asset) => watchlist.includes(asset.ticker))
-  }, [watchlist])
+    return allAssets.filter((asset) => watchlist.includes(asset.ticker))
+  }, [watchlist, allAssets])
 
   const availableAssets = useMemo(() => {
-    return assets.filter((asset) => !watchlist.includes(asset.ticker))
-  }, [watchlist])
+    return allAssets.filter((asset) => !watchlist.includes(asset.ticker))
+  }, [watchlist, allAssets])
   
   const availableAssetsGrouped = useMemo(() => {
     const categoryNames: { [key: string]: string } = {
@@ -107,7 +117,7 @@ export default function WatchlistPage() {
       setSelectedAsset('')
       try {
         await addToWatchlist(user.uid, assetToAdd)
-        const asset = assets.find((s) => s.ticker === assetToAdd)
+        const asset = allAssets.find((s) => s.ticker === assetToAdd)
         toast({
           title: 'أضيف إلى قائمة المتابعة',
           description: `${asset?.name || assetToAdd} تمت إضافته.`,
@@ -121,13 +131,13 @@ export default function WatchlistPage() {
         })
       }
     }
-  }, [user, selectedAsset, watchlist, toast]);
+  }, [user, selectedAsset, watchlist, toast, allAssets]);
 
   const handleRemoveFromWatchlist = useCallback(async (ticker: string) => {
     if (user) {
       try {
         await removeFromWatchlist(user.uid, ticker)
-        const asset = assets.find((s) => s.ticker === ticker)
+        const asset = allAssets.find((s) => s.ticker === ticker)
         toast({
           title: 'تمت الإزالة من قائمة المتابعة',
           description: `${asset?.name || ticker} تمت إزالته.`,
@@ -142,7 +152,7 @@ export default function WatchlistPage() {
         })
       }
     }
-  }, [user, toast]);
+  }, [user, toast, allAssets]);
 
   const handleFilterChange = useCallback((key: 'category' | 'country', value: string) => {
     const current = new URLSearchParams(Array.from(searchParams.entries()));
@@ -165,7 +175,7 @@ export default function WatchlistPage() {
   }, [searchParams, router]);
 
 
-  if (authLoading) {
+  if (authLoading || isInitialLoad) {
     return <PageSkeleton />
   }
 
@@ -184,7 +194,7 @@ export default function WatchlistPage() {
                         <SelectLabel>{group}</SelectLabel>
                         {assets.map((asset) => (
                            <SelectItem key={asset.ticker} value={asset.ticker}>
-                             {asset.name} ({asset.ticker})
+                             {asset.name_ar} ({asset.ticker})
                            </SelectItem>
                         ))}
                     </SelectGroup>

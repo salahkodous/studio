@@ -6,7 +6,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/use-auth'
 import { getPortfolio, onPortfolioAssetsUpdate, removeAssetFromPortfolio, addAssetToPortfolio, type PortfolioAsset, type PortfolioDetails } from '@/lib/firestore'
-import { assets, type Asset, realEstateData, type RealEstateCity } from '@/lib/data'
+import { staticAssets, type Asset, realEstateData, type RealEstateCity } from '@/lib/data'
 import { useToast } from '@/hooks/use-toast'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
@@ -170,7 +170,7 @@ export default function PortfolioDetailPage() {
             } else if (category === 'Real Estate') {
                 setAvailableAssets(realEstateData);
             } else {
-                const filteredAssets = assets.filter(a => a.category === category);
+                const filteredAssets = staticAssets.filter(a => a.category === category);
                 setAvailableAssets(filteredAssets);
             }
         } catch (error) {
@@ -263,7 +263,7 @@ export default function PortfolioDetailPage() {
         return portfolioAssets.map(pa => {
             const purchaseValue = pa.purchasePrice * (pa.quantity || 1);
             const livePriceData = pa.ticker ? livePrices[pa.ticker] : undefined;
-            const staticAssetDetails = assets.find(a => a.ticker === pa.ticker);
+            const staticAssetDetails = staticAssets.find(a => a.ticker === pa.ticker);
             const currency = livePriceData?.currency || staticAssetDetails?.currency || 'USD';
 
             let currentValue: number | null = null;

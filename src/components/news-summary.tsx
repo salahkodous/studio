@@ -1,28 +1,28 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { newsArticles, assets } from '@/lib/data'
+import { newsArticles } from '@/lib/data'
 import { BookOpen, Sparkles, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { summarizeNews } from '@/ai/flows/summarize-stock-news'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from './ui/button'
+import type { Asset } from '@/lib/stocks'
 
 interface NewsSummaryProps {
-  ticker: string
+  asset: Asset
 }
 
-export function NewsSummary({ ticker }: NewsSummaryProps) {
-  const asset = assets.find((s) => s.ticker === ticker)
-  const articles = newsArticles[ticker] || []
+export function NewsSummary({ asset }: NewsSummaryProps) {
+  const articles = newsArticles[asset.ticker] || []
 
   const [summary, setSummary] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
 
   const handleSummarize = async () => {
-    if (!asset || articles.length === 0) return
+    if (articles.length === 0) return
     setLoading(true)
     setSummary(null)
     try {
@@ -45,7 +45,7 @@ export function NewsSummary({ ticker }: NewsSummaryProps) {
     <Card>
       <CardHeader>
         <CardTitle className="text-lg font-headline flex items-center justify-between">
-          <span>أخبار عن {asset.name}</span>
+          <span>أخبار عن {asset.name_ar}</span>
           <BookOpen className="w-5 h-5 text-muted-foreground" />
         </CardTitle>
       </CardHeader>

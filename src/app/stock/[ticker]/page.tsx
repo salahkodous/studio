@@ -1,21 +1,28 @@
 
 import { notFound } from 'next/navigation'
-import { assets, getStockPriceHistory } from '@/lib/data'
+import { getStockPriceHistory, staticAssets } from '@/lib/data'
 import { StockChart } from '@/components/stock-chart'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react'
 import { getCurrencySymbol } from '@/lib/utils'
 import { NewsSummary } from '@/components/news-summary'
 import { Badge } from '@/components/ui/badge'
+import { getStockByTicker } from '@/lib/stocks'
+import type { Asset } from '@/lib/stocks'
 
-export default function StockDetailPage({ params }: { params: { ticker: string } }) {
-  const asset = assets.find((s) => s.ticker.toLowerCase() === params.ticker.toLowerCase())
+export default async function StockDetailPage({ params }: { params: { ticker: string } }) {
+  let asset: Asset | null = await getStockByTicker(params.ticker);
+  
+  if (!asset) {
+    // If not found in Firestore, check the static (non-stock) assets
+    asset = staticAssets.find((s) => s.ticker.toLowerCase() === params.ticker.toLowerCase()) || null;
+  }
 
   if (!asset) {
     notFound()
   }
 
-  const priceHistory = getStockPriceHistory(asset.ticker)
+  const priceHistory = getStockPriceHistory(asset.ticker, asset.price)
 
   const TrendIcon =
     asset.trend === 'up'
@@ -43,7 +50,7 @@ export default function StockDetailPage({ params }: { params: { ticker: string }
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div>
           <div className="flex items-center gap-4 mb-2">
-            <h1 className="text-4xl font-bold font-headline">{asset.name}</h1>
+            <h1 className="text-4xl font-bold font-headline">{asset.name_ar}</h1>
             <Badge variant="outline">{asset.ticker}</Badge>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
@@ -74,7 +81,7 @@ export default function StockDetailPage({ params }: { params: { ticker: string }
         </CardContent>
       </Card>
 
-      {asset.category === 'Stocks' && <NewsSummary ticker={asset.ticker} />}
+      {asset.category === 'Stocks' && <NewsSummary asset={asset} />}
 
     </div>
   )

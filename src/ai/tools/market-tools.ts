@@ -9,9 +9,10 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { assets } from '@/lib/data';
+import { staticAssets } from '@/lib/data';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { getAllStocks } from '@/lib/stocks';
 
 
 /**
@@ -35,8 +36,8 @@ export async function getStockPriceFromFirestore(ticker: string): Promise<{ pric
             };
         }
         
-        // Fallback for assets not in the dynamic list, like Gold or Bonds
-        const staticAsset = assets.find(a => a.ticker === ticker);
+        // Fallback for non-stock assets not in the dynamic list, like Gold or Bonds
+        const staticAsset = staticAssets.find(a => a.ticker === ticker);
         if (staticAsset) {
             return {
                 price: staticAsset.price,
@@ -54,7 +55,7 @@ export async function getStockPriceFromFirestore(ticker: string): Promise<{ pric
 export const findCompanyNameTool = ai.defineTool(
     {
         name: 'findCompanyNameTool',
-        description: 'Finds the full company name and ticker for a given query (which can be a name or ticker) by searching our master data list.',
+        description: 'Finds the full company name and ticker for a given query (which can be a name or ticker) by searching our master data list from Firestore.',
         inputSchema: z.object({
             query: z.string().describe('The user query, which can be a stock ticker symbol or a company name.'),
         }),
@@ -65,6 +66,9 @@ export const findCompanyNameTool = ai.defineTool(
         }),
     },
     async ({ query }) => {
+        const allStocks = await getAllStocks();
+        const assets = [...allStocks, ...staticAssets];
+
         const normalizedQuery = query.trim().toUpperCase();
 
         // 1. Exact ticker match
@@ -96,7 +100,7 @@ export const findCompanyNameTool = ai.defineTool(
 export const findMarketAssetsTool = ai.defineTool(
     {
         name: 'findMarketAssetsTool',
-        description: 'Finds a list of publicly traded stocks for a given market by querying our local master data file.',
+        description: 'Finds a list of publicly traded stocks for a given market by querying our Firestore database.',
         inputSchema: z.object({
             market: z.enum(['SA', 'AE', 'EG']).describe('The stock market to search (SA: Saudi Arabia, AE: UAE, EG: Egypt).'),
         }),
@@ -107,10 +111,12 @@ export const findMarketAssetsTool = ai.defineTool(
         })),
     },
     async ({ market }) => {
-        // This tool will now return the master list from data.ts to ensure consistency
-        console.log(`[findMarketAssetsTool] Fetching assets for ${market} from local master data.`);
-        return assets
-            .filter(a => a.country === market && a.category === 'Stocks')
+        console.log(`[findMarketAssetsTool] Fetching assets for ${market} from Firestore.`);
+        const allStocks = await getAllStocks();
+        // In a real app, you'd filter by country from the document data.
+        // For now, we assume all stocks in 'saudi_stocks' are 'SA'
+        return allStocks
+            .filter(a => market === 'SA') // Simple filter for now
             .map(a => ({ ticker: a.ticker, name: a.name, name_ar: a.name_ar }));
     }
 );
