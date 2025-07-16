@@ -32,8 +32,8 @@ export async function getStockPriceFromFirestore(ticker: string): Promise<{ pric
         if (docSnap.exists()) {
             const data = docSnap.data();
             return {
-                price: data.price,
-                currency: data.currency,
+                price: data.lastTradePrice || 0,
+                currency: data.currency || 'SAR',
             };
         }
 

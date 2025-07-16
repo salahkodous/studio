@@ -12,7 +12,7 @@ export type { Asset } from './data';
 
 
 /**
- * Fetches all documents from the 'saudi_stocks' collection.
+ * Fetches all documents from the 'saudi_stocks' and 'uae_stocks' collections.
  * This function is cached to prevent excessive Firestore reads on page loads.
  * The cache is tagged 'stocks' so it can be revalidated.
  */
@@ -20,28 +20,52 @@ export const getAllStocks = cache(
   async (): Promise<Asset[]> => {
     console.log('[stocks.ts] Fetching all stocks from Firestore...');
     try {
-      const stocksCollectionRef = collection(db, 'saudi_stocks');
-      const snapshot = await getDocs(stocksCollectionRef);
-      if (snapshot.empty) {
-        console.log('[stocks.ts] No stocks found in saudi_stocks collection.');
-        return [];
-      }
-      const stocks = snapshot.docs.map(doc => {
+      const saudiStocksRef = collection(db, 'saudi_stocks');
+      const uaeStocksRef = collection(db, 'uae_stocks');
+
+      const [saudiSnapshot, uaeSnapshot] = await Promise.all([
+        getDocs(saudiStocksRef),
+        getDocs(uaeStocksRef)
+      ]);
+
+      const saudiStocks = saudiSnapshot.docs.map(doc => {
         const data = doc.data();
         return {
-          ticker: doc.id,
-          name: data.name || 'Unknown Name',
-          name_ar: data.name_ar || 'اسم غير معروف',
-          price: data.price || 0,
+          ticker: doc.id, // companyShortNameEn
+          name: data.companyLongNameEn || 'Unknown Name',
+          name_ar: data.companyLongNameAr || 'اسم غير معروف', // Use companyLongNameAr for display
+          price: data.lastTradePrice || 0, // Use lastTradePrice for the price
           change: data.change || '0.00',
           changePercent: data.changePercent || '0.00%',
           trend: data.trend || 'stable',
           currency: data.currency || 'SAR',
-          category: 'Stocks', // Assuming all in this collection are stocks
-          country: 'SA', // Assuming all in this collection are from SA for now
+          category: 'Stocks',
+          country: 'SA',
         } as Asset;
       });
-      return stocks;
+      
+      const uaeStocks = uaeSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          ticker: doc.id,
+          name: data.nameEn || 'Unknown Name',
+          name_ar: data.nameAr || 'اسم غير معروف',
+          price: data.price || 0,
+          change: data.change || '0.00',
+          changePercent: data.changePercent || '0.00%',
+          trend: data.trend || 'stable',
+          currency: data.currency || 'AED',
+          category: 'Stocks',
+          country: 'AE',
+        } as Asset;
+      });
+
+      const allStocks = [...saudiStocks, ...uaeStocks];
+      if (allStocks.length === 0) {
+        console.log('[stocks.ts] No stocks found in any collection.');
+      }
+      return allStocks;
+
     } catch (error) {
       console.error("[stocks.ts] Error fetching all stocks: ", error);
       return []; // Return empty array on error
@@ -57,39 +81,42 @@ export const getAllStocks = cache(
  * @param filters - An object with optional filters, e.g., { country: 'SA' }.
  * @returns A promise that resolves to an array of Asset objects.
  */
-export async function findAllStocks(filters?: { country: string }): Promise<Asset[]> {
+export async function findAllStocks(filters?: { country: 'SA' | 'AE' | 'EG' }): Promise<Asset[]> {
     console.log(`[stocks.ts] Finding all stocks with filters:`, filters);
     try {
-        let q = query(collection(db, 'saudi_stocks'));
-        
-        // This is a placeholder for future filtering.
-        // To filter by a 'country' field, you'd need that field in your documents
-        // and a corresponding Firestore index.
-        // For now, we assume all stocks in 'saudi_stocks' are SA.
-        if (filters?.country && filters.country !== 'SA') {
-             console.warn(`[stocks.ts] Filtering for country "${filters.country}" but only SA stocks are currently supported in this collection.`);
-             return [];
+        if (!filters?.country) {
+            return await getAllStocks();
         }
 
+        const collectionName = filters.country === 'SA' ? 'saudi_stocks' : filters.country === 'AE' ? 'uae_stocks' : null;
+
+        if (!collectionName) {
+            console.warn(`[stocks.ts] No collection configured for country: ${filters.country}`);
+            return [];
+        }
+
+        const q = query(collection(db, collectionName));
         const snapshot = await getDocs(q);
+
         if (snapshot.empty) {
-            console.log('[stocks.ts] No stocks found for filters.');
+            console.log(`[stocks.ts] No stocks found for country: ${filters.country}`);
             return [];
         }
 
         return snapshot.docs.map(doc => {
             const data = doc.data();
+            const isSaudi = filters.country === 'SA';
             return {
-                ticker: doc.id,
-                name: data.name || 'Unknown Name',
-                name_ar: data.name_ar || 'اسم غير معروف',
-                price: data.price || 0,
+                ticker: doc.id, // companyShortNameEn
+                name: isSaudi ? (data.companyLongNameEn || 'Unknown Name') : (data.nameEn || 'Unknown Name'),
+                name_ar: isSaudi ? (data.companyLongNameAr || 'اسم غير معروف') : (data.nameAr || 'اسم غير معروف'),
+                price: isSaudi ? (data.lastTradePrice || 0) : (data.price || 0),
                 change: data.change || '0.00',
                 changePercent: data.changePercent || '0.00%',
                 trend: data.trend || 'stable',
-                currency: data.currency || 'SAR',
+                currency: data.currency || (isSaudi ? 'SAR' : 'AED'),
                 category: 'Stocks',
-                country: 'SA',
+                country: filters.country as 'SA' | 'AE' | 'EG',
             } as Asset;
         });
 
@@ -102,7 +129,7 @@ export async function findAllStocks(filters?: { country: string }): Promise<Asse
 
 /**
  * Fetches a single stock document by its ticker (document ID).
- * This function is also cached.
+ * This function is also cached. It will check Saudi stocks first, then UAE stocks.
  * @param ticker The stock ticker (document ID) to fetch.
  * @returns The Asset object or null if not found.
  */
@@ -111,16 +138,17 @@ export const getStockByTicker = cache(
         if (!ticker) return null;
         console.log(`[stocks.ts] Fetching stock by ticker from Firestore: ${ticker}`);
         try {
-            const stockDocRef = doc(db, 'saudi_stocks', ticker.toUpperCase());
-            const docSnap = await getDoc(stockDocRef);
+            // Try fetching from Saudi stocks first
+            const saudiStockRef = doc(db, 'saudi_stocks', ticker.toUpperCase());
+            const saudiDocSnap = await getDoc(saudiStockRef);
 
-            if (docSnap.exists()) {
-                const data = docSnap.data();
+            if (saudiDocSnap.exists()) {
+                const data = saudiDocSnap.data();
                 return {
-                    ticker: docSnap.id,
-                    name: data.name || 'Unknown Name',
-                    name_ar: data.name_ar || 'اسم غير معروف',
-                    price: data.price || 0,
+                    ticker: saudiDocSnap.id,
+                    name: data.companyLongNameEn || 'Unknown Name',
+                    name_ar: data.companyLongNameAr || 'اسم غير معروف',
+                    price: data.lastTradePrice || 0,
                     change: data.change || '0.00',
                     changePercent: data.changePercent || '0.00%',
                     trend: data.trend || 'stable',
@@ -128,10 +156,31 @@ export const getStockByTicker = cache(
                     category: 'Stocks',
                     country: 'SA',
                 } as Asset;
-            } else {
-                console.warn(`[stocks.ts] No stock found for ticker: ${ticker}`);
-                return null;
             }
+
+            // If not found in Saudi, try UAE stocks
+            const uaeStockRef = doc(db, 'uae_stocks', ticker.toUpperCase());
+            const uaeDocSnap = await getDoc(uaeStockRef);
+
+            if (uaeDocSnap.exists()) {
+                 const data = uaeDocSnap.data();
+                return {
+                    ticker: uaeDocSnap.id,
+                    name: data.nameEn || 'Unknown Name',
+                    name_ar: data.nameAr || 'اسم غير معروف',
+                    price: data.price || 0,
+                    change: data.change || '0.00',
+                    changePercent: data.changePercent || '0.00%',
+                    trend: data.trend || 'stable',
+                    currency: data.currency || 'AED',
+                    category: 'Stocks',
+                    country: 'AE',
+                } as Asset;
+            }
+
+            console.warn(`[stocks.ts] No stock found for ticker in any collection: ${ticker}`);
+            return null;
+
         } catch (error) {
             console.error(`[stocks.ts] Error fetching stock by ticker ${ticker}:`, error);
             return null; // Return null on error
