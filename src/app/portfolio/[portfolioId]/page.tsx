@@ -22,7 +22,8 @@ import { PlusCircle, Trash2, DollarSign, TrendingUp, AlertCircle, PackageOpen, B
 import { getCurrencySymbol } from '@/lib/utils'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { findMarketAssetsTool, getStockPriceFromFirestore } from '@/ai/tools/market-tools'
+import { getStockPriceFromFirestore } from '@/ai/tools/market-tools'
+import { findAllStocks } from '@/lib/stocks'
 
 
 const addAssetSchema = z.object({
@@ -165,7 +166,8 @@ export default function PortfolioDetailPage() {
         setIsFetchingAssets(true);
         try {
             if (category === 'Stocks' && country) {
-                const foundAssets = await findMarketAssetsTool({ market: country as 'SA' | 'AE' | 'EG' });
+                // Use the new direct Firestore query function
+                const foundAssets = await findAllStocks({ country: country as 'SA' | 'AE' | 'EG' });
                 setAvailableAssets(foundAssets);
             } else if (category === 'Real Estate') {
                 setAvailableAssets(realEstateData);
