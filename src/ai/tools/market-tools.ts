@@ -12,7 +12,7 @@ import { z } from 'genkit';
 import { staticAssets } from '@/lib/data';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { getAllStocks } from '@/lib/stocks';
+import { getAllStocks, findAllStocks } from '@/lib/stocks';
 
 
 /**
@@ -25,9 +25,22 @@ export async function getStockPriceFromFirestore(ticker: string): Promise<{ pric
     if (!ticker) return null;
 
     try {
-        const stockRef = doc(db, "saudi_stocks", ticker);
-        const docSnap = await getDoc(stockRef);
+        // Try saudi_stocks first
+        let stockRef = doc(db, "saudi_stocks", ticker.toUpperCase());
+        let docSnap = await getDoc(stockRef);
 
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            return {
+                price: data.price,
+                currency: data.currency,
+            };
+        }
+
+        // Then try uae_stocks
+        stockRef = doc(db, "uae_stocks", ticker.toUpperCase());
+        docSnap = await getDoc(stockRef);
+        
         if (docSnap.exists()) {
             const data = docSnap.data();
             return {
@@ -112,11 +125,8 @@ export const findMarketAssetsTool = ai.defineTool(
     },
     async ({ market }) => {
         console.log(`[findMarketAssetsTool] Fetching assets for ${market} from Firestore.`);
-        const allStocks = await getAllStocks();
-        // In a real app, you'd filter by country from the document data.
-        // For now, we assume all stocks in 'saudi_stocks' are 'SA'
+        const allStocks = await findAllStocks({ country: market });
         return allStocks
-            .filter(a => market === 'SA') // Simple filter for now
             .map(a => ({ ticker: a.ticker, name: a.name, name_ar: a.name_ar }));
     }
 );
