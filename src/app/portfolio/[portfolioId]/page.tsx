@@ -48,7 +48,7 @@ const stockCountries = [
     { id: 'EG', label: 'مصر' },
 ];
 
-type AvailableAsset = (Asset | RealEstateCity | { name: string; ticker: string; name_ar: string });
+type AvailableAsset = (Asset | RealEstateCity | { name: string; ticker: string; name_ar: string; price?: number });
 
 
 type LivePrice = { price: number; currency: string } | null;
@@ -166,7 +166,6 @@ export default function PortfolioDetailPage() {
         setIsFetchingAssets(true);
         try {
             if (category === 'Stocks' && country) {
-                // Use the new direct Firestore query function
                 const foundAssets = await findAllStocks({ country: country as 'SA' | 'AE' | 'EG' });
                 setAvailableAssets(foundAssets);
             } else if (category === 'Real Estate') {
@@ -210,6 +209,9 @@ export default function PortfolioDetailPage() {
         if (foundAsset) {
             setSelectedAsset(foundAsset);
             setFormValue('name', 'name_ar' in foundAsset ? foundAsset.name_ar : foundAsset.name);
+            if ('price' in foundAsset && foundAsset.price) {
+                setFormValue('purchasePrice', foundAsset.price);
+            }
             setStep(4);
         }
     }
