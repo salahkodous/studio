@@ -1,3 +1,4 @@
+
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -27,12 +28,12 @@ const categories: { id: Category; name: string }[] = [
   { id: 'Bonds', name: 'السندات' },
 ]
 
-type Country = 'All' | 'SA' | 'QA' | 'AE'
+type Country = 'All' | 'SA' | 'AE' | 'EG'
 const countries: { id: Country; name: string }[] = [
   { id: 'All', name: 'الكل' },
   { id: 'SA', name: 'السعودية' },
-  { id: 'QA', name: 'قطر' },
   { id: 'AE', name: 'الإمارات' },
+  { id: 'EG', name: 'مصر' },
 ]
 
 export default function WatchlistPage() {

@@ -44,7 +44,7 @@ const assetCategories = [
 const stockCountries = [
     { id: 'SA', label: 'السعودية' },
     { id: 'AE', label: 'الإمارات' },
-    { id: 'QA', label: 'قطر' },
+    { id: 'EG', label: 'مصر' },
 ];
 
 type AvailableAsset = (Asset | RealEstateCity | { name: string; ticker: string; name_ar: string });
@@ -165,7 +165,7 @@ export default function PortfolioDetailPage() {
         setIsFetchingAssets(true);
         try {
             if (category === 'Stocks' && country) {
-                const foundAssets = await findMarketAssetsTool({ market: country as 'SA' | 'AE' | 'QA' });
+                const foundAssets = await findMarketAssetsTool({ market: country as 'SA' | 'AE' | 'EG' });
                 setAvailableAssets(foundAssets);
             } else if (category === 'Real Estate') {
                 setAvailableAssets(realEstateData);

@@ -1,3 +1,4 @@
+
 import { notFound } from 'next/navigation'
 import { assets, getStockPriceHistory } from '@/lib/data'
 import { StockChart } from '@/components/stock-chart'
@@ -32,7 +33,7 @@ export default function StockDetailPage({ params }: { params: { ticker: string }
 
   const countryMap = {
       SA: 'السعودية',
-      QA: 'قطر',
+      EG: 'مصر',
       AE: 'الإمارات',
       Global: 'عالمي'
   }

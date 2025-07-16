@@ -98,7 +98,7 @@ export const findMarketAssetsTool = ai.defineTool(
         name: 'findMarketAssetsTool',
         description: 'Finds a list of publicly traded stocks for a given market by querying our local master data file.',
         inputSchema: z.object({
-            market: z.enum(['SA', 'AE', 'QA']).describe('The stock market to search (SA: Saudi Arabia, AE: UAE, QA: Qatar).'),
+            market: z.enum(['SA', 'AE', 'EG']).describe('The stock market to search (SA: Saudi Arabia, AE: UAE, EG: Egypt).'),
         }),
         outputSchema: z.array(z.object({
             ticker: z.string().describe('The official ticker symbol.'),

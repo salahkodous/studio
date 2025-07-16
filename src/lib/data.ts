@@ -7,9 +7,9 @@ export interface Asset {
   change: string
   changePercent: string
   trend: 'up' | 'down' | 'stable'
-  currency: 'SAR' | 'QAR' | 'AED' | 'USD'
+  currency: 'SAR' | 'AED' | 'EGP' | 'USD'
   category: 'Stocks' | 'Gold' | 'Oil' | 'Bonds' | 'Savings Certificates' | 'Other'
-  country: 'SA' | 'QA' | 'AE' | 'Global'
+  country: 'SA' | 'AE' | 'EG' | 'Global'
   annualYield?: number
 }
 
@@ -17,9 +17,9 @@ export interface RealEstateCity {
     cityKey: string;
     name: string;
     name_ar: string;
-    country: 'SA' | 'AE' | 'QA';
+    country: 'SA' | 'AE' | 'EG';
     pricePerSqM: number;
-    currency: 'SAR' | 'AED' | 'QAR';
+    currency: 'SAR' | 'AED' | 'EGP';
 }
 
 export const realEstateData: RealEstateCity[] = [
@@ -27,11 +27,10 @@ export const realEstateData: RealEstateCity[] = [
     { cityKey: 'JEDDAH', name: 'Jeddah', name_ar: 'جدة', country: 'SA', pricePerSqM: 3800, currency: 'SAR'},
     { cityKey: 'DUBAI', name: 'Dubai', name_ar: 'دبي', country: 'AE', pricePerSqM: 12000, currency: 'AED'},
     { cityKey: 'ABUDHABI', name: 'Abu Dhabi', name_ar: 'أبو ظبي', country: 'AE', pricePerSqM: 10500, currency: 'AED'},
-    { cityKey: 'DOHA', name: 'Doha', name_ar: 'الدوحة', country: 'QA', pricePerSqM: 15000, currency: 'QAR'},
+    { cityKey: 'CAIRO', name: 'Cairo', name_ar: 'القاهرة', country: 'EG', pricePerSqM: 25000, currency: 'EGP'},
 ];
 
 // This is the master list of assets. It contains the correct tickers and names.
-// These have been curated to include stocks generally available on the Twelve Data free plan.
 export const assets: Asset[] = [
     // Saudi Arabia (SA)
     { ticker: '2222', name: 'Saudi Arabian Oil Company', name_ar: 'أرامكو السعودية', country: 'SA', currency: 'SAR', price: 28.50, change: "+0.15", changePercent: "+0.53%", trend: 'up', category: 'Stocks' },
@@ -48,12 +47,11 @@ export const assets: Asset[] = [
     { ticker: 'TAQA', name: 'Abu Dhabi National Energy Company PJSC', name_ar: 'طاقة', country: 'AE', currency: 'AED', price: 3.50, change: "+0.01", changePercent: "+0.29%", trend: 'up', category: 'Stocks' },
     { ticker: 'ADCB', name: 'Abu Dhabi Commercial Bank PJSC', name_ar: 'بنك أبوظبي التجاري', country: 'AE', currency: 'AED', price: 8.90, change: "+0.10", changePercent: "+1.14%", trend: 'up', category: 'Stocks' },
 
-    // Qatar (QA)
-    { ticker: 'QNBK', name: 'Qatar National Bank (Q.P.S.C.)', name_ar: 'بنك قطر الوطني', country: 'QA', currency: 'QAR', price: 14.00, change: "-0.10", changePercent: "-0.71%", trend: 'down', category: 'Stocks' },
-    { ticker: 'IQCD', name: 'Industries Qatar Q.P.S.C.', name_ar: 'صناعات قطر', country: 'QA', currency: 'QAR', price: 12.50, change: "+0.05", changePercent: "+0.40%", trend: 'up', category: 'Stocks' },
-    { ticker: 'QIBK', name: 'Qatar Islamic Bank (Q.P.S.C.)', name_ar: 'مصرف قطر الإسلامي', country: 'QA', currency: 'QAR', price: 17.20, change: "0.00", changePercent: "0.00%", trend: 'stable', category: 'Stocks' },
-    { ticker: 'CBQK', name: 'The Commercial Bank (P.S.Q.C.)', name_ar: 'البنك التجاري', country: 'QA', currency: 'QAR', price: 5.50, change: "+0.03", changePercent: "+0.55%", trend: 'up', category: 'Stocks' },
-    { ticker: 'QGTS', name: 'Qatar Gas Transport Company Limited (Nakilat) (QPSC)', name_ar: 'ناقلات', country: 'QA', currency: 'QAR', price: 4.10, change: "-0.02", changePercent: "-0.49%", trend: 'down', category: 'Stocks' },
+    // Egypt (EG)
+    { ticker: 'COMI', name: 'Commercial International Bank (Egypt)', name_ar: 'البنك التجاري الدولي', country: 'EG', currency: 'EGP', price: 75.50, change: '+1.20', changePercent: '+1.61%', trend: 'up', category: 'Stocks' },
+    { ticker: 'EAST', name: 'Eastern Company', name_ar: 'الشرقية للدخان', country: 'EG', currency: 'EGP', price: 18.20, change: '-0.30', changePercent: '-1.62%', trend: 'down', category: 'Stocks' },
+    { ticker: 'TMGH', name: 'Talaat Moustafa Group Holding', name_ar: 'مجموعة طلعت مصطفى القابضة', country: 'EG', currency: 'EGP', price: 58.00, change: '+2.50', changePercent: '+4.50%', trend: 'up', category: 'Stocks' },
+    { ticker: 'SWDY', name: 'Elsewedy Electric', name_ar: 'السويدي إليكتريك', country: 'EG', currency: 'EGP', price: 35.10, change: '+0.50', changePercent: '+1.45%', trend: 'up', category: 'Stocks' },
 
     // Global Commodities & Bonds
     { ticker: 'GOLD', name: 'Gold', name_ar: 'الذهب', price: 2330, change: '+1.25', changePercent: '+0.70%', trend: 'up', currency: 'USD', category: 'Gold', country: 'Global' },
@@ -81,9 +79,9 @@ export const newsArticles: Record<string, string[]> = {
     'https://www.thenationalnews.com/business/markets/2023/10/26/ihc-reports-18-rise-in-q3-net-profit-on-higher-revenue/',
     'https://www.khaleejtimes.com/business/ihc-to-list-subsidiary-on-adx-second-market'
   ],
-  'QNBK': [ // QNB
-    'https://www.gulf-times.com/article/669821/business/qnb-groups-net-profit-up-8-to-qr11-9bn-in-9m-2023',
-    'https://www.zawya.com/en/islamic-economy/islamic-finance/qatar-national-bank-qnb-unit-qnb-finansbank-mandates-banks-for-green-bonds-issuance-x2wv61a9'
+   'COMI': [ // CIB Egypt
+    'https://www.reuters.com/business/finance/egypts-cib-posts-strong-q1-profit-jump-forex-gains-2024-05-09/',
+    'https://www.zawya.com/en/markets/equities/egypts-cib-awarded-best-bank-in-sustainable-finance-in-emerging-markets-2023-by-global-finance-p8h98vpl'
   ]
 }
 
