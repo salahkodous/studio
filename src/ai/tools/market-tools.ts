@@ -31,7 +31,7 @@ export async function getStockPriceFromFirestore(ticker: string): Promise<{ pric
         if (docSnap.exists()) {
             const data = docSnap.data();
             return {
-                price: data.lastTradePrice || 0,
+                price: data.lastTradePrice || 0, // CORRECT: Use lastTradePrice for Saudi stocks
                 currency: data.currency || 'SAR',
             };
         }
@@ -43,7 +43,7 @@ export async function getStockPriceFromFirestore(ticker: string): Promise<{ pric
         if (docSnap.exists()) {
             const data = docSnap.data();
             return {
-                price: data.price,
+                price: data.price, // Correct: Use price for UAE stocks
                 currency: data.currency,
             };
         }

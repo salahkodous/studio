@@ -31,10 +31,10 @@ export const getAllStocks = cache(
       const saudiStocks = saudiSnapshot.docs.map(doc => {
         const data = doc.data();
         return {
-          ticker: doc.id, // companyShortNameEn
+          ticker: doc.id,
           name: data.companyLongNameEn || 'Unknown Name',
-          name_ar: data.companyLongNameAr || 'اسم غير معروف', // Use companyLongNameAr for display
-          price: data.lastTradePrice || 0, // Use lastTradePrice for the price
+          name_ar: data.companyLongNameAr || 'اسم غير معروف',
+          price: data.lastTradePrice || 0, // CORRECT: Use lastTradePrice for Saudi
           change: data.change || '0.00',
           changePercent: data.changePercent || '0.00%',
           trend: data.trend || 'stable',
@@ -50,7 +50,7 @@ export const getAllStocks = cache(
           ticker: doc.id,
           name: data.nameEn || 'Unknown Name',
           name_ar: data.nameAr || 'اسم غير معروف',
-          price: data.price || 0,
+          price: data.price || 0, // Correct: Use price for UAE
           change: data.change || '0.00',
           changePercent: data.changePercent || '0.00%',
           trend: data.trend || 'stable',
@@ -107,10 +107,10 @@ export async function findAllStocks(filters?: { country: 'SA' | 'AE' | 'EG' }): 
             const data = doc.data();
             const isSaudi = filters.country === 'SA';
             return {
-                ticker: doc.id, // companyShortNameEn
+                ticker: doc.id,
                 name: isSaudi ? (data.companyLongNameEn || 'Unknown Name') : (data.nameEn || 'Unknown Name'),
                 name_ar: isSaudi ? (data.companyLongNameAr || 'اسم غير معروف') : (data.nameAr || 'اسم غير معروف'),
-                price: isSaudi ? (data.lastTradePrice || 0) : (data.price || 0),
+                price: isSaudi ? (data.lastTradePrice || 0) : (data.price || 0), // CORRECT: Use correct price field
                 change: data.change || '0.00',
                 changePercent: data.changePercent || '0.00%',
                 trend: data.trend || 'stable',
@@ -148,7 +148,7 @@ export const getStockByTicker = cache(
                     ticker: saudiDocSnap.id,
                     name: data.companyLongNameEn || 'Unknown Name',
                     name_ar: data.companyLongNameAr || 'اسم غير معروف',
-                    price: data.lastTradePrice || 0,
+                    price: data.lastTradePrice || 0, // CORRECT: Use lastTradePrice
                     change: data.change || '0.00',
                     changePercent: data.changePercent || '0.00%',
                     trend: data.trend || 'stable',
@@ -168,7 +168,7 @@ export const getStockByTicker = cache(
                     ticker: uaeDocSnap.id,
                     name: data.nameEn || 'Unknown Name',
                     name_ar: data.nameAr || 'اسم غير معروف',
-                    price: data.price || 0,
+                    price: data.price || 0, // Correct: Use price for UAE
                     change: data.change || '0.00',
                     changePercent: data.changePercent || '0.00%',
                     trend: data.trend || 'stable',
