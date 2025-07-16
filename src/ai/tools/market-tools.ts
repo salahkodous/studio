@@ -107,3 +107,5 @@ export const findCompanyNameTool = ai.defineTool(
         throw new Error(`Could not find a matching company for query: "${query}". Please try a more specific name or the exact ticker symbol.`);
     }
 );
+
+    

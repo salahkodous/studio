@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Service for fetching stock data from Firestore.
  * This centralizes data access for stocks, ensuring consistency.
@@ -6,13 +7,14 @@ import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firesto
 import { db } from './firebase';
 import type { Asset } from './data';
 import { unstable_cache as cache } from 'next/cache';
+import { staticAssets } from './data';
 
 // Re-export the Asset type for convenience in other files
 export type { Asset } from './data';
 
 
 /**
- * Fetches all documents from the 'saudi_stocks' and 'uae_stocks' collections.
+ * Fetches all documents from the 'saudi_stocks' and 'uae_stocks' collections, plus static assets.
  * This function is cached to prevent excessive Firestore reads on page loads.
  * The cache is tagged 'stocks' so it can be revalidated.
  */
@@ -189,3 +191,5 @@ export const getStockByTicker = cache(
     ['single-stock'], // Cache key parts
     { tags: ['stocks'], revalidate: 3600 } // Revalidate every hour
 );
+
+    
