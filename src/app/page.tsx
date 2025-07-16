@@ -1,66 +1,43 @@
-'use client'
 
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
-import Image from 'next/image'
-import { useAuth } from '@/hooks/use-auth'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Dashboard } from '@/components/dashboard'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { auth as serverAuth } from 'firebase-admin/auth';
+import { getFirebaseAdminApp } from '@/lib/firebase-admin';
+import { cookies } from 'next/headers';
+import type { User } from 'firebase/auth';
+import { getAllStocks, type Asset } from '@/lib/stocks';
 
-export default function HomePage() {
-  const { user, loading } = useAuth()
 
-  if (loading) {
-    return (
-      <div className="container mx-auto max-w-5xl p-4 md:p-8 space-y-8">
-        <Skeleton className="h-9 w-1/3" />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8">
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-6 w-1/2" />
-                <Skeleton className="h-4 w-3/4 mt-2" />
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-24 w-full" />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-6 w-1/2" />
-                <Skeleton className="h-4 w-3/4 mt-2" />
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Skeleton className="h-5 w-2/3" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-4/5" />
-              </CardContent>
-            </Card>
-          </div>
-          <div className="space-y-8">
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-6 w-1/2" />
-              </CardHeader>
-              <CardContent className="flex flex-col space-y-4">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-    )
+async function getAuthenticatedUser(): Promise<User | null> {
+  try {
+    const sessionCookie = cookies().get('__session')?.value || '';
+    if (!sessionCookie) return null;
+
+    getFirebaseAdminApp(); // Ensure admin app is initialized
+    const decodedIdToken = await serverAuth().verifySessionCookie(sessionCookie, true);
+    
+    // The decoded token has the user data we need. We can shape it to match the client-side User type.
+    return {
+        uid: decodedIdToken.uid,
+        email: decodedIdToken.email,
+        displayName: decodedIdToken.name,
+        photoURL: decodedIdToken.picture,
+    } as User;
+    
+  } catch (error) {
+    // Session cookie is invalid or expired.
+    // console.error('Authentication error:', error);
+    return null;
   }
+}
 
+
+export default async function HomePage() {
+  const user = await getAuthenticatedUser();
+  const allStocks: Asset[] = await getAllStocks();
+  
   if (!user) {
     return (
       <div className="container mx-auto flex flex-col items-center justify-center text-center min-h-[calc(100vh-8rem)] p-4">
@@ -82,5 +59,5 @@ export default function HomePage() {
     )
   }
 
-  return <Dashboard user={user} />
+  return <Dashboard user={user} allStocks={allStocks} />
 }

@@ -10,14 +10,14 @@ import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { ArrowLeft, LayoutDashboard, Lightbulb, Newspaper, Briefcase, PlusCircle, FolderKanban, Wand2 } from 'lucide-react'
 import { Skeleton } from './ui/skeleton'
-import { type Asset, getAllStocks } from '@/lib/stocks'
+import { type Asset } from '@/lib/stocks'
 
 interface DashboardProps {
-  user: User
+  user: User,
+  allStocks: Asset[]
 }
 
-export function Dashboard({ user }: DashboardProps) {
-  const [watchlistTickers, setWatchlistTickers] = useState<string[]>([]);
+export function Dashboard({ user, allStocks }: DashboardProps) {
   const [watchlist, setWatchlist] = useState<Asset[]>([])
   const [portfolios, setPortfolios] = useState<PortfolioDetails[]>([])
   const [strategies, setStrategies] = useState<SavedStrategy[]>([])
@@ -31,42 +31,34 @@ export function Dashboard({ user }: DashboardProps) {
 
     let active = true;
     
-    // Fetch all stocks once and build a lookup map
+    // Create a lookup map from the pre-fetched stocks
     const stockMap = new Map<string, Asset>();
-    getAllStocks().then(allStocks => {
+    allStocks.forEach(stock => stockMap.set(stock.ticker, stock));
+
+    // Now setup listeners
+    const unsubWatchlist = onWatchlistUpdate(user.uid, (tickers) => {
         if (!active) return;
-        allStocks.forEach(stock => stockMap.set(stock.ticker, stock));
-
-        // Now setup listeners
-        const unsubWatchlist = onWatchlistUpdate(user.uid, (tickers) => {
-            if (!active) return;
-            setWatchlistTickers(tickers);
-            const assetsInList = tickers.map(ticker => stockMap.get(ticker)).filter(Boolean) as Asset[];
-            setWatchlist(assetsInList);
-        });
-
-        const unsubPortfolios = onPortfoliosUpdate(user.uid, (portfolios) => {
-            if (active) setPortfolios(portfolios);
-        });
-        
-        const unsubStrategies = onStrategiesUpdate(user.uid, (strategies) => {
-          if (active) setStrategies(strategies);
-        });
-        
-        // Initial data loaded
-        if(active) setLoading(false);
-
-        // Cleanup function
-        return () => {
-          active = false;
-          unsubWatchlist?.();
-          unsubPortfolios?.();
-          unsubStrategies?.();
-        };
+        const assetsInList = tickers.map(ticker => stockMap.get(ticker)).filter(Boolean) as Asset[];
+        setWatchlist(assetsInList);
+        if(loading) setLoading(false);
     });
 
-    return () => { active = false }; // Cleanup for the outer effect
-  }, [user?.uid]);
+    const unsubPortfolios = onPortfoliosUpdate(user.uid, (portfolios) => {
+        if (active) setPortfolios(portfolios);
+    });
+    
+    const unsubStrategies = onStrategiesUpdate(user.uid, (strategies) => {
+      if (active) setStrategies(strategies);
+    });
+    
+    // Cleanup function
+    return () => {
+      active = false;
+      unsubWatchlist?.();
+      unsubPortfolios?.();
+      unsubStrategies?.();
+    };
+  }, [user?.uid, allStocks, loading]);
   
   const latestPortfolio = portfolios.length > 0 ? portfolios[0] : null;
   const latestStrategy = strategies.length > 0 ? strategies[0] : null;
